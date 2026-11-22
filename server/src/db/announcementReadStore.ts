@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getAppDb } from "./appDb";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 
 export type AnnouncementReadPlatform = "android" | "desktop";
 
@@ -32,14 +34,7 @@ export type AnnouncementReadListItem = {
   device: Record<string, unknown>;
 };
 
-export type AnnouncementReadPage = {
-  items: AnnouncementReadListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
-
-const MAX_PAGE_SIZE = 100;
+export type AnnouncementReadPage = PaginatedListData<AnnouncementReadListItem>;
 
 type AnnouncementReadRow = {
   id: string;
@@ -63,11 +58,6 @@ function parseSnapshot(value: string): Record<string, unknown> {
     // 使用空快照兜底，避免单条损坏记录阻断整个后台列表。
   }
   return {};
-}
-
-function normalizePageValue(value: number | undefined, fallback: number, max: number): number {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(0, Math.trunc(value as number)));
 }
 
 export async function announcementExists(announcementId: string): Promise<boolean> {
@@ -110,11 +100,10 @@ export async function upsertAnnouncementRead(input: AnnouncementReadInput): Prom
 
 export async function readAnnouncementReads(
   announcementId: string,
-  offsetValue = 0,
-  limitValue = 20,
+  offsetValue: unknown = 0,
+  limitValue: unknown = 20,
 ): Promise<AnnouncementReadPage> {
-  const offset = normalizePageValue(offsetValue, 0, Number.MAX_SAFE_INTEGER);
-  const limit = normalizePageValue(limitValue, 20, MAX_PAGE_SIZE) || 1;
+  const { offset, limit } = normalizePagination(offsetValue, limitValue);
   const db = getAppDb();
   const totalRow = (await db.queryOne("SELECT COUNT(*) AS total FROM announcement_reads WHERE announcement_id = ?", [announcementId])) as { total: number };
   const rows = (await db.query(`SELECT id, announcement_id, user_id, user_snapshot_json, platform, device_id,
@@ -124,7 +113,7 @@ export async function readAnnouncementReads(
        ORDER BY read_at DESC, id DESC
        LIMIT ? OFFSET ?`, [announcementId, limit, offset])) as AnnouncementReadRow[];
 
-  const items = rows.map((row) => {
+  const list = rows.map((row) => {
     const userSnapshot = parseSnapshot(row.user_snapshot_json);
     const deviceSnapshot = parseSnapshot(row.device_snapshot_json);
     const user = row.user_id || Object.keys(userSnapshot).length > 0 ? userSnapshot : null;
@@ -142,10 +131,5 @@ export async function readAnnouncementReads(
     };
   });
 
-  return {
-    items,
-    total: totalRow.total,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(list, totalRow.total, offset, limit);
 }

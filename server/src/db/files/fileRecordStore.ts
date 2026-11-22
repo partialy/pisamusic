@@ -1,6 +1,8 @@
 import type { DbTransaction } from "../core/types";
 import { getAppDb } from "../appDb";
 import type { ReleasePlatform } from "../system/systemConfigStore";
+import type { PaginatedListData } from "../../types/response";
+import { buildPaginatedList, normalizePagination } from "../../utils/pagination";
 
 export type ReleaseFileStatus = "uploaded" | "deleted";
 
@@ -83,12 +85,7 @@ export type FileRecordListQuery = {
   limit?: number;
 };
 
-export type FileRecordListResult = {
-  items: FileRecordInfo[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type FileRecordListResult = PaginatedListData<FileRecordInfo>;
 
 export type FileRecordRow = {
   id: string;
@@ -489,8 +486,7 @@ export async function readFileRecordById(id: string): Promise<FileRecordInfo | n
 
 export async function listFileRecords(query: FileRecordListQuery = {}): Promise<FileRecordListResult> {
   const db = getAppDb();
-  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
-  const offset = Math.max(0, Number(query.offset) || 0);
+  const { offset, limit } = normalizePagination(query.offset, query.limit);
   const where: string[] = [];
   const params: Array<string | number> = [];
   if (query.status && query.status !== "all") {
@@ -525,12 +521,8 @@ export async function listFileRecords(query: FileRecordListQuery = {}): Promise<
        LIMIT ? OFFSET ?`,
     [...params, limit, offset],
   )) as FileRecordRow[];
-  return {
-    items: rows.map((row) => mapFileRecord(row)).filter((item): item is FileRecordInfo => Boolean(item)),
-    total: Number(totalRow.total) || 0,
-    offset,
-    limit,
-  };
+  const list = rows.map((row) => mapFileRecord(row)).filter((item): item is FileRecordInfo => Boolean(item));
+  return buildPaginatedList(list, totalRow.total, offset, limit);
 }
 
 export async function findFileRecordDeleteBlockers(id: string): Promise<string[]> {

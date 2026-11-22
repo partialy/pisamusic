@@ -34,6 +34,7 @@ import type {
   DirectMessageTargetKind,
   DynamicConfigItem,
   DynamicConfigPayload,
+  PaginatedListData,
   FileRecordInfo,
   FileRecordListResponse,
   FeedbackStatus,
@@ -251,13 +252,42 @@ export async function uploadAnnouncementImage(
   return completeBody.data;
 }
 
-export async function fetchUpdateHistory(): Promise<UpdateHistoryItem[]> {
-  const res = await fetchWithAuth("/api/admin/update-history");
-  const body = await parseJson<UpdateHistoryItem[]>(res);
+export async function fetchUpdateHistoryPage(params: {
+  platform?: "all" | ReleasePlatform | "pc";
+  offset?: number;
+  limit?: number;
+}): Promise<PaginatedListData<UpdateHistoryItem>> {
+  const query = new URLSearchParams();
+  if (params.platform) query.set("platform", params.platform);
+  if (params.offset !== undefined) query.set("offset", String(params.offset));
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  const res = await fetchWithAuth(`/api/admin/update-history${qs ? `?${qs}` : ""}`);
+  const body = await parseJson<PaginatedListData<UpdateHistoryItem>>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
   return body.data;
+}
+
+export async function exportUpdateHistory(format: "json" | "csv"): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/update-history/export?format=${encodeURIComponent(format)}`);
+  const body = await parseJson<{
+    format: "json" | "csv";
+    fileName: string;
+    mimeType: string;
+    content: string;
+  }>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  const blob = new Blob([body.data.content], { type: body.data.mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = body.data.fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function publishUpdate(payload: AppUpdatePayload): Promise<{ id: string; update: AppUpdatePayload }> {

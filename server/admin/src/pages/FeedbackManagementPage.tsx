@@ -36,7 +36,7 @@ export default function FeedbackManagementPage() {
         offset: feedbackOffset,
         limit: feedbackLimit,
       });
-      setFeedbackItems(result.items);
+      setFeedbackItems(result.list);
       setFeedbackTotal(result.total);
     } catch (e) {
       alert(e instanceof Error ? e.message : "加载反馈列表失败");

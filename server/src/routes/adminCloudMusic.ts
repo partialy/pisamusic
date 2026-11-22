@@ -24,6 +24,7 @@ import {
   type CloudMusicUploadState,
 } from "../services/cloudMusicService";
 import { fail, ok } from "../types/response";
+import { normalizePagination } from "../utils/pagination";
 
 export const adminCloudMusicRouter = Router();
 
@@ -149,8 +150,10 @@ adminCloudMusicRouter.get("/", async (req, res) => {
     const uploadState = typeof req.query.uploadState === "string" && req.query.uploadState !== "all"
       ? (req.query.uploadState as CloudMusicUploadState)
       : undefined;
-    const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
-    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit, {
+      defaultLimit: 30,
+      maxLimit: 200,
+    });
 
     const result = (await list({
       keyword,

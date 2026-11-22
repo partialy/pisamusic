@@ -1,3 +1,4 @@
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 import { type TrackingRow } from "./appShareTrackingStore";
 import { getAnalyticsRetentionDays } from "./analyticsStore";
@@ -129,6 +130,7 @@ function trendFromRows(rows: Daily[]) {
 }
 export async function listTrackingRecords(f: TrackingFilters, exportAll = false) {
   const db = getAppDb();
+  const { offset, limit } = normalizePagination(f.offset, f.limit);
   const w = where(f);
   const total = Number(
     (
@@ -141,7 +143,7 @@ export async function listTrackingRecords(f: TrackingFilters, exportAll = false)
         JOIN +
         w.sql +
         ` ORDER BY ${order(f)}` +
-        (exportAll ? "" : " LIMIT ? OFFSET ?"), [...w.args, ...(exportAll ? [] : [f.limit, f.offset])])) as AdminRow[];
+        (exportAll ? "" : " LIMIT ? OFFSET ?"), [...w.args, ...(exportAll ? [] : [limit, offset])])) as AdminRow[];
   const sums = (await db.queryOne(`SELECT COUNT(*) AS total,COALESCE(SUM(r.valid),0) AS validCount,COALESCE(SUM(r.visit_count),0) AS visitCount,COALESCE(SUM(r.download_count),0) AS downloadCount,COALESCE(SUM(r.android_download_count),0) AS androidDownloadCount,COALESCE(SUM(r.desktop_download_count),0) AS desktopDownloadCount` +
         JOIN +
         w.sql, [...w.args])) as {
@@ -172,10 +174,7 @@ export async function listTrackingRecords(f: TrackingFilters, exportAll = false)
       : null,
   };
   return {
-    items: rows.map(dto),
-    total,
-    offset: f.offset,
-    limit: f.limit,
+    ...buildPaginatedList(rows.map(dto), total, offset, limit),
     summary,
     trend,
   };
@@ -187,11 +186,13 @@ export async function trackingRecordDetail(
   limit: number,
 ) {
   const db = getAppDb();
+  const normalizedVisit = normalizePagination(visitOffset, limit);
+  const normalizedDownload = normalizePagination(downloadOffset, limit);
   const row = (await db.queryOne(SELECT + JOIN + " WHERE r.id=?", [id])) as
     AdminRow | undefined;
   if (!row) return null;
-  const visits = (await db.query(`SELECT event_id AS eventId,visit_day AS visitDay,opened_at AS openedAt,received_at AS receivedAt,referrer_path AS referrerPath,user_agent AS userAgent,browser_device_type AS browserDeviceType,is_unique_for_share_day AS isUniqueForShareDay FROM app_share_visits WHERE share_record_id=? ORDER BY received_at DESC,event_id DESC LIMIT ? OFFSET ?`, [id, limit, visitOffset]));
-  const downloads = (await db.query(`SELECT id,platform,version,triggered_at AS triggeredAt,attribution_source AS attributionSource,safe_referrer_path AS referrerPath,safe_user_agent AS userAgent FROM app_share_downloads WHERE share_record_id=? ORDER BY triggered_at DESC,id DESC LIMIT ? OFFSET ?`, [id, limit, downloadOffset]));
+  const visits = (await db.query(`SELECT event_id AS eventId,visit_day AS visitDay,opened_at AS openedAt,received_at AS receivedAt,referrer_path AS referrerPath,user_agent AS userAgent,browser_device_type AS browserDeviceType,is_unique_for_share_day AS isUniqueForShareDay FROM app_share_visits WHERE share_record_id=? ORDER BY received_at DESC,event_id DESC LIMIT ? OFFSET ?`, [id, normalizedVisit.limit, normalizedVisit.offset]));
+  const downloads = (await db.query(`SELECT id,platform,version,triggered_at AS triggeredAt,attribution_source AS attributionSource,safe_referrer_path AS referrerPath,safe_user_agent AS userAgent FROM app_share_downloads WHERE share_record_id=? ORDER BY triggered_at DESC,id DESC LIMIT ? OFFSET ?`, [id, normalizedDownload.limit, normalizedDownload.offset]));
   const count = async (table: string) =>
     Number(
       (
@@ -205,8 +206,18 @@ export async function trackingRecordDetail(
     trend: trendFromRows(
       (await db.query("SELECT * FROM app_share_daily_stats WHERE share_record_key=?", [id])) as Daily[],
     ),
-    visits: { items: visits, total: (await count("app_share_visits")) },
-    downloads: { items: downloads, total: (await count("app_share_downloads")) },
+    visits: buildPaginatedList(
+      visits,
+      await count("app_share_visits"),
+      normalizedVisit.offset,
+      normalizedVisit.limit,
+    ),
+    downloads: buildPaginatedList(
+      downloads,
+      await count("app_share_downloads"),
+      normalizedDownload.offset,
+      normalizedDownload.limit,
+    ),
     retentionDays: getAnalyticsRetentionDays(),
   };
 }

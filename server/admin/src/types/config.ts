@@ -109,12 +109,15 @@ export type FileRecordInfo = {
   deletedAt: number | null;
 };
 
-export type FileRecordListResponse = {
-  items: FileRecordInfo[];
+export type PaginatedListData<T> = {
+  list: T[];
   total: number;
   offset: number;
   limit: number;
+  hasMore: boolean;
 };
+
+export type FileRecordListResponse = PaginatedListData<FileRecordInfo>;
 
 export type UpdateHistoryItem = {
   id: string;
@@ -127,6 +130,8 @@ export type UpdateHistoryItem = {
   updateContent: string;
   releaseFileId?: string | null;
   releaseFile?: ReleaseFileInfo | null;
+  createdAt?: number;
+  isCurrent?: boolean;
 };
 
 export type UpdateHistoryDeletionPreview = {
@@ -211,11 +216,11 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/config/check-update",
   "/api/config/get",
   "/api/config/releases",
+  "/api/config/releases/*",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
   "/api/config/download/*",
   "/api/config/discover",
-  "/api/config/update-history",
   "/api/config/agreement",
   "/api/config/service-agreement",
   "/api/config/privacy-policy",
@@ -296,12 +301,7 @@ export type AnnouncementReadItem = {
   device: AnnouncementReadDevice;
 };
 
-export type AnnouncementReadPage = {
-  items: AnnouncementReadItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AnnouncementReadPage = PaginatedListData<AnnouncementReadItem>;
 
 export type UpdateFormDraft = {
   platform: ReleasePlatform;
@@ -360,19 +360,9 @@ export type DesktopDeviceInfo = {
   extraInfo: Record<string, unknown>;
 };
 
-export type DeviceListResponse = {
-  devices: DeviceInfo[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type DeviceListResponse = PaginatedListData<DeviceInfo>;
 
-export type DesktopDeviceListResponse = {
-  devices: DesktopDeviceInfo[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type DesktopDeviceListResponse = PaginatedListData<DesktopDeviceInfo>;
 
 export type DirectMessageTargetKind = "user" | "android_device" | "desktop_device";
 
@@ -389,12 +379,7 @@ export type AdminDirectMessageItem = {
   readDeviceId: string | null;
 };
 
-export type AdminDirectMessagePage = {
-  items: AdminDirectMessageItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminDirectMessagePage = PaginatedListData<AdminDirectMessageItem>;
 
 export type DeviceFilter = {
   search?: string;
@@ -458,12 +443,7 @@ export type AdminUserDetail = AdminUserListItem & {
   library?: never;
 };
 
-export type AdminUserListResponse = {
-  users: AdminUserListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminUserListResponse = PaginatedListData<AdminUserListItem>;
 
 export type AdminUserFilter = {
   keyword?: string;
@@ -476,12 +456,7 @@ export type AdminUserLibraryStatus = "active" | "deleted" | "all";
 
 export type AdminUserDetailTab = AdminUserLibraryKind | "syncLogs" | "messages";
 
-export type AdminUserLibraryPage = {
-  items: AdminUserLibraryItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminUserLibraryPage = PaginatedListData<AdminUserLibraryItem>;
 
 export type AdminUserSyncLogItem = {
   version: number;
@@ -496,11 +471,7 @@ export type AdminUserSyncLogItem = {
   serverUpdatedAt: number;
 };
 
-export type AdminUserSyncLogsPage = {
-  items: AdminUserSyncLogItem[];
-  total: number;
-  offset: number;
-  limit: number;
+export type AdminUserSyncLogsPage = PaginatedListData<AdminUserSyncLogItem> & {
   syncVersion: number;
   syncLogFloor: number;
 };
@@ -545,12 +516,7 @@ export type AdminShareListItem = {
   invalidatedAt: number | null;
 };
 
-export type AdminShareListResponse = {
-  items: AdminShareListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminShareListResponse = PaginatedListData<AdminShareListItem>;
 
 export type AdminShareFilter = {
   type?: ShareType;
@@ -581,12 +547,7 @@ export type AdminFeedbackDetail = AdminFeedbackListItem & {
   images: string[];
 };
 
-export type AdminFeedbackListResponse = {
-  items: AdminFeedbackListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminFeedbackListResponse = PaginatedListData<AdminFeedbackListItem>;
 
 export type AdminFeedbackFilter = {
   status?: FeedbackStatus;
@@ -633,19 +594,9 @@ export type AdminWebsiteDownloadDetail = AdminWebsiteDownloadListItem & {
   userAgent: string;
 };
 
-export type AdminWebsiteVisitListResponse = {
-  items: AdminWebsiteVisitListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminWebsiteVisitListResponse = PaginatedListData<AdminWebsiteVisitListItem>;
 
-export type AdminWebsiteDownloadListResponse = {
-  items: AdminWebsiteDownloadListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminWebsiteDownloadListResponse = PaginatedListData<AdminWebsiteDownloadListItem>;
 
 export type FaultReportStatus = "pending" | "processed";
 export type FaultReportScene = "play_url" | "desktop_network";
@@ -692,7 +643,7 @@ export type AdminFaultReportListItem = {
 };
 
 export type AdminFaultReportDetail = AdminFaultReportListItem & { logs: FaultReportLog[] };
-export type AdminFaultReportListResponse = { items: AdminFaultReportListItem[]; total: number; offset: number; limit: number };
+export type AdminFaultReportListResponse = PaginatedListData<AdminFaultReportListItem>;
 export type AdminFaultReportFilter = {
   status?: FaultReportStatus;
   scene?: FaultReportScene;
@@ -703,7 +654,6 @@ export type AdminFaultReportFilter = {
 
 export type PisaAdminExport = AppConfigJson & {
   announcements: Announcement[];
-  updateHistory: UpdateHistoryItem[];
 };
 
 export type VerificationCodeChannel = "email" | "phone";
@@ -733,12 +683,7 @@ export type VerificationCodeRecord = {
   verifiedAt: number | null;
 };
 
-export type VerificationCodeListResponse = {
-  items: VerificationCodeRecord[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type VerificationCodeListResponse = PaginatedListData<VerificationCodeRecord>;
 
 export type VerificationCodeFilter = {
   channel?: string;

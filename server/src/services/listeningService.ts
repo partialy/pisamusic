@@ -17,6 +17,7 @@ import {
   type ListeningTrackPage,
   type StoredListeningFragment,
 } from "../db/listeningStore";
+import { normalizePagination } from "../utils/pagination";
 
 const SOURCES: readonly ListeningSource[] = ["kg", "wy", "kw", "cloud", "local"];
 const PLATFORMS = ["android", "desktop"] as const;
@@ -260,8 +261,7 @@ export async function getListeningSummary(userId: string): Promise<ListeningSumm
 export async function getListeningTracks(userId: string, query: ListeningTrackQuery): Promise<ListeningTrackPage> {
   const source = query.source && SOURCES.includes(query.source) ? query.source : undefined;
   const sort = query.sort === "playCount" || query.sort === "lastListenedAt" ? query.sort : "listenedMs";
-  const offset = Math.max(0, Math.floor(query.offset ?? 0));
-  const limit = Math.min(100, Math.max(1, Math.floor(query.limit ?? 20)));
+  const { offset, limit } = normalizePagination(query.offset, query.limit, { defaultLimit: 20, maxLimit: 100 });
   return (await listTrackStats(userId, { source, sort, offset, limit }));
 }
 

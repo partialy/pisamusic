@@ -15,6 +15,8 @@ import {
 } from "./userStore";
 import { getAppDb } from "./appDb";
 import { listTrackStats } from "./listeningStore";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 
 export type AdminUserStats = {
   favoriteSongs: number;
@@ -72,12 +74,7 @@ export type AdminUserDetail = AdminUserListItem & {
 export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "playlistTracks" | "listeningHistory";
 export type AdminUserLibraryStatus = "active" | "deleted" | "all";
 
-export type AdminUserLibraryPage = {
-  items: AdminUserLibraryItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminUserLibraryPage = PaginatedListData<AdminUserLibraryItem>;
 
 export type AdminUserSyncLogItem = {
   version: number;
@@ -92,21 +89,12 @@ export type AdminUserSyncLogItem = {
   serverUpdatedAt: number;
 };
 
-export type AdminUserSyncLogsPage = {
-  items: AdminUserSyncLogItem[];
-  total: number;
-  offset: number;
-  limit: number;
+export type AdminUserSyncLogsPage = PaginatedListData<AdminUserSyncLogItem> & {
   syncVersion: number;
   syncLogFloor: number;
 };
 
-export type AdminUserListResult = {
-  users: AdminUserListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminUserListResult = PaginatedListData<AdminUserListItem>;
 
 export type AdminUserUpdateInput = {
   username?: string;
@@ -162,13 +150,6 @@ type SyncLogQueryRow = {
 
 function normalizeKeyword(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizePagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
-    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
-  };
 }
 
 function rowToUserRecord(row: UserStatsRow): UserRecord {
@@ -252,12 +233,7 @@ export async function listAdminUsers(rawKeyword: unknown, rawOffset: unknown, ra
   const where = buildUserWhere(keyword);
   const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM users u ${where.sql}`, [...where.params])) as { total: number };
   const rows = (await db.query(`${userStatsSelect(where.sql)} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as UserStatsRow[];
-  return {
-    users: rows.map(mapUserRow),
-    total: totalRow.total,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(rows.map(mapUserRow), totalRow.total, offset, limit);
 }
 
 export async function readAdminUserDetail(id: string): Promise<AdminUserDetail | null> {
@@ -276,12 +252,12 @@ export async function listAdminUserLibraryItems(
 ): Promise<AdminUserLibraryPage | null> {
   if (!(await readUserById(userId))) return null;
   const db = getAppDb();
-  const { offset, limit } = normalizePagination(rawOffset, rawLimit ?? 30);
+  const { offset, limit } = normalizePagination(rawOffset, rawLimit, { defaultLimit: 30 });
 
   if (kind === "listeningHistory") {
     const trackPage = (await listTrackStats(userId, { sort: "lastListenedAt", offset, limit }));
-    return {
-      items: trackPage.items.map((track) => ({
+    return buildPaginatedList(
+      trackPage.list.map((track) => ({
         itemKey: `${track.source}:${track.songId}`,
         itemId: track.songId,
         source: track.source,
@@ -297,10 +273,10 @@ export async function listAdminUserLibraryItems(
         firstListenedAt: track.firstListenedAt,
         lastListenedAt: track.lastListenedAt,
       })),
-      total: trackPage.total,
-      offset: trackPage.offset,
-      limit: trackPage.limit,
-    };
+      trackPage.total,
+      trackPage.offset,
+      trackPage.limit,
+    );
   }
 
   const itemType = itemTypeForKind(kind);
@@ -317,12 +293,8 @@ export async function listAdminUserLibraryItems(
   }
   const whereSql = conditions.join(" AND ");
   const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM user_sync_items WHERE ${whereSql}`, params)) as { total: number };
-  return {
-    items: await listUserSyncItems(db, whereSql, params, itemType, offset, limit),
-    total: Number(totalRow.total) || 0,
-    offset,
-    limit,
-  };
+  const list = await listUserSyncItems(db, whereSql, params, itemType, offset, limit);
+  return buildPaginatedList(list, totalRow.total, offset, limit);
 }
 
 export async function listAdminUserSyncLogs(
@@ -332,7 +304,7 @@ export async function listAdminUserSyncLogs(
   const db = getAppDb();
   const userRow = (await db.queryOne("SELECT sync_version, sync_log_floor FROM users WHERE id = ?", [userId])) as { sync_version: number; sync_log_floor: number } | undefined;
   if (!userRow) return null;
-  const { offset, limit } = normalizePagination(query.offset, query.limit ?? 30);
+  const { offset, limit } = normalizePagination(query.offset, query.limit, { defaultLimit: 30 });
   const conditions = ["user_id = ?"];
   const params: Array<string | number> = [userId];
   const itemType = normalizeKeyword(query.itemType);
@@ -365,22 +337,20 @@ export async function listAdminUserSyncLogs(
      LIMIT ? OFFSET ?`,
     [...params, limit, offset],
   )) as SyncLogQueryRow[];
+  const list = rows.map((row) => ({
+    version: Number(row.version),
+    opId: row.op_id,
+    deviceId: row.device_id,
+    itemType: row.item_type,
+    itemKey: row.item_key,
+    action: row.action,
+    summary: summarizeSyncPayload(row.item_type, row.item_key, row.action, row.payload_json),
+    payloadJson: row.payload_json,
+    clientUpdatedAt: row.client_updated_at,
+    serverUpdatedAt: Number(row.server_updated_at),
+  }));
   return {
-    items: rows.map((row) => ({
-      version: Number(row.version),
-      opId: row.op_id,
-      deviceId: row.device_id,
-      itemType: row.item_type,
-      itemKey: row.item_key,
-      action: row.action,
-      summary: summarizeSyncPayload(row.item_type, row.item_key, row.action, row.payload_json),
-      payloadJson: row.payload_json,
-      clientUpdatedAt: row.client_updated_at,
-      serverUpdatedAt: Number(row.server_updated_at),
-    })),
-    total: Number(totalRow.total) || 0,
-    offset,
-    limit,
+    ...buildPaginatedList(list, totalRow.total, offset, limit),
     syncVersion: Number(userRow.sync_version) || 0,
     syncLogFloor: Number(userRow.sync_log_floor) || 0,
   };

@@ -1,3 +1,5 @@
+import type { PaginatedListData } from "./config";
+
 export type CloudMusicStatus =
   | "temp"
   | "active"
@@ -69,12 +71,7 @@ export type CloudMusicListFilter = {
   limit?: number;
 };
 
-export type CloudMusicListResponse = {
-  items: CloudMusicTrack[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type CloudMusicListResponse = PaginatedListData<CloudMusicTrack>;
 
 export type CloudMusicAssetUploadTicket = {
   assetId: string;

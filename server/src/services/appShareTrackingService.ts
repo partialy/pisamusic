@@ -1,4 +1,5 @@
 import { getWebsiteDomain } from "../utils/websiteDomain";
+import { normalizePagination } from "../utils/pagination";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 import { deviceMessageIdentityFromRequest } from "../middleware/deviceMessageToken";
@@ -252,10 +253,6 @@ export async function resolveTrackedDownloadTarget(
     throw new AppShareTrackingError("下载地址配置循环", 500);
   return downloadUrl;
 }
-function integer(value: unknown, fallback: number, max: number) {
-  const n = Number(value);
-  return Number.isSafeInteger(n) && n >= 0 ? Math.min(n, max) : fallback;
-}
 export function trackingFilters(
   query: Record<string, unknown>,
 ): TrackingFilters {
@@ -288,6 +285,7 @@ export function trackingFilters(
     to = timestamp(query.to);
   if (from !== undefined && to !== undefined && from > to)
     throw new AppShareTrackingError("时间范围无效");
+  const { offset, limit } = normalizePagination(query.offset, query.limit);
   return {
     keyword: stringInput(query.keyword, 200).trim(),
     deviceKind: query.deviceKind === "android" || query.deviceKind === "desktop" ? query.deviceKind : undefined,
@@ -301,8 +299,8 @@ export function trackingFilters(
     sort: sort as TrackingFilters["sort"],
     from,
     to,
-    offset: integer(query.offset, 0, 1000000),
-    limit: Math.max(1, integer(query.limit, 20, 100)),
+    offset,
+    limit,
   };
 }
 export async function managedTrackingList(query: Record<string, unknown>) {
@@ -313,11 +311,13 @@ export async function managedTrackingDetail(
   query: Record<string, unknown>,
 ) {
   if (!UUID.test(id)) throw new AppShareTrackingError("记录不存在", 404);
+  const { offset: visitOffset, limit } = normalizePagination(query.visitOffset, query.limit);
+  const { offset: downloadOffset } = normalizePagination(query.downloadOffset, query.limit);
   const result = (await trackingRecordDetail(
     id,
-    integer(query.visitOffset, 0, 1000000),
-    integer(query.downloadOffset, 0, 1000000),
-    Math.max(1, integer(query.limit, 20, 100)),
+    visitOffset,
+    downloadOffset,
+    limit,
   ));
   if (!result) throw new AppShareTrackingError("记录不存在", 404);
   return result;
@@ -328,7 +328,7 @@ export async function invalidateManagedTracking(id: string) {
   return { id, valid: false };
 }
 export async function exportManagedTracking(query: Record<string, unknown>) {
-  const rows = (await listTrackingRecords(trackingFilters(query), true)).items;
+  const rows = (await listTrackingRecords(trackingFilters(query), true)).list;
   const csvCell = (value: unknown) => {
     let text = value == null ? "" : String(value);
     if (/^[\s]*[=+\-@\t\r]/.test(text)) text = "'" + text;

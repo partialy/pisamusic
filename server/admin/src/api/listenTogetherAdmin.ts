@@ -1,4 +1,5 @@
 import { fetchWithAuth, parseJson } from "./client";
+import type { PaginatedListData } from "../types/config";
 
 export type AdminOnlineRoomListItem = {
   recordId: string;
@@ -108,19 +109,9 @@ export type AdminRoomHistoryDetail = AdminRoomHistoryListItem & {
   members: AdminRoomMemberHistoryItem[];
 };
 
-export type AdminOnlineRoomsPage = {
-  items: AdminOnlineRoomListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminOnlineRoomsPage = PaginatedListData<AdminOnlineRoomListItem>;
 
-export type AdminRoomHistoryPage = {
-  items: AdminRoomHistoryListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminRoomHistoryPage = PaginatedListData<AdminRoomHistoryListItem>;
 
 export async function fetchAdminOnlineRooms(params: {
   keyword?: string;

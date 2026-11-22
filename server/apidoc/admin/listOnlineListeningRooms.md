@@ -30,7 +30,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "recordId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
         "roomId": "888888",
@@ -65,7 +65,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

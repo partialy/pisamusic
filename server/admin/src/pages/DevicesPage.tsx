@@ -34,10 +34,11 @@ export default function DevicesPage() {
   const [deviceLoading, setDeviceLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | DesktopDeviceInfo | null>(null);
   const [deviceMessagesPage, setDeviceMessagesPage] = useState<AdminDirectMessagePage>({
-    items: [],
+    list: [],
     total: 0,
     offset: 0,
     limit: 30,
+    hasMore: false,
   });
   const [deviceMessagesLoading, setDeviceMessagesLoading] = useState(false);
   const directMessageComposer = useDirectMessageComposer();
@@ -67,7 +68,7 @@ export default function DevicesPage() {
     try {
       const fetcher = deviceMode === "desktop" ? fetchDesktopDevices : fetchDevices;
       const result = await fetcher({ ...deviceFilter, offset: deviceOffset, limit: deviceLimit });
-      setDevices(result.devices);
+      setDevices(result.list);
       setDeviceTotal(result.total);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "加载设备列表失败";
@@ -93,7 +94,7 @@ export default function DevicesPage() {
   const handleDeviceModeChange = (mode: "android" | "desktop") => {
     setDeviceMode(mode);
     setSelectedDevice(null);
-    setDeviceMessagesPage({ items: [], total: 0, offset: 0, limit: 30 });
+    setDeviceMessagesPage({ list: [], total: 0, offset: 0, limit: 30, hasMore: false });
     setDeviceFilter({});
     setDeviceOffset(0);
   };
@@ -112,7 +113,7 @@ export default function DevicesPage() {
       }
     } else {
       setSelectedDevice(null);
-      setDeviceMessagesPage({ items: [], total: 0, offset: 0, limit: 30 });
+      setDeviceMessagesPage({ list: [], total: 0, offset: 0, limit: 30, hasMore: false });
     }
   };
 
@@ -132,7 +133,7 @@ export default function DevicesPage() {
         offset: currentOffset,
         limit: deviceMessagesPage.limit,
       });
-      if (currentPage.items.length === 0 && currentOffset > 0) {
+      if (currentPage.list.length === 0 && currentOffset > 0) {
         await loadDeviceMessages(
           selectedDevice,
           Math.max(0, currentOffset - deviceMessagesPage.limit),

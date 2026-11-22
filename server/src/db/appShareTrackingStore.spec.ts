@@ -32,10 +32,14 @@ test("推广身份、事件幂等、UV、归因、失效和事务回滚",async()
  // 较早导航迟到，不能覆盖最新触点。
  (await store.recordTrackingVisit({...event,eventId:randomUUID(),openedAt:now-1,now:now+2}));
  assert.equal((await store.latestTrackingTouch(hash,now+2))?.code,user.code);
- const summary=(await admin.listTrackingRecords({timeField:"createdAt",sort:"createdAt",offset:0,limit:20})).summary;
+ const listResult=(await admin.listTrackingRecords({timeField:"createdAt",sort:"createdAt",offset:0,limit:20}));
+ assert.equal(listResult.list.length,listResult.total);assert.equal(listResult.hasMore,false);
+ const summary=listResult.summary;
  assert.equal(summary.visitCount,4);assert.equal(summary.visitUv,1);
  const visit=(await admin.trackingRecordDetail(guest.id,0,0,20))!;
- assert.equal(visit.record.visitUv,1);assert.equal(visit.visits.total,3);
+ assert.equal(visit.record.visitUv,1);
+ assert.equal(visit.visits.total,3);assert.equal(visit.visits.list.length,3);assert.equal(visit.visits.offset,0);assert.equal(visit.visits.limit,20);assert.equal(visit.visits.hasMore,false);
+ assert.equal(visit.downloads.total,0);assert.equal(visit.downloads.list.length,0);assert.equal(visit.downloads.offset,0);assert.equal(visit.downloads.limit,20);assert.equal(visit.downloads.hasMore,false);
  const input={platform:"android" as const,version:"1.0",fileRecordId:null,ipAddress:"",referrer:"https://example.com/?secret=1",userAgent:"Mozilla/5.0",occurredAt:now+3};
  (await store.recordTrackedDownload(input,{explicit:false,visitorHash:hash,safeReferrerPath:"https://example.com/"}));
  assert.equal((await store.readTrackingCode(user.code))?.android_download_count,1);
@@ -61,5 +65,7 @@ test("推广身份、事件幂等、UV、归因、失效和事务回滚",async()
  (await analytics.maybeCleanupAnalytics(now+86400000));
  assert.equal(((await db.queryOne("SELECT COUNT(*) AS n FROM app_share_visits", [])) as {n:number}).n,0);
  assert.equal((await store.readTrackingCode(user.code))!.visit_count,lifetime);
- assert.equal((await admin.trackingRecordDetail(user.id,0,0,20))!.record.visitUv,1);
+ const userDetail=(await admin.trackingRecordDetail(user.id,0,0,20))!;
+ assert.equal(userDetail.record.visitUv,1);
+ assert.equal(userDetail.downloads.hasMore,false);
 });

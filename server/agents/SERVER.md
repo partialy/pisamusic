@@ -9,6 +9,7 @@
   - **Route 层边界**：`routes/admin.ts` 严格定位为子路由装配中心，禁止在 `admin.ts` 内部直接内联编写超过 5 行的业务路由实现；所有管理端路由必须拆分为独立的 `adminXxx.ts` 子 Router，并在 `admin.ts` 中通过 `adminRouter.use("/xxx", ...)` 挂载。
   - **Service 层边界**：复杂的跨端业务服务必须按角色与视角拆分（如 Public 只读检索、User 用户投稿与管理、Admin 后台运维与审核），底层音视频二进制提取或第三方 SDK 交互必须提取为独立 Helper，避免全生命周期逻辑堆在单个巨大 Service。
 - 涉及账号、同步、消息、分享、一起听、云盘、发布、故障或听歌统计时，按需查阅[跨模块契约](../../agents/CROSS_MODULE.md)对应章节。
+- **统一分页规范**：所有常规分页接口统一复用 `types/response.ts` 的 `PaginatedListData<T>` 与 `utils/pagination.ts` 的 `normalizePagination` / `buildPaginatedList`，请求用 `offset` / `limit`，响应 `data` 为 `{ list, total, offset, limit, hasMore }`（`sync/changes` 游标同步、`messages/unread` 未读队列及 `web/music/search` 除外）。网盘音乐公开搜索与投稿历史旧版 `/api/cloud-music/search`、`/api/cloud-music/submit/my-history` 保持 `items` 兼容旧端，统一分页新接口位于 `/api/cloud-music/v2/search` 与 `/api/cloud-music/v2/submit/my-history`（待客户端切换记录见 [CLIENT_ADAPTATION.md](../../CLIENT_ADAPTATION.md)）。
 
 ## 运行与构建
 
@@ -62,6 +63,8 @@
 
 - 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。
 - 服务端改动至少运行 TypeScript 构建，并按影响面检查相关接口。
+- 后续所有新增或改造的分页接口统一使用 `offset`、`limit` 获取，返回：`{ code, msg, success, data: { list: [], total, offset, limit, hasMore } }`。
+- 公开版本历史与详情接口：`/api/config/releases/history`（支持 `platform=all|pc|desktop|android`、`offset`、`limit` 倒序分页，返回统一分页结构）和 `/api/config/releases/detail`（支持 `platform=pc|desktop|android`、`version=latest` 或忽略前导 `v` 匹配具体版本），均纳入强制明文白名单与简单 IP 限流（`release-query` 60 秒 60 次）；旧全量 `/api/config/update-history` 已移除。管理端 `/api/admin/update-history` 同步改造为统一分页接口并附带 `isCurrent`；新增 `GET /api/admin/update-history/export?format=json|csv` 导出未删除的全量发行记录（`deleted_at IS NULL`）。相关只读查询与导出逻辑拆分在 `db/updates/updateHistoryQueryStore.ts` 与 `services/releaseHistoryService.ts`。
 
 ## SQLite / MySQL 5.7 独立部署、安装与复制
 

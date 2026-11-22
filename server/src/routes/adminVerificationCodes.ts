@@ -10,16 +10,14 @@ adminVerificationCodesRouter.get("/", async (req, res) => {
     const purpose = typeof req.query.purpose === "string" ? req.query.purpose : undefined;
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const keyword = typeof req.query.keyword === "string" ? req.query.keyword : undefined;
-    const offset = Number(req.query.offset) || 0;
-    const limit = Number(req.query.limit) || 20;
 
     const data = (await listVerificationCodeRecords({
       channel,
       purpose,
       status,
       keyword,
-      offset,
-      limit,
+      offset: req.query.offset,
+      limit: req.query.limit,
     }));
 
     return res.json(ok(data));

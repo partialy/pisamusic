@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 import {
   sanitizeSongSnapshot,
@@ -408,12 +410,9 @@ function mapRowToItem(row: DbRoomRecordRow): AdminRoomHistoryListItem {
   };
 }
 
-export async function listRoomHistory(query: AdminRoomHistoryQuery): Promise<{
-  items: AdminRoomHistoryListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-}> {
+export async function listRoomHistory(
+  query: AdminRoomHistoryQuery,
+): Promise<PaginatedListData<AdminRoomHistoryListItem>> {
   const db = getAppDb();
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -447,20 +446,14 @@ export async function listRoomHistory(query: AdminRoomHistoryQuery): Promise<{
 
   const countRow = (await db.queryOne(`SELECT COUNT(*) as total FROM listen_together_room_records ${whereClause}`, [...params])) as { total: number };
 
-  const limit = Math.max(1, Math.min(100, query.limit || 20));
-  const offset = Math.max(0, query.offset || 0);
+  const { offset, limit } = normalizePagination(query.offset, query.limit);
 
   const rows = (await db.query(`SELECT * FROM listen_together_room_records
        ${whereClause}
        ORDER BY ended_at DESC, id DESC
        LIMIT ? OFFSET ?`, [...params, limit, offset])) as unknown as DbRoomRecordRow[];
 
-  return {
-    items: rows.map(mapRowToItem),
-    total: countRow.total,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(rows.map(mapRowToItem), countRow.total, offset, limit);
 }
 
 export async function readRoomHistoryDetail(roomRecordId: string): Promise<AdminRoomHistoryDetail | null> {

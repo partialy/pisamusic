@@ -32,7 +32,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "uuid": "8c919a71-6c39-4d87-9eb5-c26693836101",
         "source": "cloud",
@@ -60,7 +60,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 30
+    "limit": 30,
+    "hasMore": false
   },
   "success": true
 }

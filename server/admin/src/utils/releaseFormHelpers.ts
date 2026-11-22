@@ -62,11 +62,11 @@ export function suggestNextVersion(
   if (currentReleaseVer && /\d/.test(currentReleaseVer)) {
     return normalizeReleaseVersionWithV(incrementVersionString(currentReleaseVer, fallback));
   }
-  for (let i = updateHistory.length - 1; i >= 0; i -= 1) {
-    const item = updateHistory[i];
-    if (item.platform === platform && item.version && /\d/.test(item.version)) {
-      return normalizeReleaseVersionWithV(incrementVersionString(item.version, fallback));
-    }
+  const matchedItem = updateHistory.find(
+    (item) => item.platform === platform && item.version && /\d/.test(item.version),
+  );
+  if (matchedItem) {
+    return normalizeReleaseVersionWithV(incrementVersionString(matchedItem.version, fallback));
   }
   return fallback;
 }

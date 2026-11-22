@@ -33,6 +33,7 @@ import {
   getRequiredBucket,
   toCloudMusicTrackDto,
 } from "./cloudMusicShared";
+import { buildPaginatedList } from "../../utils/pagination";
 import type {
   CloudMusicAdminParsedAudioInput,
   CloudMusicAdminSaveInput,
@@ -340,12 +341,8 @@ export async function review(uuid: string, input: CloudMusicReviewInput, adminUs
 
 export async function list(input: CloudMusicListInput): Promise<CloudMusicListResult> {
   const result: StoreListResult = await listCloudMusicTracks(input);
-  return {
-    items: await Promise.all(result.items.map(toCloudMusicTrackDto)),
-    total: result.total,
-    offset: result.offset,
-    limit: result.limit,
-  };
+  const listItems = await Promise.all(result.list.map(toCloudMusicTrackDto));
+  return buildPaginatedList(listItems, result.total, result.offset, result.limit);
 }
 
 export async function getAdminDetail(uuid: string): Promise<CloudMusicTrackDto | null> {

@@ -13,10 +13,12 @@ import {
   removeManualCover,
   reserveAsset,
 } from "./cloudMusicAdminService";
+import { buildPaginatedList } from "../../utils/pagination";
 import type {
   CloudMusicAssetKind,
   CloudMusicAssetReserveRequest,
   CloudMusicAssetUploadTicket,
+  CloudMusicSubmissionHistoryV2Response,
   CloudMusicTrackDto,
   CloudMusicUploadSession,
   CloudMusicUploadSessionRequest,
@@ -132,11 +134,21 @@ export async function getUserSubmissionHistory(
 }> {
   const result = await readUserSubmissions(userId, offset, limit);
   return {
-    items: await Promise.all(result.items.map(toCloudMusicTrackDto)),
+    items: await Promise.all(result.list.map(toCloudMusicTrackDto)),
     total: result.total,
     offset: result.offset,
     limit: result.limit,
   };
+}
+
+export async function getUserSubmissionHistoryV2(
+  userId: string,
+  offset = 0,
+  limit = 30,
+): Promise<CloudMusicSubmissionHistoryV2Response> {
+  const result = await readUserSubmissions(userId, offset, limit);
+  const list = await Promise.all(result.list.map(toCloudMusicTrackDto));
+  return buildPaginatedList(list, result.total, result.offset, result.limit);
 }
 
 export async function resubmitUserTrack(

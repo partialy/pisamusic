@@ -29,7 +29,7 @@ export default function FileManagementPage() {
         offset: fileOffset,
         limit: fileLimit,
       });
-      setFiles(result.items);
+      setFiles(result.list);
       setFileTotal(result.total);
     } catch (e) {
       alert(e instanceof Error ? e.message : "加载文件记录失败");

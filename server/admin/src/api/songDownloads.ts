@@ -1,4 +1,5 @@
 import { fetchWithAuth, parseJson } from "./client";
+import type { PaginatedListData } from "../types/config";
 import type {
   AdminQuotaStateItem,
   BatchQuotaOverridePayload,
@@ -37,7 +38,7 @@ export async function fetchTopDownloadedSongs(params: {
   source?: string;
   offset?: number;
   limit?: number;
-}): Promise<{ items: TopDownloadedSongItem[]; total: number; offset: number; limit: number }> {
+}): Promise<PaginatedListData<TopDownloadedSongItem>> {
   const res = await fetchWithAuth(`/api/admin/song-downloads/top-songs${buildQuery(params)}`);
   return unwrap(res);
 }
@@ -53,7 +54,7 @@ export async function fetchSongDownloadRecords(params: {
   endDay?: string;
   offset?: number;
   limit?: number;
-}): Promise<{ items: SongDownloadRecordItem[]; total: number; offset: number; limit: number }> {
+}): Promise<PaginatedListData<SongDownloadRecordItem>> {
   const res = await fetchWithAuth(`/api/admin/song-downloads/records${buildQuery(params)}`);
   return unwrap(res);
 }
@@ -76,7 +77,7 @@ export async function fetchQuotaStates(params: {
   keyword?: string;
   offset?: number;
   limit?: number;
-}): Promise<{ items: AdminQuotaStateItem[]; total: number; offset: number; limit: number }> {
+}): Promise<PaginatedListData<AdminQuotaStateItem>> {
   const res = await fetchWithAuth(`/api/admin/song-downloads/quotas${buildQuery(params)}`);
   return unwrap(res);
 }

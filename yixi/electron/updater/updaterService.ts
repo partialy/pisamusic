@@ -143,16 +143,15 @@ function extractRawReleaseNotes(raw: UpdateInfo["releaseNotes"]): string {
 }
 
 async function getDesktopHistoryReleaseByVersion(version: string): Promise<UpdateHistoryEntry | null> {
-  const target = normalizeVersionKey(version);
+  const target = String(version ?? "").trim();
   if (!target) return null;
   try {
-    const response = await requestSystem<UpdateHistoryEntry[]>("/api/config/update-history", { encrypted: false });
-    if (!response.success || !Array.isArray(response.data)) return null;
-    return (
-      response.data.find(
-        (item) => item?.platform === "desktop" && normalizeVersionKey(item.version) === target,
-      ) ?? null
+    const response = await requestSystem<UpdateHistoryEntry>(
+      `/api/config/releases/detail?platform=pc&version=${encodeURIComponent(target)}`,
+      { encrypted: false },
     );
+    if (!response.success || !response.data) return null;
+    return response.data;
   } catch {
     return null;
   }

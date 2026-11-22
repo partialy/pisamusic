@@ -1,3 +1,5 @@
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 
 export const WEBSITE_RECORD_TYPES = ["visit", "download"] as const;
@@ -41,12 +43,7 @@ export type AdminDownloadDetail = AdminDownloadListItem & {
 export type AdminWebsiteRecordListItem = AdminSiteVisitListItem | AdminDownloadListItem;
 export type AdminWebsiteRecordDetail = AdminSiteVisitDetail | AdminDownloadDetail;
 
-export type AdminWebsiteRecordListResult = {
-  items: AdminWebsiteRecordListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminWebsiteRecordListResult = PaginatedListData<AdminWebsiteRecordListItem>;
 
 type SiteVisitRow = {
   id: string;
@@ -76,13 +73,6 @@ type DownloadRow = {
   user_agent: string;
   created_at: number;
 };
-
-function normalizePagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
-    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
-  };
-}
 
 function mapSiteVisitListItem(row: SiteVisitRow): AdminSiteVisitListItem {
   return {
@@ -151,12 +141,12 @@ export async function listAdminWebsiteRecords(
          FROM site_visit_records${where}
          ORDER BY created_at DESC, id DESC
          LIMIT ? OFFSET ?`, [...params, limit, offset])) as SiteVisitRow[];
-    return {
-      items: rows.map(mapSiteVisitListItem),
-      total: Number(totalRow.total) || 0,
+    return buildPaginatedList(
+      rows.map(mapSiteVisitListItem),
+      totalRow.total,
       offset,
       limit,
-    };
+    );
   }
 
   const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM download_records${where}`, params)) as { total: number };
@@ -166,12 +156,12 @@ export async function listAdminWebsiteRecords(
        FROM download_records${where}
        ORDER BY created_at DESC, id DESC
        LIMIT ? OFFSET ?`, [...params, limit, offset])) as DownloadRow[];
-  return {
-    items: rows.map(mapDownloadListItem),
-    total: Number(totalRow.total) || 0,
+  return buildPaginatedList(
+    rows.map(mapDownloadListItem),
+    totalRow.total,
     offset,
     limit,
-  };
+  );
 }
 
 export async function readAdminWebsiteRecordDetail(

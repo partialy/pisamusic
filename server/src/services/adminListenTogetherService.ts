@@ -1,3 +1,5 @@
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import {
   clearOfflineTimer,
   deleteRoom,
@@ -60,19 +62,9 @@ export type AdminOnlineRoomDetail = AdminOnlineRoomListItem & {
   }>;
 };
 
-export type AdminOnlineRoomPage = {
-  items: AdminOnlineRoomListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminOnlineRoomPage = PaginatedListData<AdminOnlineRoomListItem>;
 
-export type AdminRoomHistoryPage = {
-  items: AdminRoomHistoryListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminRoomHistoryPage = PaginatedListData<AdminRoomHistoryListItem>;
 
 function hostFromRoom(room: ListenTogetherRoom): ListenTogetherSocketUser {
   const hostMember = room.members.find((m) => m.userId === room.hostUserId);
@@ -147,16 +139,10 @@ export async function listAdminOnlineRooms(input: {
   filtered.sort((a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt);
 
   const total = filtered.length;
-  const limit = Math.max(1, Math.min(100, input.limit || 20));
-  const offset = Math.max(0, input.offset || 0);
-  const items = filtered.slice(offset, offset + limit);
+  const { offset, limit } = normalizePagination(input.offset, input.limit);
+  const list = filtered.slice(offset, offset + limit);
 
-  return {
-    items,
-    total,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(list, total, offset, limit);
 }
 
 export async function readAdminOnlineRoom(recordId: string): Promise<AdminOnlineRoomDetail | null> {

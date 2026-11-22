@@ -1,4 +1,6 @@
+import type { PaginatedListData } from "../types/response";
 import { getBeijingPeriodKeys, listRecentBeijingDays, type BeijingPeriodKeys } from "../utils/beijingTime";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 import type { DbTransaction } from "./core/types";
 import {
@@ -141,10 +143,11 @@ export async function querySongDownloadOverview(days: number, nowMs: number = Da
 export async function queryTopDownloadedSongs(params: {
   days: number | "all";
   source?: string;
-  offset: number;
-  limit: number;
-}): Promise<{ items: TopDownloadedSongItem[]; total: number; offset: number; limit: number }> {
+  offset: unknown;
+  limit: unknown;
+}): Promise<PaginatedListData<TopDownloadedSongItem>> {
   const db = getAppDb();
+  const { offset, limit } = normalizePagination(params.offset, params.limit);
   const where: string[] = [];
   const args: Array<string | number> = [];
 
@@ -193,11 +196,11 @@ export async function queryTopDownloadedSongs(params: {
     GROUP BY source, song_id
     ORDER BY download_count DESC, last_downloaded_at DESC
     LIMIT ? OFFSET ?`,
-    [...args, params.limit, params.offset],
+    [...args, limit, offset],
   );
 
-  return {
-    items: rows.map((r) => ({
+  return buildPaginatedList(
+    rows.map((r) => ({
       source: r.source,
       songId: r.song_id,
       songName: r.song_name,
@@ -208,10 +211,10 @@ export async function queryTopDownloadedSongs(params: {
       uniqueSubjects: Number(r.unique_subjects) || 0,
       lastDownloadedAt: Number(r.last_downloaded_at) || 0,
     })),
-    total: Number(totalRow.total) || 0,
-    offset: params.offset,
-    limit: params.limit,
-  };
+    totalRow.total,
+    offset,
+    limit,
+  );
 }
 
 export async function querySongDownloadRecords(params: {
@@ -223,10 +226,11 @@ export async function querySongDownloadRecords(params: {
   deviceId?: string;
   startDay?: string;
   endDay?: string;
-  offset: number;
-  limit: number;
-}): Promise<{ items: SongDownloadRecordAdminItem[]; total: number; offset: number; limit: number }> {
+  offset: unknown;
+  limit: unknown;
+}): Promise<PaginatedListData<SongDownloadRecordAdminItem>> {
   const db = getAppDb();
+  const { offset, limit } = normalizePagination(params.offset, params.limit);
   const where: string[] = [];
   const args: Array<string | number> = [];
 
@@ -315,11 +319,11 @@ export async function querySongDownloadRecords(params: {
     ${whereSql}
     ORDER BY r.created_at DESC, r.id DESC
     LIMIT ? OFFSET ?`,
-    [...args, params.limit, params.offset],
+    [...args, limit, offset],
   );
 
-  return {
-    items: rows.map((r) => ({
+  return buildPaginatedList(
+    rows.map((r) => ({
       id: r.id,
       batchId: r.batch_id,
       clientBatchId: r.client_batch_id ?? "",
@@ -345,19 +349,20 @@ export async function querySongDownloadRecords(params: {
       downloadDay: r.download_day,
       createdAt: Number(r.created_at) || 0,
     })),
-    total: Number(totalRow.total) || 0,
-    offset: params.offset,
-    limit: params.limit,
-  };
+    totalRow.total,
+    offset,
+    limit,
+  );
 }
 
 export async function queryQuotaStates(params: {
   subjectType?: string;
   keyword?: string;
-  offset: number;
-  limit: number;
-}): Promise<{ items: AdminQuotaStateItem[]; total: number; offset: number; limit: number }> {
+  offset: unknown;
+  limit: unknown;
+}): Promise<PaginatedListData<AdminQuotaStateItem>> {
   const db = getAppDb();
+  const { offset, limit } = normalizePagination(params.offset, params.limit);
   const periods = getBeijingPeriodKeys();
   const where: string[] = [];
   const args: Array<string | number> = [];
@@ -409,11 +414,11 @@ export async function queryQuotaStates(params: {
     ${whereSql}
     ORDER BY q.updated_at DESC
     LIMIT ? OFFSET ?`,
-    [...args, params.limit, params.offset],
+    [...args, limit, offset],
   );
 
-  return {
-    items: rows.map((row) => {
+  return buildPaginatedList(
+    rows.map((row) => {
       const snap = computeQuotaSnapshot(row.subject_type, row.subject_key, row, periods);
       const displayName =
         row.subject_type === "user"
@@ -428,10 +433,10 @@ export async function queryQuotaStates(params: {
         updatedAt: Number(row.updated_at) || 0,
       };
     }),
-    total: Number(totalRow.total) || 0,
-    offset: params.offset,
-    limit: params.limit,
-  };
+    totalRow.total,
+    offset,
+    limit,
+  );
 }
 
 export async function getAdminQuotaStateDetail(

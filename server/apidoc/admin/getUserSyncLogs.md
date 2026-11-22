@@ -39,7 +39,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "version": 45,
         "opId": "op_fav_001",
@@ -56,6 +56,7 @@
     "total": 45,
     "offset": 0,
     "limit": 30,
+    "hasMore": true,
     "syncVersion": 45,
     "syncLogFloor": 0
   },

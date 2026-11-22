@@ -76,7 +76,8 @@
 | 获取用户服务协议 | `GET` | `/api/config/agreement` | 无 (明文) | [./config/getAgreement.md](./config/getAgreement.md) |
 | 获取隐私政策 | `GET` | `/api/config/privacy-policy` | 无 (明文) | [./config/getPrivacyPolicy.md](./config/getPrivacyPolicy.md) |
 | 获取系统公告列表 | `GET` | `/api/config/announcements` | 无 (明文) | [./config/getAnnouncements.md](./config/getAnnouncements.md) |
-| 获取版本更新历史列表 | `GET` | `/api/config/update-history` | 无 (明文) | [./config/getUpdateHistory.md](./config/getUpdateHistory.md) |
+| 获取版本更新历史列表（分页） | `GET` | `/api/config/releases/history` | 无 (明文) | [./config/getReleaseHistory.md](./config/getReleaseHistory.md) |
+| 获取指定版本详细信息 | `GET` | `/api/config/releases/detail` | 无 (明文) | [./config/getReleaseDetail.md](./config/getReleaseDetail.md) |
 | 获取关于软件信息 | `GET` | `/api/config/about` | 无 (明文) | [./config/getAbout.md](./config/getAbout.md) |
 
 ---
@@ -188,12 +189,14 @@
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
 | 获取网盘音乐概览 | `GET` | `/api/cloud-music/summary` | 可选 User Token (加密) | [./cloudMusic/getSummary.md](./cloudMusic/getSummary.md) |
-| 搜索网盘音乐 | `GET` | `/api/cloud-music/search` | 无 (加密) | [./cloudMusic/searchTracks.md](./cloudMusic/searchTracks.md) |
+| 搜索网盘音乐（旧版兼容） | `GET` | `/api/cloud-music/search` | 无 (加密) | [./cloudMusic/searchTracks.md](./cloudMusic/searchTracks.md) |
+| 搜索网盘音乐（v2 标准分页） | `GET` | `/api/cloud-music/v2/search` | 无 (加密) | [./cloudMusic/searchTracks.md](./cloudMusic/searchTracks.md) |
 | 获取网盘音乐详情 | `GET` | `/api/cloud-music/tracks/:uuid` | 无 (加密) | [./cloudMusic/getTrack.md](./cloudMusic/getTrack.md) |
 | 获取网盘音乐稳定封面 | `GET` | `/api/cloud-music/tracks/:uuid/cover` | 无 (明文重定向) | [./cloudMusic/getCover.md](./cloudMusic/getCover.md) |
 | 获取网盘音乐播放地址 | `GET` | `/api/cloud-music/tracks/:uuid/play-url` | 无 (加密) | [./cloudMusic/getPlayUrl.md](./cloudMusic/getPlayUrl.md) |
 | 获取网盘音乐歌词地址 | `GET` | `/api/cloud-music/tracks/:uuid/lyrics-url` | 无 (加密) | [./cloudMusic/getLyricsUrl.md](./cloudMusic/getLyricsUrl.md) |
 | 用户投稿网盘音乐 (会话/直传/元数据/审核) | `POST/DELETE` | `/api/cloud-music/submit/*` | User Token (加密) | [./cloudMusic/submit.md](./cloudMusic/submit.md) |
+| 查询当前用户投稿历史（v2 标准分页） | `GET` | `/api/cloud-music/v2/submit/my-history` | User Token (加密) | [./cloudMusic/submit.md](./cloudMusic/submit.md) |
 
 ---
 
@@ -245,7 +248,8 @@
 ### 13.3 版本发布与文件管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
-| 读取后台发布更新历史 | `GET` | `/api/admin/update-history` | [./admin/getUpdateHistory.md](./admin/getUpdateHistory.md) |
+| 读取后台发布更新历史（分页） | `GET` | `/api/admin/update-history` | [./admin/getUpdateHistory.md](./admin/getUpdateHistory.md) |
+| 导出全部发行历史记录 (JSON/CSV) | `GET` | `/api/admin/update-history/export` | [./admin/exportUpdateHistory.md](./admin/exportUpdateHistory.md) |
 | 发布新版本 (Android/PC) | `POST` | `/api/admin/publish-update` | [./admin/publishUpdate.md](./admin/publishUpdate.md) |
 | 修改已发布的历史版本 | `PUT` | `/api/admin/update-history/:id` | [./admin/updateHistoryItem.md](./admin/updateHistoryItem.md) |
 | 预览历史版本删除影响 | `GET` | `/api/admin/update-history/:id/delete-preview` | [./admin/deleteHistoryPreview.md](./admin/deleteHistoryPreview.md) |

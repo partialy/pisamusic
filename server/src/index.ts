@@ -122,6 +122,7 @@ app.use(
 app.use(express.json({ limit: configManager.get("http.jsonBodyLimit", "1mb") }));
 app.use(createIpRateLimitMiddleware({ group: "app-share-public", getPolicy: () => ({ paths: ["/api/app-share/public/*", "/api/app-share/visits"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(createIpRateLimitMiddleware({ group: "app-share-identity", getPolicy: () => ({ paths: ["/api/config/app-share"], windowSeconds: 60, maxRequests: 60 }) }));
+app.use(createIpRateLimitMiddleware({ group: "release-query", getPolicy: () => ({ paths: ["/api/config/releases/history", "/api/config/releases/detail"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(logInterceptor);
 app.use(createIpRateLimitMiddleware({ group: "setup", getPolicy: () => ({ paths: ["/api/setup/complete"], windowSeconds: 60, maxRequests: 10 }) }));
 
@@ -134,11 +135,11 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/app-share/public/*",
   "/api/app-share/visits",
   "/api/config/releases",
+  "/api/config/releases/*",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
   "/api/config/download/*",
   "/api/config/discover",
-  "/api/config/update-history",
   "/api/config/agreement",
   "/api/config/service-agreement",
   "/api/config/privacy-policy",
@@ -164,6 +165,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/app-share/public/*",
   "/api/app-share/visits",
   "/api/config/releases",
+  "/api/config/releases/*",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
   "/api/config/download/*",

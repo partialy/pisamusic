@@ -9,9 +9,13 @@ import {
   createReleaseUploadRecord,
   publishUpdate,
   readDesktopUpdateAssets,
-  readUpdateHistory,
   updatePublishedUpdate,
 } from "../../db/configStore";
+import {
+  ReleaseQueryValidationError,
+  exportAdminUpdateHistory,
+  getAdminUpdateHistoryPage,
+} from "../../services/releaseHistoryService";
 import {
   deleteManagedReleaseFileForHistory,
   deleteManagedUpdateHistory,
@@ -229,11 +233,26 @@ function normalizeDesktopUpdateActivatePayload(
 }
 
 // Routes
-adminUpdatesRouter.get("/update-history", async (_req, res) => {
+adminUpdatesRouter.get("/update-history", async (req, res) => {
   try {
-    return res.json(ok(await readUpdateHistory()));
+    return res.json(ok(await getAdminUpdateHistoryPage(req.query as Record<string, unknown>)));
   } catch (e) {
+    if (e instanceof ReleaseQueryValidationError) {
+      return res.status(400).json(fail(e.message, 400));
+    }
     const message = e instanceof Error ? e.message : "读取更新历史失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminUpdatesRouter.get("/update-history/export", async (req, res) => {
+  try {
+    return res.json(ok(await exportAdminUpdateHistory(req.query.format)));
+  } catch (e) {
+    if (e instanceof ReleaseQueryValidationError) {
+      return res.status(400).json(fail(e.message, 400));
+    }
+    const message = e instanceof Error ? e.message : "导出发行记录失败";
     return res.status(500).json(fail(message, 500));
   }
 });

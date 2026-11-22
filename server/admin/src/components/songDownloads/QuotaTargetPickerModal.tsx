@@ -61,7 +61,7 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
         offset: (userPage - 1) * 8,
         limit: 8,
       });
-      setUsers(res.users);
+      setUsers(res.list);
       setUserTotal(res.total);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "加载账号列表失败");
@@ -78,7 +78,7 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
         offset: (androidPage - 1) * 8,
         limit: 8,
       });
-      setAndroidDevices(res.devices);
+      setAndroidDevices(res.list);
       setAndroidTotal(res.total);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "加载 Android 设备失败");
@@ -95,7 +95,7 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
         offset: (desktopPage - 1) * 8,
         limit: 8,
       });
-      setDesktopDevices(res.devices);
+      setDesktopDevices(res.list);
       setDesktopTotal(res.total);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "加载 PC 设备失败");

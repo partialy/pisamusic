@@ -69,9 +69,11 @@
 | 接口 | Method | 说明 |
 | --- | --- | --- |
 | `/api/admin/song-downloads/overview?days=7\|30\|90` | `GET` | 概览统计、音源/平台占比及零填充日趋势 |
-| `/api/admin/song-downloads/top-songs?days=7\|30\|90\|all&source=all\|kg\|wy\|kw\|cloud&offset&limit` | `GET` | 歌曲下载 Top 排行 |
-| `/api/admin/song-downloads/records?keyword&source&platform&subjectType&userId&deviceId&startDay&endDay&offset&limit` | `GET` | 用户/设备下载动态流水 |
+| `/api/admin/song-downloads/top-songs?days=7\|30\|90\|all&source=all\|kg\|wy\|kw\|cloud&offset&limit` | `GET` | 歌曲下载 Top 排行（标准分页：`{ list, total, offset, limit, hasMore }`） |
+| `/api/admin/song-downloads/records?keyword&source&platform&subjectType&userId&deviceId&startDay&endDay&offset&limit` | `GET` | 用户/设备下载动态流水（标准分页：`{ list, total, offset, limit, hasMore }`） |
 | `/api/admin/song-downloads/default-quota` | `GET / PUT` | 读取/保存全局默认配额（同步写入 `runtime_configs`） |
-| `/api/admin/song-downloads/quotas?subjectType=all\|user\|device&keyword&offset&limit` | `GET` | 分页查询用户/设备配额与用量状态 |
+| `/api/admin/song-downloads/quotas?subjectType=all\|user\|device&keyword&offset&limit` | `GET` | 分页查询用户/设备配额与用量状态（标准分页：`{ list, total, offset, limit, hasMore }`） |
 | `/api/admin/song-downloads/quotas/batch` | `PUT` | 批量设置多个用户/设备的独立配额覆盖及计数重置（1–500 个主体） |
 | `/api/admin/song-downloads/quotas/:subjectType/:subjectKey` | `GET / PUT` | 读取/设置指定用户或设备的独立配额覆盖及计数重置 |
+
+> 分页说明：`/top-songs`、`/records`、`/quotas` 三个分页接口均接收 `offset`（默认 `0`）、`limit` 参数，统一返回 `PaginatedListData<T>` 结构 `{ list, total, offset, limit, hasMore }`。

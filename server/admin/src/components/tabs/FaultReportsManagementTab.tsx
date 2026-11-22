@@ -72,7 +72,7 @@ export default function FaultReportsManagementTab({
         offset: currentOffset,
         limit: LIMIT,
       });
-      setItems(result.items);
+      setItems(result.list);
       setTotal(result.total);
       setOffset(result.offset);
     } catch (reason) {

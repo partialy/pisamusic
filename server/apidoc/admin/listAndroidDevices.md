@@ -32,7 +32,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "devices": [
+    "list": [
       {
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "fingerprint": "sha256_fp...",
@@ -57,7 +57,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

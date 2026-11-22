@@ -7,6 +7,7 @@ import type {
   CloudMusicPublicSummary as StorePublicSummary,
 } from "../../db/cloudMusicStore";
 import type { CloudMusicFileInfo } from "../cloudMusicAssets";
+import type { PaginatedListData } from "../../types/response";
 
 export type {
   CloudMusicAsset,
@@ -153,12 +154,7 @@ export type CloudMusicTempSummary = {
   staleAssets: { count: number; bytes: number };
 };
 
-export type CloudMusicListResult = {
-  items: CloudMusicTrackDto[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type CloudMusicListResult = PaginatedListData<CloudMusicTrackDto>;
 
 export type CloudMusicSearchResponse = {
   source: "cloud";
@@ -167,6 +163,10 @@ export type CloudMusicSearchResponse = {
   offset: number;
   limit: number;
 };
+
+export type CloudMusicSearchV2Response = PaginatedListData<CloudMusicPublicTrack>;
+
+export type CloudMusicSubmissionHistoryV2Response = PaginatedListData<CloudMusicTrackDto>;
 
 export type CloudMusicPlayUrlResponse = {
   uuid: string;

@@ -158,14 +158,17 @@
 
 查询当前登录用户上传的所有曲目记录，包括待审核、已通过、已禁用、已驳回和已销毁留底记录。
 
+### 6.1 旧版兼容接口：`GET /api/cloud-music/submit/my-history`（旧版兼容接口，返 `items`）
+
 - **Method**: `GET`
 - **Path**: `/api/cloud-music/submit/my-history?offset=0&limit=30`
 - **Query 参数**:
   - `offset`: 分页起始偏移量，默认 0
   - `limit`: 分页数量，默认 30
 - **鉴权**: `Authorization: Bearer <userToken>` (加密)
+- **说明**: 旧版兼容接口，响应返回 `items` 且不含 `hasMore`；新客户端请切换至 `GET /api/cloud-music/v2/submit/my-history`。
 
-### 响应体 (JSON)
+#### 响应体 (JSON)
 
 ```json
 {
@@ -196,6 +199,53 @@
     "total": 1,
     "offset": 0,
     "limit": 30
+  }
+}
+```
+
+### 6.2 新版标准分页接口：`GET /api/cloud-music/v2/submit/my-history`
+
+查询参数与列表项结构同旧版一致，响应统一采用标准分页结构 `{ list, total, offset, limit, hasMore }`。
+
+- **Method**: `GET`
+- **Path**: `/api/cloud-music/v2/submit/my-history?offset=0&limit=30`
+- **Query 参数**:
+  - `offset`: 分页起始偏移量，默认 0
+  - `limit`: 分页数量，默认 30（范围 `1-100`）
+- **鉴权**: `Authorization: Bearer <userToken>` (加密)
+
+#### 响应体 (JSON)
+
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "success": true,
+  "data": {
+    "list": [
+      {
+        "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "source": "cloud",
+        "status": "rejected",
+        "statusReason": "歌名有误，请核对后重新提交",
+        "title": "夜曲",
+        "artist": "周杰伦",
+        "album": "十一月的萧邦",
+        "durationMs": 226000,
+        "playable": false,
+        "cover": {
+          "source": "embedded",
+          "url": "/api/cloud-music/tracks/3fa85f64-5717-4562-b3fc-2c963f66afa6/cover"
+        },
+        "lyrics": null,
+        "createdAt": 1787930000000,
+        "updatedAt": 1787931000000
+      }
+    ],
+    "total": 1,
+    "offset": 0,
+    "limit": 30,
+    "hasMore": false
   }
 }
 ```

@@ -15,7 +15,6 @@ import type {
   AppConfigSectionsPayload,
   DynamicConfigItem,
   GatewaySignConfig,
-  UpdateHistoryItem,
 } from "../types/config";
 import { defaultAppConfig } from "../data/defaultAppConfig";
 import {
@@ -23,7 +22,6 @@ import {
   fetchAppConfig,
   fetchDynamicConfigs,
   fetchEncryptionConfig,
-  fetchUpdateHistory,
   saveAppConfigSections,
 } from "../api/client";
 
@@ -34,8 +32,6 @@ export interface AdminConfigWorkspaceContextValue {
   setAppConfigServer: Dispatch<SetStateAction<AppConfigJson>>;
   announcements: Announcement[];
   setAnnouncements: Dispatch<SetStateAction<Announcement[]>>;
-  updateHistory: UpdateHistoryItem[];
-  setUpdateHistory: Dispatch<SetStateAction<UpdateHistoryItem[]>>;
   dynamicConfigs: DynamicConfigItem[];
   setDynamicConfigs: Dispatch<SetStateAction<DynamicConfigItem[]>>;
   encryptionPathsServer: string[];
@@ -62,7 +58,6 @@ export interface AdminConfigWorkspaceContextValue {
   ) => Promise<void>;
   exportPayload: {
     announcements: Announcement[];
-    updateHistory: UpdateHistoryItem[];
   } & AppConfigJson;
 }
 
@@ -73,7 +68,6 @@ export function AdminConfigWorkspaceProvider({ children }: { children: ReactNode
   const [appConfigServer, setAppConfigServer] = useState<AppConfigJson>(defaultAppConfig);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dynamicConfigs, setDynamicConfigs] = useState<DynamicConfigItem[]>([]);
-  const [updateHistory, setUpdateHistory] = useState<UpdateHistoryItem[]>([]);
   const [encryptionPathsServer, setEncryptionPathsServer] = useState<string[]>([]);
   const [encryptionPathsDraft, setEncryptionPathsDraft] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -84,17 +78,15 @@ export function AdminConfigWorkspaceProvider({ children }: { children: ReactNode
     setLoadError(null);
     setDynamicConfigLoading(true);
     try {
-      const [cfg, ann, hist, enc, dyn] = await Promise.all([
+      const [cfg, ann, enc, dyn] = await Promise.all([
         fetchAppConfig(),
         fetchAnnouncements(),
-        fetchUpdateHistory(),
         fetchEncryptionConfig(),
         fetchDynamicConfigs(),
       ]);
       setAppConfig(cfg);
       setAppConfigServer(cfg);
       setAnnouncements(ann);
-      setUpdateHistory(hist);
       setEncryptionPathsServer(enc.plaintextPaths);
       setEncryptionPathsDraft(enc.plaintextPaths);
       setDynamicConfigs(dyn);
@@ -190,9 +182,8 @@ export function AdminConfigWorkspaceProvider({ children }: { children: ReactNode
     () => ({
       ...appConfig,
       announcements,
-      updateHistory,
     }),
-    [appConfig, announcements, updateHistory],
+    [appConfig, announcements],
   );
 
   return (
@@ -204,8 +195,6 @@ export function AdminConfigWorkspaceProvider({ children }: { children: ReactNode
         setAppConfigServer,
         announcements,
         setAnnouncements,
-        updateHistory,
-        setUpdateHistory,
         dynamicConfigs,
         setDynamicConfigs,
         encryptionPathsServer,

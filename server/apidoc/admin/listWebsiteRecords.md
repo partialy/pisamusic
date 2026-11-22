@@ -32,7 +32,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "id": "rec_123",
         "domain": "music.example.com",
@@ -48,7 +48,8 @@
     ],
     "total": 100,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": true
   },
   "success": true
 }

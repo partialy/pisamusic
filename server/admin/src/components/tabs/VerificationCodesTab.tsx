@@ -105,7 +105,7 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
         limit,
       });
       if (requestId !== requestIdRef.current) return;
-      setItems(data.items);
+      setItems(data.list);
       setTotal(data.total);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;

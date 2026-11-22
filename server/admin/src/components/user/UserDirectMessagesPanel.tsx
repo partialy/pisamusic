@@ -83,7 +83,7 @@ export default function UserDirectMessagesPanel({ page, loading, onPageChange, o
     <Table<AdminDirectMessageItem>
       rowKey="id"
       columns={columns}
-      dataSource={page.items}
+      dataSource={page.list}
       loading={loading}
       size="small"
       bordered

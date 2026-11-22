@@ -46,7 +46,7 @@ export default function SongDownloadsOverviewTab({ themeColor }: { themeColor: s
     setLoadingTop(true);
     fetchTopDownloadedSongs({ days: topDays, source: topSource, offset: (topPage - 1) * 15, limit: 15 })
       .then((res) => {
-        setTopSongs(res.items);
+        setTopSongs(res.list);
         setTopTotal(res.total);
       })
       .catch((err) => message.error(err instanceof Error ? err.message : "加载下载排行失败"))

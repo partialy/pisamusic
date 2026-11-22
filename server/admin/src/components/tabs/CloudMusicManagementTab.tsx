@@ -141,7 +141,7 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
         limit,
       };
       const res = await fetchCloudMusicTracks(filter);
-      setTracks(res.items);
+      setTracks(res.list);
       setTotal(res.total);
       setOffset(res.offset);
     } catch (err) {
@@ -738,7 +738,7 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
     };
     fetchCloudMusicTracks(filter)
       .then((res) => {
-        setTracks(res.items);
+        setTracks(res.list);
         setTotal(res.total);
         setOffset(res.offset);
       })

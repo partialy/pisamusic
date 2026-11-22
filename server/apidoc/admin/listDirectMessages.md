@@ -31,7 +31,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "id": "806ce22e-87bd-4af0-8395-983ad24a1b8c",
         "targetKind": "android_device",
@@ -47,7 +47,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 30
+    "limit": 30,
+    "hasMore": false
   },
   "success": true
 }

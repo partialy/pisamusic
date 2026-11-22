@@ -164,7 +164,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "source": "kg",
         "songId": "12345",
@@ -181,7 +181,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }
@@ -189,15 +190,16 @@
 
 | 字段 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `items[].source` / `songId` | `string` | 单曲身份。 |
-| `items[].title` / `artist` / `album` | `string` | 最近一次带非空值的展示快照；可能为空字符串。 |
-| `items[].durationMs` | `number \| null` | 最近已知的歌曲时长。 |
-| `items[].listenedMs` | `number` | 同账号、同一歌曲跨设备区间并集后的毫秒数。 |
-| `items[].playCount` | `number` | 该歌曲下各 `(userId, deviceId, playSessionId)` 会话首次累计达到有效阈值的次数；同一会话只计一次。 |
-| `items[].completedCount` | `number` | 该歌曲下已达到有效阈值且任一片段出现 `natural_end` 的会话次数；同一会话只计一次。 |
-| `items[].firstListenedAt` / `lastListenedAt` | `number` | 该歌曲已接受片段的最早开始、最新结束毫秒时间戳。 |
+| `list[].source` / `songId` | `string` | 单曲身份。 |
+| `list[].title` / `artist` / `album` | `string` | 最近一次带非空值的展示快照；可能为空字符串。 |
+| `list[].durationMs` | `number \| null` | 最近已知的歌曲时长。 |
+| `list[].listenedMs` | `number` | 同账号、同一歌曲跨设备区间并集后的毫秒数。 |
+| `list[].playCount` | `number` | 该歌曲下各 `(userId, deviceId, playSessionId)` 会话首次累计达到有效阈值的次数；同一会话只计一次。 |
+| `list[].completedCount` | `number` | 该歌曲下已达到有效阈值且任一片段出现 `natural_end` 的会话次数；同一会话只计一次。 |
+| `list[].firstListenedAt` / `lastListenedAt` | `number` | 该歌曲已接受片段的最早开始、最新结束毫秒时间戳。 |
 | `total` | `number` | 符合筛选条件的歌曲总数。 |
 | `offset` / `limit` | `number` | 实际使用的分页参数。 |
+| `hasMore` | `boolean` | 是否还有下一页（`offset + list.length < total`）。 |
 
 ## 错误码
 

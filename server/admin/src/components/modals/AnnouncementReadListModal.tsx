@@ -122,7 +122,7 @@ export default function AnnouncementReadListModal({ announcement, open, onClose 
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={page?.items ?? []}
+          dataSource={page?.list ?? []}
           loading={loading}
           size="small"
           bordered

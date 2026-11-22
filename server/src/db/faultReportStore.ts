@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 
 export const FAULT_REPORT_STATUSES = ["pending", "processed"] as const;
@@ -232,13 +234,6 @@ export async function createFaultReport(input: FaultReportCreateInput, userId: s
   };
 }
 
-function pagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
-    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
-  };
-}
-
 type FaultReportRow = {
   id: string; user_id: string | null; scene: FaultReportScene; app_version: string;
   platform: FaultReportPlatform; arch: string;
@@ -272,13 +267,15 @@ function whereClause(filter: AdminFaultReportFilter): { sql: string; params: Arr
   return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params };
 }
 
-export async function listAdminFaultReports(filter: AdminFaultReportFilter) {
+export async function listAdminFaultReports(
+  filter: AdminFaultReportFilter,
+): Promise<PaginatedListData<AdminFaultReportListItem>> {
   const db = getAppDb();
-  const page = pagination(filter.offset, filter.limit);
+  const { offset, limit } = normalizePagination(filter.offset, filter.limit);
   const where = whereClause(filter);
-  const total = Number(((await db.queryOne(`SELECT COUNT(*) AS total FROM fault_reports r ${where.sql}`, [...where.params])) as { total: number }).total) || 0;
-  const rows = (await db.query(`SELECT r.* FROM fault_reports r ${where.sql} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`, [...where.params, page.limit, page.offset])) as FaultReportRow[];
-  return { items: rows.map(mapReport), total, ...page };
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM fault_reports r ${where.sql}`, [...where.params])) as { total: number };
+  const rows = (await db.query(`SELECT r.* FROM fault_reports r ${where.sql} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as FaultReportRow[];
+  return buildPaginatedList(rows.map(mapReport), totalRow.total, offset, limit);
 }
 
 export async function readAdminFaultReport(id: string): Promise<AdminFaultReportDetail | null> {

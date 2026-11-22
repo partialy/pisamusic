@@ -23,7 +23,7 @@ export default function ShareManagementPage() {
         offset: shareOffset,
         limit: shareLimit,
       });
-      setShareItems(result.items);
+      setShareItems(result.list);
       setShareTotal(result.total);
     } catch (e) {
       alert(e instanceof Error ? e.message : "加载分享记录失败");

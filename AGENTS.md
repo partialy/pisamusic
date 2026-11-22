@@ -12,6 +12,7 @@
 | Server | `server/src/`、后端脚本、数据库、存储、接口文档 | [server/AGENTS.md](server/AGENTS.md) → [后端细则](server/agents/SERVER.md) |
 | 官网（Server 下独立职责） | `server/frontend/`、`server/frontend-html/` | [官网规范](server/agents/WEBSITE.md) |
 | 跨模块契约 | 账号、同步、消息、分享、一起听、发布、云盘、统计 | [跨模块契约](agents/CROSS_MODULE.md)，仅按涉及章节读取 |
+| 客户端待适配清单 | `pm/`、`yixi/` 后续版本需切换的新接口与契约记录 | [客户端待适配清单](CLIENT_ADAPTATION.md) |
 | 迭代与发布工作台 | `sites/pisa-workbench/`，Sites 私有任务、决策、验收与发布档案 | [工作台规范](sites/pisa-workbench/AGENTS.md) |
 
 - 单模块任务只读根规范与当前模块规范；跨模块改动再加载受影响端和对应契约章节。
@@ -38,6 +39,7 @@
 - 中文注释保持可读性，只解释不明显的业务意图或复杂逻辑。
 - 除非确有必要，单文件代码行数尽量不超过 1000 行；Android、Vue、React、Express 等大文件要及时拆分。
 - 后端代码必须清晰分层，不允许在 controller / route 中直接堆业务逻辑或持久化细节。
+- 后续所有新增或改造的分页接口统一使用 `offset`、`limit` 请求参数，响应格式为：`{ code, msg, success, data: { list: [], total, offset, limit, hasMore } }`（其中特殊协议如 `/api/sync/changes` 游标同步、`/api/messages/unread` 未读队列及 `/api/web/music/search` 固定条数官网试听除外；已上线客户端接口升级时保留旧接口并新增 `v2` 接口，同时登记到 [CLIENT_ADAPTATION.md](CLIENT_ADAPTATION.md)）。
 - 前端代码尽量复用组件，避免出现上千行的大组件。
 - 新增公共工具、类型、组件或 API 封装时，优先复用项目已有命名、目录和风格。
 
@@ -51,6 +53,7 @@
 ## 文档与验证
 
 - 做新增功能、调整模块边界、迁移框架、改变持久化方式或改变运行流程时，必须同步更新相关 `AGENTS.md`，避免项目记忆与实际代码不一致。
+- 涉及后端新增或升级 `v2` 接口而客户端尚未同步切换时，必须同步登记到 [CLIENT_ADAPTATION.md](CLIENT_ADAPTATION.md)（注明涉及客户端、模块、源码路径及切换状态）；客户端完成适配后同步勾选标记为已完成。
 - 跨端或跨服务改动要明确影响面。接口字段、加密规则、配置结构、更新信息、设备上报、公告、反馈等数据契约变更时，需要同步检查 `pm/`、`server/` 和 `yixi/`。
 - 跨端接口改动要做最小联调验证，确保旧字段兼容或迁移路径清晰。
 - 通用规范只写在根文件，模块实现只写在对应模块文档；多端共享协议写在跨模块契约，各端用链接引用，不反复复制整段规则。

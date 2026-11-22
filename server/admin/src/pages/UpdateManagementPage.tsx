@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import type {
   DesktopUpdateAssetInfo,
@@ -24,13 +24,15 @@ import {
 import {
   deleteReleasePackage,
   deleteUpdateHistory,
+  exportUpdateHistory,
   fetchDesktopUpdateAssets,
   fetchUpdateHistoryDeletePreview,
+  fetchUpdateHistoryPage,
 } from "../api/client";
 import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
 import { useReleasePublishQueue } from "../state/ReleasePublishQueueContext";
 import { useAdminLayout } from "../layouts/AdminLayoutContext";
-import UpdateTab from "../components/tabs/UpdateTab";
+import UpdateTab, { type UpdateHistoryPlatformFilter } from "../components/tabs/UpdateTab";
 import UpdateModal from "../components/modals/UpdateModal";
 import UpdateHistoryDeletePreviewModal from "../components/modals/UpdateHistoryDeletePreviewModal";
 
@@ -49,13 +51,22 @@ function mapAssetsByType(
 
 export default function UpdateManagementPage() {
   const { themeColor } = useAdminLayout();
-  const { updateHistory, appConfigServer, refreshRemote } = useAdminConfigWorkspace();
+  const { appConfigServer, refreshRemote } = useAdminConfigWorkspace();
   const {
     tasks: publishTasks,
     stats: publishQueueStats,
+    completedRevision,
     openQueueModal,
     enqueuePublish,
   } = useReleasePublishQueue();
+
+  const [historyItems, setHistoryItems] = useState<UpdateHistoryItem[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyLimit, setHistoryLimit] = useState(15);
+  const [platformFilter, setPlatformFilter] = useState<UpdateHistoryPlatformFilter>("all");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [editingUpdateDraft, setEditingUpdateDraft] = useState<UpdateFormDraft | null>(null);
   const [editingUpdateIsNew, setEditingUpdateIsNew] = useState(true);
@@ -76,10 +87,39 @@ export default function UpdateManagementPage() {
 
   const versionManuallyEditedRef = useRef(false);
 
-  const displayHistory = useMemo(() => [...updateHistory].reverse(), [updateHistory]);
+  const loadHistoryPage = useCallback(
+    async (
+      targetOffset = historyOffset,
+      targetLimit = historyLimit,
+      targetPlatform = platformFilter,
+    ) => {
+      setHistoryLoading(true);
+      try {
+        const res = await fetchUpdateHistoryPage({
+          platform: targetPlatform,
+          offset: targetOffset,
+          limit: targetLimit,
+        });
+        setHistoryItems(res.list);
+        setHistoryTotal(res.total);
+        setHistoryOffset(res.offset);
+        setHistoryLimit(res.limit);
+      } catch (e) {
+        void message.error(e instanceof Error ? e.message : "加载版本发布历史失败");
+      } finally {
+        setHistoryLoading(false);
+      }
+    },
+    [historyOffset, historyLimit, platformFilter],
+  );
+
+  useEffect(() => {
+    void loadHistoryPage(historyOffset, historyLimit, platformFilter);
+  }, [historyOffset, historyLimit, platformFilter, completedRevision, loadHistoryPage]);
 
   const isCurrentReleaseHistory = useCallback(
     (item: UpdateHistoryItem) => {
+      if (typeof item.isCurrent === "boolean") return item.isCurrent;
       const current = appConfigServer.releases[item.platform];
       return (
         current.latestVersion === item.version &&
@@ -117,7 +157,7 @@ export default function UpdateManagementPage() {
     setEditingUpdateIsCurrent(false);
     setEditingUpdateDraft({
       platform: initialPlatform,
-      version: suggestNextVersion(initialPlatform, appConfigServer, updateHistory),
+      version: suggestNextVersion(initialPlatform, appConfigServer, historyItems),
       updateTime: plus8Time,
       forceUpdate: false,
       downloadUrl: "",
@@ -172,7 +212,7 @@ export default function UpdateManagementPage() {
       if (!prev) return prev;
       const nextVersion = versionManuallyEditedRef.current
         ? prev.version
-        : suggestNextVersion(nextPlatform, appConfigServer, updateHistory);
+        : suggestNextVersion(nextPlatform, appConfigServer, historyItems);
       return {
         ...prev,
         platform: nextPlatform,
@@ -213,10 +253,11 @@ export default function UpdateManagementPage() {
       return;
     }
 
-    // PC 多选匹配：latest.yml + .exe + .blockmap（均暂存，缺哪个报哪个）
     const { matched, ignoredCount, invalidYamlNames } = matchDesktopReleaseFiles(files);
     if (invalidYamlNames.length > 0) {
-      void message.warning(`YAML 更新文件必须命名为 latest.yml（已忽略：${invalidYamlNames.join("、")}）`);
+      void message.warning(
+        `YAML 更新文件必须命名为 latest.yml（已忽略：${invalidYamlNames.join("、")}）`,
+      );
     }
 
     const matchedKeys = Object.keys(matched) as DesktopUpdateAssetType[];
@@ -333,6 +374,18 @@ export default function UpdateManagementPage() {
     void message.info("已提交至后台队列，正在上传并发布，可在右下角查看进度");
   };
 
+  const handleExport = async (format: "json" | "csv") => {
+    setExporting(true);
+    try {
+      await exportUpdateHistory(format);
+      void message.success(`已导出全部发行记录 (${format.toUpperCase()})`);
+    } catch (e) {
+      void message.error(e instanceof Error ? e.message : "导出发行记录失败");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleDeleteReleasePackage = async (item: UpdateHistoryItem) => {
     if (!item.releaseFile || item.releaseFile.status !== "uploaded") return;
     if (
@@ -345,7 +398,7 @@ export default function UpdateManagementPage() {
     setDeletingPackageHistoryId(item.id);
     try {
       await deleteReleasePackage(item.id);
-      await refreshRemote();
+      await Promise.all([refreshRemote(), loadHistoryPage()]);
     } catch (e) {
       void message.error(e instanceof Error ? e.message : "删除安装包失败");
     } finally {
@@ -372,7 +425,15 @@ export default function UpdateManagementPage() {
     try {
       await deleteUpdateHistory(historyId);
       setUpdateHistoryDeletePreview(null);
-      await refreshRemote();
+      const nextOffset =
+        historyItems.length === 1 && historyOffset > 0
+          ? Math.max(0, historyOffset - historyLimit)
+          : historyOffset;
+      setHistoryOffset(nextOffset);
+      await Promise.all([
+        refreshRemote(),
+        loadHistoryPage(nextOffset, historyLimit, platformFilter),
+      ]);
     } catch (e) {
       void message.error(e instanceof Error ? e.message : "删除版本及相关文件失败");
     } finally {
@@ -383,10 +444,26 @@ export default function UpdateManagementPage() {
   return (
     <>
       <UpdateTab
-        displayHistory={displayHistory}
+        items={historyItems}
+        total={historyTotal}
+        page={Math.floor(historyOffset / Math.max(1, historyLimit)) + 1}
+        pageSize={historyLimit}
+        loading={historyLoading}
+        platformFilter={platformFilter}
+        exporting={exporting}
         themeColor={themeColor}
         publishTasks={publishTasks}
         publishQueueStats={publishQueueStats}
+        onPlatformFilterChange={(platform) => {
+          setPlatformFilter(platform);
+          setHistoryOffset(0);
+        }}
+        onPageChange={(nextPage, nextPageSize) => {
+          setHistoryOffset((Math.max(1, nextPage) - 1) * nextPageSize);
+          setHistoryLimit(nextPageSize);
+        }}
+        onRefresh={() => void loadHistoryPage()}
+        onExport={(format) => void handleExport(format)}
         onOpenQueueModal={openQueueModal}
         onPublishNew={openNewUpdate}
         onEdit={openEditUpdate}

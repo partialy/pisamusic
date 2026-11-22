@@ -75,7 +75,7 @@ export default function SongDownloadQuotaTab() {
         offset: (page - 1) * 20,
         limit: 20,
       });
-      setRows(res.items);
+      setRows(res.list);
       setTotal(res.total);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "加载配额列表失败");

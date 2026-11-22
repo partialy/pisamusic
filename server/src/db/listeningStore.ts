@@ -1,5 +1,7 @@
 import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList } from "../utils/pagination";
 
 export type ListeningSource = "kg" | "wy" | "kw" | "cloud" | "local";
 
@@ -54,12 +56,7 @@ export type ListeningTrackStat = {
   lastListenedAt: number;
 };
 
-export type ListeningTrackPage = {
-  items: ListeningTrackStat[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type ListeningTrackPage = PaginatedListData<ListeningTrackStat>;
 
 export class ListeningLevelVersionConflictError extends Error {
   constructor() {
@@ -275,16 +272,12 @@ export async function listTrackStats(
     duration_ms: number | null; listened_ms: number; play_count: number; completed_count: number;
     first_listened_at: number; last_listened_at: number;
   }>;
-  return {
-    items: rows.map((row) => ({
-      source: row.source, songId: row.song_id, title: row.title, artist: row.artist, album: row.album,
-      durationMs: row.duration_ms, listenedMs: row.listened_ms, playCount: row.play_count,
-      completedCount: row.completed_count, firstListenedAt: row.first_listened_at, lastListenedAt: row.last_listened_at,
-    })),
-    total: count.total,
-    offset: query.offset,
-    limit: query.limit,
-  };
+  const list = rows.map((row) => ({
+    source: row.source, songId: row.song_id, title: row.title, artist: row.artist, album: row.album,
+    durationMs: row.duration_ms, listenedMs: row.listened_ms, playCount: row.play_count,
+    completedCount: row.completed_count, firstListenedAt: row.first_listened_at, lastListenedAt: row.last_listened_at,
+  }));
+  return buildPaginatedList(list, count.total, query.offset, query.limit);
 }
 
 export async function readLevelConfig(): Promise<ListeningLevelConfig> {

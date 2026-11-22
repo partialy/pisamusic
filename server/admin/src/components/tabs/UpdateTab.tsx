@@ -3,8 +3,10 @@ import {
   Badge,
   Button,
   Card,
+  Dropdown,
   Popconfirm,
   Progress,
+  Segmented,
   Space,
   Table,
   Tag,
@@ -15,17 +17,28 @@ import type { ColumnsType } from "antd/es/table";
 import {
   CloudUploadOutlined,
   DeleteOutlined,
+  DownOutlined,
+  DownloadOutlined,
   EditOutlined,
   PlusOutlined,
+  ReloadOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
-import type { UpdateHistoryItem } from "../../types/config";
+import type { ReleasePlatform, UpdateHistoryItem } from "../../types/config";
 import type { ReleasePublishTaskItem } from "../../state/ReleasePublishQueueContext";
 
 const { Text } = Typography;
 
+export type UpdateHistoryPlatformFilter = "all" | ReleasePlatform;
+
 type Props = {
-  displayHistory: UpdateHistoryItem[];
+  items: UpdateHistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  loading: boolean;
+  platformFilter: UpdateHistoryPlatformFilter;
+  exporting: boolean;
   themeColor: string;
   publishTasks: ReleasePublishTaskItem[];
   publishQueueStats: {
@@ -33,6 +46,10 @@ type Props = {
     active: number;
     failed: number;
   };
+  onPlatformFilterChange: (platform: UpdateHistoryPlatformFilter) => void;
+  onPageChange: (page: number, pageSize: number) => void;
+  onRefresh: () => void;
+  onExport: (format: "json" | "csv") => void;
   onOpenQueueModal: () => void;
   onPublishNew: () => void;
   onEdit: (item: UpdateHistoryItem) => void;
@@ -56,21 +73,20 @@ function getFileSourceTagColor(item: UpdateHistoryItem): string {
   return "default";
 }
 
-function getCurrentHistoryIds(displayHistory: UpdateHistoryItem[]): Set<string> {
-  const currentIds = new Set<string>();
-  const platforms = new Set<string>();
-  for (const item of displayHistory) {
-    if (platforms.has(item.platform)) continue;
-    platforms.add(item.platform);
-    currentIds.add(item.id);
-  }
-  return currentIds;
-}
-
 export default function UpdateTab({
-  displayHistory,
+  items,
+  total,
+  page,
+  pageSize,
+  loading,
+  platformFilter,
+  exporting,
   publishTasks,
   publishQueueStats,
+  onPlatformFilterChange,
+  onPageChange,
+  onRefresh,
+  onExport,
   onOpenQueueModal,
   onPublishNew,
   onEdit,
@@ -79,8 +95,9 @@ export default function UpdateTab({
   onDeleteHistory,
   deletingHistoryId,
 }: Props) {
-  const currentHistoryIds = getCurrentHistoryIds(displayHistory);
-  const runningTask = publishTasks.find((t) => t.state === "running") ?? publishTasks.find((t) => t.state === "queued");
+  const runningTask =
+    publishTasks.find((t) => t.state === "running") ??
+    publishTasks.find((t) => t.state === "queued");
   const latestFailedTask = publishTasks.find((t) => t.state === "failed");
 
   const columns: ColumnsType<UpdateHistoryItem> = [
@@ -89,7 +106,7 @@ export default function UpdateTab({
       key: "statusPlatform",
       width: 170,
       render: (_, record) => {
-        const isCurrent = currentHistoryIds.has(record.id);
+        const isCurrent = Boolean(record.isCurrent);
         const isDesktop = record.platform === "desktop";
         return (
           <Space size={4} wrap>
@@ -165,7 +182,7 @@ export default function UpdateTab({
       fixed: "right",
       width: 160,
       render: (_, record) => {
-        const isCurrent = currentHistoryIds.has(record.id);
+        const isCurrent = Boolean(record.isCurrent);
         const hasUploadedFile = record.releaseFile?.status === "uploaded";
         return (
           <Space size="small">
@@ -240,36 +257,70 @@ export default function UpdateTab({
         bordered={false}
         className="shadow-sm rounded-2xl"
         title={
-          <div>
-            <span className="text-lg font-bold text-slate-800">
-              版本发布与更新历史
-            </span>
-            <span className="ml-2 text-xs font-normal text-slate-500">
-              共 {displayHistory.length} 个历史版本
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <span className="text-lg font-bold text-slate-800">
+                版本发布与更新历史
+              </span>
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                共 {total} 个版本
+              </span>
+            </div>
+            <Segmented
+              size="small"
+              value={platformFilter}
+              onChange={(val) => onPlatformFilterChange(val as UpdateHistoryPlatformFilter)}
+              options={[
+                { label: "全部平台", value: "all" },
+                { label: "Android", value: "android" },
+                { label: "PC 版", value: "desktop" },
+              ]}
+            />
           </div>
         }
         extra={
-          <Space size={8}>
+          <Space size={8} wrap>
+            <Button
+              icon={<ReloadOutlined />}
+              loading={loading}
+              onClick={onRefresh}
+            >
+              刷新
+            </Button>
+            <Dropdown
+              menu={{
+                items: [
+                  { key: "json", label: "导出全部 JSON" },
+                  { key: "csv", label: "导出全部 CSV" },
+                ],
+                onClick: ({ key }) => onExport(key as "json" | "csv"),
+              }}
+              disabled={exporting}
+            >
+              <Button icon={<DownloadOutlined />} loading={exporting}>
+                导出记录 <DownOutlined />
+              </Button>
+            </Dropdown>
             {publishQueueStats.total > 0 && (
               <Badge
-                count={publishQueueStats.active > 0 ? publishQueueStats.active : publishQueueStats.failed}
-                status={publishQueueStats.failed > 0 && publishQueueStats.active === 0 ? "error" : "processing"}
+                count={
+                  publishQueueStats.active > 0
+                    ? publishQueueStats.active
+                    : publishQueueStats.failed
+                }
+                status={
+                  publishQueueStats.failed > 0 && publishQueueStats.active === 0
+                    ? "error"
+                    : "processing"
+                }
                 size="small"
               >
-                <Button
-                  icon={<UnorderedListOutlined />}
-                  onClick={onOpenQueueModal}
-                >
+                <Button icon={<UnorderedListOutlined />} onClick={onOpenQueueModal}>
                   发布任务进度
                 </Button>
               </Badge>
             )}
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={onPublishNew}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={onPublishNew}>
               发布新版本
             </Button>
           </Space>
@@ -323,16 +374,22 @@ export default function UpdateTab({
         )}
         <Table<UpdateHistoryItem>
           rowKey="id"
+          loading={loading}
           columns={columns}
-          dataSource={displayHistory}
+          dataSource={items}
           size="middle"
           scroll={{ x: 1200 }}
           sticky={{ offsetHeader: 0 }}
           bordered
           pagination={{
-            pageSize: 15,
-            showTotal: (total) => `共 ${total} 个版本`,
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 15, 20, 50],
+            showTotal: (t) => `共 ${t} 个版本`,
             showQuickJumper: true,
+            onChange: onPageChange,
           }}
         />
       </Card>

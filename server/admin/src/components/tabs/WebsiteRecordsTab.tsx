@@ -78,12 +78,12 @@ export default function WebsiteRecordsTab({ themeColor }: Props) {
       if (recordType === "visit") {
         const data = await fetchAdminWebsiteVisitRecords(offsets.visit, PAGE_LIMIT, filter);
         if (requestId !== requestIdRef.current) return;
-        setVisitItems(data.items);
+        setVisitItems(data.list);
         setTotals((current) => ({ ...current, visit: data.total }));
       } else {
         const data = await fetchAdminWebsiteDownloadRecords(offsets.download, PAGE_LIMIT, filter);
         if (requestId !== requestIdRef.current) return;
-        setDownloadItems(data.items);
+        setDownloadItems(data.list);
         setTotals((current) => ({ ...current, download: data.total }));
       }
     } catch (reason) {

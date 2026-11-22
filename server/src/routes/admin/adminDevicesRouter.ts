@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getDeviceDb } from "../../db/deviceInfoDb";
 import { deleteSubjectQuotaState } from "../../db/songDownloadStore";
 import { fail, ok } from "../../types/response";
+import { buildPaginatedList, normalizePagination } from "../../utils/pagination";
 
 export const adminDevicesRouter = Router();
 
@@ -114,8 +115,7 @@ adminDevicesRouter.get("/device/list", async (req, res) => {
     const search = String(req.query.search ?? "").trim();
     const lockedParam = req.query.locked;
     const brand = String(req.query.brand ?? "").trim();
-    const offset = Math.max(0, Number(req.query.offset ?? 0) || 0);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 20) || 20));
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit);
 
     const whereClauses: string[] = [];
     const params: (string | number)[] = [];
@@ -140,7 +140,7 @@ adminDevicesRouter.get("/device/list", async (req, res) => {
       [...params, limit, offset],
     )) as DeviceInfoRow[];
 
-    return res.json(ok({ devices: rows.map(mapDeviceRow), total: countRow.total, offset, limit }));
+    return res.json(ok(buildPaginatedList(rows.map(mapDeviceRow), countRow.total, offset, limit)));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "查询设备列表失败";
     return res.status(500).json(fail(msg, 500));
@@ -214,8 +214,7 @@ adminDevicesRouter.get("/desktop-device/list", async (req, res) => {
     const search = String(req.query.search ?? "").trim();
     const lockedParam = req.query.locked;
     const platform = String(req.query.platform ?? "").trim();
-    const offset = Math.max(0, Number(req.query.offset ?? 0) || 0);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 20) || 20));
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit);
 
     const whereClauses: string[] = [];
     const params: (string | number)[] = [];
@@ -240,7 +239,7 @@ adminDevicesRouter.get("/desktop-device/list", async (req, res) => {
       [...params, limit, offset],
     )) as DesktopDeviceInfoRow[];
 
-    return res.json(ok({ devices: rows.map(mapDesktopDeviceRow), total: countRow.total, offset, limit }));
+    return res.json(ok(buildPaginatedList(rows.map(mapDesktopDeviceRow), countRow.total, offset, limit)));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "查询桌面设备列表失败";
     return res.status(500).json(fail(msg, 500));

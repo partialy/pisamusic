@@ -46,12 +46,14 @@ describe("websiteRecordStore", async () => {
     const downloads = (await listAdminWebsiteRecords("download", { offset: 0, limit: 20 }));
 
     assert.equal(visits.total, 2);
-    assert.equal(visits.items.length, 1);
-    assert.equal(visits.items[0]?.id, "visit-new");
-    assert.equal("userAgent" in (visits.items[0] ?? {}), false);
+    assert.equal(visits.list.length, 1);
+    assert.equal(visits.hasMore, true);
+    assert.equal(visits.list[0]?.id, "visit-new");
+    assert.equal("userAgent" in (visits.list[0] ?? {}), false);
     assert.equal(downloads.total, 1);
-    assert.equal(downloads.items[0]?.id, "download-one");
-    assert.equal("visitorHash" in (downloads.items[0] ?? {}), false);
+    assert.equal(downloads.list[0]?.id, "download-one");
+    assert.equal(downloads.hasMore, false);
+    assert.equal("visitorHash" in (downloads.list[0] ?? {}), false);
   }));
 
   (await test("详情返回对应表的完整 camelCase 字段", async () => {

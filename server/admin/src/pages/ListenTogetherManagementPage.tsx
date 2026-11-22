@@ -63,7 +63,7 @@ export default function ListenTogetherManagementPage() {
           offset: onlineOffset,
           limit: onlineLimit,
         });
-        setOnlineItems(Array.isArray(result?.items) ? result.items : []);
+        setOnlineItems(Array.isArray(result?.list) ? result.list : []);
         setOnlineTotal(Number(result?.total || 0));
       } catch (e) {
         if (!silent) {
@@ -87,7 +87,7 @@ export default function ListenTogetherManagementPage() {
         offset: historyOffset,
         limit: historyLimit,
       });
-      setHistoryItems(Array.isArray(result?.items) ? result.items : []);
+      setHistoryItems(Array.isArray(result?.list) ? result.list : []);
       setHistoryTotal(Number(result?.total || 0));
     } catch (e) {
       void message.error(e instanceof Error ? e.message : "加载历史房间失败");

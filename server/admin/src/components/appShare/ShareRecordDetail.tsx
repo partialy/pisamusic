@@ -41,12 +41,12 @@ export default function ShareRecordDetail({ id, revision, onClose }: { id: strin
         <Alert showIcon type="info" message={`访问与下载明细仅保留最近 ${data.retentionDays} 天，累计计数与日报长期保留。下载触发不代表安装完成，统计不可作为奖励结算依据。`} />
         <Tabs items={[
           { key: "trend", label: "每日趋势", children: <ShareTrendTable items={data.trend} /> },
-          { key: "visits", label: `访问明细（${data.visits.total}）`, children: <Table size="small" rowKey="eventId" dataSource={data.visits.items} scroll={{ x: 750 }} pagination={{ current: offsets.visit / 20 + 1, pageSize: 20, total: data.visits.total, showSizeChanger: false, onChange: page => setOffsets(v => ({ ...v, visit: (page - 1) * 20 })) }} columns={[
+          { key: "visits", label: `访问明细（${data.visits.total}）`, children: <Table size="small" rowKey="eventId" dataSource={data.visits.list} scroll={{ x: 750 }} pagination={{ current: offsets.visit / 20 + 1, pageSize: 20, total: data.visits.total, showSizeChanger: false, onChange: page => setOffsets(v => ({ ...v, visit: (page - 1) * 20 })) }} columns={[
             { title: "接收时间", dataIndex: "receivedAt", render: shareTime }, { title: "设备", dataIndex: "browserDeviceType" },
             { title: "当日首次访问", dataIndex: "isUniqueForShareDay", render: value => value ? "是" : "否" },
             { title: "来源", dataIndex: "referrerPath", ellipsis: true }, { title: "浏览器", dataIndex: "userAgent", ellipsis: true },
           ]} /> },
-          { key: "downloads", label: `下载明细（${data.downloads.total}）`, children: <Table size="small" rowKey="id" dataSource={data.downloads.items} scroll={{ x: 750 }} pagination={{ current: offsets.download / 20 + 1, pageSize: 20, total: data.downloads.total, showSizeChanger: false, onChange: page => setOffsets(v => ({ ...v, download: (page - 1) * 20 })) }} columns={[
+          { key: "downloads", label: `下载明细（${data.downloads.total}）`, children: <Table size="small" rowKey="id" dataSource={data.downloads.list} scroll={{ x: 750 }} pagination={{ current: offsets.download / 20 + 1, pageSize: 20, total: data.downloads.total, showSizeChanger: false, onChange: page => setOffsets(v => ({ ...v, download: (page - 1) * 20 })) }} columns={[
             { title: "触发时间", dataIndex: "triggeredAt", render: shareTime }, { title: "平台", dataIndex: "platform", render: value => value === "desktop" ? "Windows" : "Android" },
             { title: "版本", dataIndex: "version" }, { title: "归因方式", dataIndex: "attributionSource", render: value => value === "explicit_code" ? "链接短码" : "7天 Cookie" },
             { title: "来源", dataIndex: "referrerPath", ellipsis: true },

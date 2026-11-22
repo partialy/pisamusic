@@ -37,7 +37,7 @@ Cookie仅保存匿名访客hash、版本和到期时间，不包含账号或设�
 | sort | createdAt（默认）/ visitCount / downloadCount / lastActiveAt，降序 |
 | offset,limit | 默认0/20，limit 1–100 |
 
-data为 `{items,total,offset,limit,summary,trend}`。每项字段：id、code、userId（游客null）、userName、userMissing、deviceId、deviceKind、deviceName、deviceMissing、createdAt、lastRequestedAt、lastVisitAt、lastDownloadAt、valid、invalidatedAt、visitCount、visitUv、androidDownloadCount、desktopDownloadCount、downloadCount、url。
+data为 `{list,total,offset,limit,hasMore,summary,trend}`。每项字段：id、code、userId（游客null）、userName、userMissing、deviceId、deviceKind、deviceName、deviceMissing、createdAt、lastRequestedAt、lastVisitAt、lastDownloadAt、valid、invalidatedAt、visitCount、visitUv、androidDownloadCount、desktopDownloadCount、downloadCount、url。
 
 deviceKind为android或desktop，表示生成分享链接的设备来源；androidDownloadCount / desktopDownloadCount分别表示实际下载的平台，与分享来源独立，PC链接同样可以产生Android下载。
 
@@ -49,7 +49,7 @@ trend每项为 `{day,visitCount,visitUv,androidDownloadCount,desktopDownloadCoun
 
 ## GET /api/admin/app-share-records/:id
 
-管理员JWT及AES-GCM。query `{visitOffset=0,downloadOffset=0,limit=20}`。data `{record,trend,visits:{items,total},downloads:{items,total},retentionDays}`。
+管理员JWT及AES-GCM。query `{visitOffset=0,downloadOffset=0,limit=20}`。data `{record,trend,visits:{list,total,offset,limit,hasMore},downloads:{list,total,offset,limit,hasMore},retentionDays}`。
 
 visits项：eventId、visitDay、openedAt、receivedAt、referrerPath、userAgent、browserDeviceType、isUniqueForShareDay；不返回visitorHash。downloads项：id、platform（android/desktop）、version、triggeredAt、attributionSource（explicit_code/cookie）、referrerPath、userAgent。
 

@@ -32,7 +32,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "id": "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
         "userId": "u_abc123456",
@@ -54,7 +54,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

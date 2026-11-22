@@ -5,6 +5,14 @@
   success: boolean;
 };
 
+export type PaginatedListData<T> = {
+  list: T[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 export function ok<T>(data: T, msg = "ok"): ApiResponse<T> {
   return {
     msg,

@@ -105,7 +105,8 @@ test("分享HTTP链路：严格身份、公开访问、双平台下载、管理�
       return JSON.parse(decrypt(response.headers.get("x-pm-random")!, envelope.encData));
     };
     const listing = await adminRequest();
-    const record = listing.data.items.find((item: any) => item.code === accountShare.shareCode);
+    assert.equal(listing.data.hasMore, false);
+    const record = listing.data.list.find((item: any) => item.code === accountShare.shareCode);
     assert.equal(record.downloadCount, 2);
     assert.equal(record.visitCount, 1);
     assert.equal((await adminRequest(`/${record.id}/invalid`, "PATCH")).success, true);

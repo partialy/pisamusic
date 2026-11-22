@@ -6,11 +6,9 @@ import {
   type AppConfig,
   type ReleaseConfig,
   type ReleaseInfo,
-  type UpdateHistoryItem,
   readAppConfig,
   readActiveDesktopUpdateAsset,
   readReleaseFileById,
-  readUpdateHistory,
   shouldBlock,
 } from "../db/configStore";
 import { readDynamicConfigById } from "../db/dynamicConfigStore";
@@ -18,6 +16,12 @@ import { tokenFromRequest } from "../middleware/requireUserJwt";
 import { createPrivateQiniuDownloadUrl } from "../services/qiniuReleaseFiles";
 import { readHydratedAnnouncements } from "../services/announcementService";
 import { DeviceReportValidationError, resolveClientIp } from "../services/deviceReportService";
+import {
+  ReleaseNotFoundError,
+  ReleaseQueryValidationError,
+  getPublicReleaseDetail,
+  getPublicReleaseHistoryPage,
+} from "../services/releaseHistoryService";
 import {
   StartupServiceBlockedError,
   StartupValidationError,
@@ -88,19 +92,6 @@ function absolutizeConfigDownloads(cfg: AppConfig, req: Request): AppConfig {
     },
     releases,
   };
-}
-
-function absolutizeHistoryDownloads(items: UpdateHistoryItem[], req: Request): UpdateHistoryItem[] {
-  return items.map((item) => ({
-    ...item,
-    downloadUrl: toAbsoluteUrl(item.downloadUrl, req),
-    releaseFile: item.releaseFile
-      ? {
-          ...item.releaseFile,
-          downloadUrl: toAbsoluteUrl(item.releaseFile.downloadUrl, req),
-        }
-      : item.releaseFile,
-  }));
 }
 
 configRouter.get("/bootstrap", async (_req, res) => {
@@ -320,16 +311,50 @@ configRouter.get("/announcements", async (_req, res) => {
   }
 });
 
-configRouter.get("/update-history", async (req, res) => {
+configRouter.get("/releases/history", async (req, res) => {
   try {
     const { state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
     }
-    res.json(ok(absolutizeHistoryDownloads((await readUpdateHistory()), req)));
+    const data = await getPublicReleaseHistoryPage(
+      req.query as Record<string, unknown>,
+      (url) => toAbsoluteUrl(url, req),
+    );
+    res.json(ok(data));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "读取配置失败";
+    if (e instanceof ReleaseQueryValidationError) {
+      res.status(400).json(fail(e.message, 400));
+      return;
+    }
+    const message = e instanceof Error ? e.message : "读取版本历史失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
+configRouter.get("/releases/detail", async (req, res) => {
+  try {
+    const { state } = (await blockedResponse());
+    if (state.blocked) {
+      res.json(fail(state.reason, -233));
+      return;
+    }
+    const data = await getPublicReleaseDetail(
+      req.query as Record<string, unknown>,
+      (url) => toAbsoluteUrl(url, req),
+    );
+    res.json(ok(data));
+  } catch (e) {
+    if (e instanceof ReleaseQueryValidationError) {
+      res.status(400).json(fail(e.message, 400));
+      return;
+    }
+    if (e instanceof ReleaseNotFoundError) {
+      res.status(404).json(fail(e.message, 404));
+      return;
+    }
+    const message = e instanceof Error ? e.message : "读取版本详情失败";
     res.status(500).json(fail(message, 500));
   }
 });

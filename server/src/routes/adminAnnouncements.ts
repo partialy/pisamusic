@@ -185,9 +185,7 @@ adminAnnouncementsRouter.get("/:id/reads", async (req, res) => {
     if (!(await announcementExists(announcementId))) {
       return res.status(404).json(fail("公告不存在", 404));
     }
-    const offset = Number(req.query.offset ?? 0);
-    const limit = Number(req.query.limit ?? 20);
-    return res.json(ok(await readAnnouncementReads(announcementId, offset, limit)));
+    return res.json(ok(await readAnnouncementReads(announcementId, req.query.offset, req.query.limit)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "读取公告已读列表失败";
     return res.status(500).json(fail(message, 500));

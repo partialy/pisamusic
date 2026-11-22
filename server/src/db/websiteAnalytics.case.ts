@@ -71,8 +71,12 @@ test("域名UV、PV幂等、事务回滚、下载归因、筛选与聚合", asyn
     assert.equal((await readWebsiteStats(7, "", now)).summary.uv, 0);
     const list = await listAdminWebsiteRecords("download", { domain: "a.example.com", startDay: all.startDay, endDay: all.endDay });
     assert.equal(list.total, 1);
-    assert.equal(list.items[0]!.domain, "a.example.com");
-    assert.equal((await listAdminWebsiteRecords("visit", { domain: "b.example.com", endDay: "2000-01-01" })).total, 0);
+    assert.equal(list.list[0]!.domain, "a.example.com");
+    assert.equal(list.hasMore, false);
+    const emptyVisits = await listAdminWebsiteRecords("visit", { domain: "b.example.com", endDay: "2000-01-01" });
+    assert.equal(emptyVisits.total, 0);
+    assert.equal(emptyVisits.list.length, 0);
+    assert.equal(emptyVisits.hasMore, false);
     assert.equal(JSON.stringify(all).includes(hashVisitorId(event.visitorId)), false);
 
     const app = express();

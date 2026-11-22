@@ -168,7 +168,7 @@ export default function UserSyncLogsPanel({
       <Table<AdminUserSyncLogItem>
         rowKey="version"
         columns={columns}
-        dataSource={page.items}
+        dataSource={page.list}
         loading={loading}
         size="small"
         bordered

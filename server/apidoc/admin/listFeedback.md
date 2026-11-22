@@ -32,7 +32,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "id": "fb_123",
         "createdAt": "2026-08-26T14:30:00.000Z",
@@ -45,7 +45,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

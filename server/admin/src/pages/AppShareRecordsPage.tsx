@@ -76,7 +76,7 @@ export default function AppShareRecordsPage() {
       ].map(item => <Col key={item.title} xs={24} sm={12} xl={item.title === "分享链接" ? 8 : 4}><Card className={glassCardClasses} size="small"><Statistic title={item.title} value={item.value ?? "—"} suffix={<span className="text-xs">{item.suffix}</span>} /></Card></Col>)}
     </Row>
     <Card title="分享记录" className={glassCardClasses}>
-      <Table<ShareRecord> rowKey="id" loading={loading} dataSource={data?.items || []} size="small" scroll={{ x: 1800 }} pagination={{ current: offset / 20 + 1, pageSize: 20, total: data?.total || 0, showSizeChanger: false, showTotal: total => `共 ${total} 条`, onChange: page => setOffset((page - 1) * 20) }} columns={[
+      <Table<ShareRecord> rowKey="id" loading={loading} dataSource={data?.list || []} size="small" scroll={{ x: 1800 }} pagination={{ current: offset / 20 + 1, pageSize: 20, total: data?.total || 0, showSizeChanger: false, showTotal: total => `共 ${total} 条`, onChange: page => setOffset((page - 1) * 20) }} columns={[
         { title: "分享人", width: 170, render: (_, r) => <div><div>{r.userName || (r.userId ? "账号" : "游客")}{r.userMissing && <Tag>已注销</Tag>}</div><Typography.Text type="secondary" className="text-xs">{r.userId || "未登录"}</Typography.Text></div> },
         { title: "分享来源", dataIndex: "deviceKind", width: 100, render: kind => <Tag color={kind === "desktop" ? "blue" : "green"}>{kind === "desktop" ? "PC" : "Android"}</Tag> },
         { title: "设备", width: 170, render: (_, r) => <div>{r.deviceName || r.deviceKind}{r.deviceMissing && <Tag>设备不存在</Tag>}<div className="text-xs text-slate-500" title={r.deviceId}>{r.deviceId.slice(0, 12)}…</div></div> },

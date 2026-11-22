@@ -15,17 +15,20 @@ import {
   getPublicSummary,
   getPublicTrackDetail,
   getUserSubmissionHistory,
+  getUserSubmissionHistoryV2,
   removeUserManualCover,
   reserveUserAsset,
   resubmitUserTrack,
   saveUserSubmission,
   searchPublicTracks,
+  searchPublicTracksV2,
   type CloudMusicAssetKind,
   type CloudMusicAssetReserveRequest,
   type CloudMusicUploadSessionRequest,
   type CloudMusicUserSubmitInput,
 } from "../services/cloudMusicService";
 import { fail, ok } from "../types/response";
+import { normalizePagination } from "../utils/pagination";
 
 export const cloudMusicRouter = Router();
 
@@ -51,14 +54,36 @@ cloudMusicRouter.get("/summary", async (req, res) => {
 cloudMusicRouter.get("/search", async (req, res) => {
   try {
     const keyword = typeof req.query.keyword === "string" ? req.query.keyword.trim() : undefined;
-    const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit, {
+      defaultLimit: 30,
+      maxLimit: 100,
+    });
 
     const result = (await searchPublicTracks({
       keyword,
       offset,
       limit,
     }));
+    res.json(ok(result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "搜索网盘音乐失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
+cloudMusicRouter.get("/v2/search", async (req, res) => {
+  try {
+    const keyword = typeof req.query.keyword === "string" ? req.query.keyword.trim() : undefined;
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit, {
+      defaultLimit: 30,
+      maxLimit: 100,
+    });
+
+    const result = await searchPublicTracksV2({
+      keyword,
+      offset,
+      limit,
+    });
     res.json(ok(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : "搜索网盘音乐失败";
@@ -235,9 +260,29 @@ cloudMusicRouter.post("/submit/:uuid/save", requireUserJwt, async (req, res) => 
 cloudMusicRouter.get("/submit/my-history", requireUserJwt, async (req, res) => {
   try {
     const user = getUserFromReq(req);
-    const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit, {
+      defaultLimit: 30,
+      maxLimit: 100,
+    });
     const result = (await getUserSubmissionHistory(user.id, offset, limit));
+    res.json(ok(result));
+  } catch (error) {
+    const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
+      ? error.statusCode
+      : 500;
+    const message = error instanceof Error ? error.message : "获取投稿历史失败";
+    res.status(statusCode).json(fail(message, statusCode));
+  }
+});
+
+cloudMusicRouter.get("/v2/submit/my-history", requireUserJwt, async (req, res) => {
+  try {
+    const user = getUserFromReq(req);
+    const { offset, limit } = normalizePagination(req.query.offset, req.query.limit, {
+      defaultLimit: 30,
+      maxLimit: 100,
+    });
+    const result = await getUserSubmissionHistoryV2(user.id, offset, limit);
     res.json(ok(result));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"

@@ -15,23 +15,31 @@ import {
   toCloudMusicPublicTrack,
   toCloudMusicTrackDto,
 } from "./cloudMusicShared";
+import { buildPaginatedList } from "../../utils/pagination";
 import type {
   CloudMusicLyricsUrlResponse,
   CloudMusicPlayUrlResponse,
   CloudMusicPublicSummary,
   CloudMusicPublicTrack,
   CloudMusicSearchResponse,
+  CloudMusicSearchV2Response,
 } from "./types";
 
 export async function searchPublicTracks(input: CloudMusicSearchInput): Promise<CloudMusicSearchResponse> {
   const result = await searchVisibleCloudMusic(input);
   return {
     source: "cloud",
-    items: (await Promise.all(result.items.map(toCloudMusicTrackDto))).map(toCloudMusicPublicTrack),
+    items: (await Promise.all(result.list.map(toCloudMusicTrackDto))).map(toCloudMusicPublicTrack),
     total: result.total,
     offset: result.offset,
     limit: result.limit,
   };
+}
+
+export async function searchPublicTracksV2(input: CloudMusicSearchInput): Promise<CloudMusicSearchV2Response> {
+  const result = await searchVisibleCloudMusic(input);
+  const list = (await Promise.all(result.list.map(toCloudMusicTrackDto))).map(toCloudMusicPublicTrack);
+  return buildPaginatedList(list, result.total, result.offset, result.limit);
 }
 
 export async function getPublicSummary(userId?: string): Promise<CloudMusicPublicSummary> {

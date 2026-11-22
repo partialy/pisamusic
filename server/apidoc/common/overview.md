@@ -17,6 +17,27 @@ interface ApiResponse<T> {
 }
 ```
 
+### 统一分页响应结构
+
+所有标准分页列表接口统一使用 `offset`、`limit` 请求参数，`data` 统一采用如下标准格式（`PaginatedListData<T>`）：
+
+```typescript
+interface PaginatedListData<T> {
+  list: T[];         // 当前页数据列表
+  total: number;     // 总记录数
+  offset: number;    // 当前偏移量（从 0 开始）
+  limit: number;     // 每页限制条数
+  hasMore: boolean;  // 是否还有下一页
+}
+```
+
+- **标准分页范围**：除明确注明的特殊协议外，所有后台管理分页接口、官网分页接口及客户端标准分页接口均采用 `offset`、`limit` + `{ list, total, offset, limit, hasMore }`。
+- **特殊例外接口**：
+  - `/api/sync/changes`：游标快照/增量同步协议；
+  - `/api/messages/unread`：未读消息队列；
+  - `/api/web/music/search`：固定条数官网试听。
+- **历史接口升级原则**：已上线客户端分页接口升级遵循“保留原接口 + 新增 `v2` 接口”原则（原接口维持旧字段兼容，新客户端逐步切换至返回标准 `PaginatedListData<T>` 的 `v2` 接口）。
+
 ### 常用状态码约定
 
 | 状态码 (`code`) | HTTP 状态码 | 说明 |
@@ -39,7 +60,7 @@ interface ApiResponse<T> {
 
 ### 2.1 白名单机制
 - **明文白名单路径**：无需加密，客户端直接发送明文 JSON 或 Form 请求，服务端直接返回明文 JSON。
-  - 强制明文路径包括：`/api/health`、`/api/config/bootstrap`、`/api/config/releases`、`/api/config/release-files/*`、`/api/config/desktop-updates/*`、`/api/config/download/*`、`/api/config/discover`、`/api/analytics/site-visit`、`/api/listen-together/config`、`/api/shares/public/*`、`/discover/*`、`/static/*`、`/uploads/*` 等。
+  - 强制明文路径包括：`/api/health`、`/api/config/bootstrap`、`/api/config/releases`、`/api/config/releases/*`、`/api/config/release-files/*`、`/api/config/desktop-updates/*`、`/api/config/download/*`、`/api/config/discover`、`/api/analytics/site-visit`、`/api/listen-together/config`、`/api/shares/public/*`、`/discover/*`、`/static/*`、`/uploads/*` 等。
 - **非白名单路径**：必须执行端到端加密通信。
 
 ### 2.2 请求加密信封协议

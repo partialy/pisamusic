@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 import { toPublicUser, type PublicUser, type UserRecord } from "./userStore";
 
@@ -45,16 +47,11 @@ export type VerificationCodeQuery = {
   purpose?: string;
   status?: string;
   keyword?: string;
-  offset?: number;
-  limit?: number;
+  offset?: unknown;
+  limit?: unknown;
 };
 
-export type VerificationCodePage = {
-  items: VerificationCodeRecord[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type VerificationCodePage = PaginatedListData<VerificationCodeRecord>;
 
 type VerificationCodeRow = {
   id: string;
@@ -87,13 +84,6 @@ type VerificationCodeRow = {
 
 function normalizeText(value: unknown, max = 256): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
-function normalizePagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
-    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
-  };
 }
 
 function mapRowToRecord(row: VerificationCodeRow): VerificationCodeRecord {
@@ -242,12 +232,7 @@ export async function listVerificationCodeRecords(query: VerificationCodeQuery):
      ORDER BY v.created_at DESC
      LIMIT ? OFFSET ?`, [...params, limit, offset])) as VerificationCodeRow[];
 
-  return {
-    items: rows.map(mapRowToRecord),
-    total: countRow.total,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(rows.map(mapRowToRecord), countRow.total, offset, limit);
 }
 
 export async function deleteVerificationCodeRecord(id: string): Promise<boolean> {

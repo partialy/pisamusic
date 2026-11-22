@@ -38,7 +38,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "itemKey": "wy:186016",
         "itemId": "186016",
@@ -62,7 +62,8 @@
     ],
     "total": 128,
     "offset": 0,
-    "limit": 30
+    "limit": 30,
+    "hasMore": true
   },
   "success": true
 }

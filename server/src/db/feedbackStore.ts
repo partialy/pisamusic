@@ -1,5 +1,7 @@
 import { unlinkSync } from "node:fs";
 import path from "node:path";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 
 export const FEEDBACK_TYPES = ["bug", "suggestion", "account", "other"] as const;
@@ -43,12 +45,7 @@ export type AdminFeedbackDetail = AdminFeedbackListItem & {
   images: string[];
 };
 
-export type AdminFeedbackListResult = {
-  items: AdminFeedbackListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminFeedbackListResult = PaginatedListData<AdminFeedbackListItem>;
 
 type FeedbackListRow = {
   id: string;
@@ -65,13 +62,6 @@ type FeedbackListRow = {
 type FeedbackDetailRow = FeedbackListRow & {
   device_json: string;
 };
-
-function normalizePagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
-    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
-  };
-}
 
 function normalizeImageUrl(imagePath: string | null): string | null {
   if (!imagePath) return null;
@@ -179,12 +169,12 @@ export async function listAdminFeedback(filter: AdminFeedbackFilter): Promise<Ad
        GROUP BY f.id
        ORDER BY f.created_at DESC, f.id DESC
        LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as FeedbackListRow[];
-  return {
-    items: rows.map((row) => mapListRow(row)),
-    total: Number(totalRow.total) || 0,
+  return buildPaginatedList(
+    rows.map((row) => mapListRow(row)),
+    totalRow.total,
     offset,
     limit,
-  };
+  );
 }
 
 export async function readAdminFeedbackDetail(id: string): Promise<AdminFeedbackDetail | null> {

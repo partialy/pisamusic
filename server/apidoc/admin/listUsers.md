@@ -30,7 +30,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "users": [
+    "list": [
       {
         "id": "u_abc123456",
         "email": "user@example.com",
@@ -53,7 +53,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

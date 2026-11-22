@@ -36,7 +36,7 @@ App 分享图标返回 `usageType="app-share-icon"`、`assetType="image"`。`ref
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "id": "f_desktop_150_exe",
         "usageType": "desktop-update",
@@ -61,7 +61,8 @@ App 分享图标返回 `usageType="app-share-icon"`、`assetType="image"`。`ref
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

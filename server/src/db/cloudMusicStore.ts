@@ -1,6 +1,8 @@
 import path from "node:path";
 import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 
 export type CloudMusicStatus = "temp" | "active" | "disabled" | "offline" | "pending_review" | "rejected" | "deleted";
 export type CloudMusicUploadState = "reserved" | "uploaded" | "processing" | "ready" | "failed";
@@ -133,12 +135,7 @@ export type CloudMusicPublicSummary = {
   myContributions: number;
 };
 
-export type CloudMusicListResult = {
-  items: CloudMusicTrack[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type CloudMusicListResult = PaginatedListData<CloudMusicTrack>;
 
 export type CloudMusicStatusTransitionInput = {
   uuid: string;
@@ -495,8 +492,10 @@ export async function readCloudMusicReservedAsset(fileRecordId: string): Promise
 
 async function queryTracks(input: CloudMusicListInput, visibleOnly: boolean): Promise<CloudMusicListResult> {
   const db = getAppDb();
-  const offset = Math.max(0, Math.trunc(input.offset ?? 0));
-  const limit = Math.min(200, Math.max(1, Math.trunc(input.limit ?? 30)));
+  const { offset, limit } = normalizePagination(input.offset, input.limit, {
+    defaultLimit: 30,
+    maxLimit: 200,
+  });
   const where: string[] = [];
   const params: Array<string | number> = [];
 
@@ -527,12 +526,8 @@ async function queryTracks(input: CloudMusicListInput, visibleOnly: boolean): Pr
   const total = Number(((await db.queryOne(`SELECT COUNT(*) AS total FROM cloud_music_tracks ${whereSql}`, [...params])) as { total: number }).total) || 0;
   const rows = (await db.query(`SELECT * FROM cloud_music_tracks ${whereSql}
      ORDER BY updated_at DESC, uuid ASC LIMIT ? OFFSET ?`, [...params, limit, offset])) as CloudMusicTrackRow[];
-  return {
-    items: await Promise.all(rows.map(async (row) => (await mapTrack(db, row, Boolean(input.includeDeleted))))),
-    total,
-    offset,
-    limit,
-  };
+  const list = await Promise.all(rows.map(async (row) => (await mapTrack(db, row, Boolean(input.includeDeleted)))));
+  return buildPaginatedList(list, total, offset, limit);
 }
 
 export async function listCloudMusicTracks(input: CloudMusicListInput): Promise<CloudMusicListResult> {
@@ -571,8 +566,10 @@ export async function readVisibleCloudMusicSummary(userId?: string): Promise<Clo
 
 export async function readUserSubmissions(userId: string, offset = 0, limit = 30): Promise<CloudMusicListResult> {
   const db = getAppDb();
-  const safeOffset = Math.max(0, Math.trunc(offset));
-  const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
+  const { offset: safeOffset, limit: safeLimit } = normalizePagination(offset, limit, {
+    defaultLimit: 30,
+    maxLimit: 100,
+  });
 
   const countRow = (await db.queryOne(`SELECT COUNT(DISTINCT t.uuid) AS total
      FROM cloud_music_tracks t
@@ -590,12 +587,8 @@ export async function readUserSubmissions(userId: string, offset = 0, limit = 30
      ORDER BY t.created_at DESC
      LIMIT ? OFFSET ?`, [userId, safeLimit, safeOffset])) as CloudMusicTrackRow[];
 
-  return {
-    items: await Promise.all(rows.map(async (row) => (await mapTrack(db, row, true)))),
-    total,
-    offset: safeOffset,
-    limit: safeLimit,
-  };
+  const list = await Promise.all(rows.map(async (row) => (await mapTrack(db, row, true))));
+  return buildPaginatedList(list, total, safeOffset, safeLimit);
 }
 
 export async function updateCloudMusicDraft(uuid: string, input: CloudMusicDraftUpdateInput): Promise<CloudMusicTrack | null> {

@@ -51,7 +51,7 @@ export default function JsonExportModal({ exportData, onClose }: Props) {
     >
       <div className="space-y-3 pt-2">
         <Text type="secondary" className="text-xs">
-          包含系统配置、公告列表与版本发布历史的完整聚合 JSON 数据。
+          包含系统配置与公告列表的完整聚合 JSON 数据（发行记录请在「版本发布」页面导出）。
         </Text>
         <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner">
           {text}

@@ -33,7 +33,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "items": [
+    "list": [
       {
         "id": "e987b21a-3c4d-5e6f-7a8b-9c0d1e2f3a4b",
         "channel": "email",
@@ -65,7 +65,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

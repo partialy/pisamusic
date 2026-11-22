@@ -12,6 +12,8 @@ import {
   type StoredDirectMessage,
 } from "../db/directMessageStore";
 import { readUserById } from "../db/userStore";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 
 export type DirectMessageItem = {
   id: string;
@@ -34,12 +36,7 @@ export type AdminDirectMessageItem = DirectMessageItem & {
   readDeviceId: string | null;
 };
 
-export type AdminDirectMessagePage = {
-  items: AdminDirectMessageItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminDirectMessagePage = PaginatedListData<AdminDirectMessageItem>;
 
 export class DirectMessageValidationError extends Error {}
 
@@ -155,15 +152,9 @@ export async function listAdminDirectMessagePage(input: ListAdminDirectMessagesI
   const target = targetKindProvided
     ? { kind: normalizeTargetKind(input.targetKind), id: normalizeText(input.targetId, "接收方 ID", 128) } as DirectMessageTarget
     : undefined;
-  const offset = normalizeInteger(input.offset, 0, 0, Number.MAX_SAFE_INTEGER);
-  const limit = normalizeInteger(input.limit, 30, 1, 100);
+  const { offset, limit } = normalizePagination(input.offset, input.limit, { defaultLimit: 30 });
   const page = (await listAdminDirectMessages({ target, offset, limit }));
-  return {
-    items: page.items.map(toAdminDirectMessageItem),
-    total: page.total,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(page.items.map(toAdminDirectMessageItem), page.total, offset, limit);
 }
 
 export async function deleteDirectMessageById(id: unknown): Promise<{ id: string }> {

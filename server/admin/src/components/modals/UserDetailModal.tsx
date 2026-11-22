@@ -401,7 +401,7 @@ export default function UserDetailModal({
             <Table<AdminUserLibraryItem>
               rowKey="itemKey"
               columns={libraryColumns}
-              dataSource={libraryPage.items}
+              dataSource={libraryPage.list}
               loading={libraryLoading}
               size="small"
               bordered

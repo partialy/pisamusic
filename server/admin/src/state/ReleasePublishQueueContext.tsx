@@ -82,6 +82,7 @@ type ReleasePublishQueueContextValue = {
   retryTask: (taskId: string) => void;
   removeTask: (taskId: string) => void;
   clearCompletedTasks: () => void;
+  completedRevision: number;
   stats: {
     total: number;
     queued: number;
@@ -115,6 +116,7 @@ export function ReleasePublishQueueProvider({ children }: { children: ReactNode 
   const { refreshRemote } = useAdminConfigWorkspace();
   const [tasks, setTasks] = useState<ReleasePublishTaskItem[]>([]);
   const [queueModalOpen, setQueueModalOpen] = useState(false);
+  const [completedRevision, setCompletedRevision] = useState(0);
 
   const tasksRef = useRef<ReleasePublishTaskItem[]>([]);
   tasksRef.current = tasks;
@@ -276,6 +278,7 @@ export function ReleasePublishQueueProvider({ children }: { children: ReactNode 
       }
 
       await refreshRemote();
+      setCompletedRevision((v) => v + 1);
 
       patchTask(taskId, (cur) => ({
         ...cur,
@@ -426,6 +429,7 @@ export function ReleasePublishQueueProvider({ children }: { children: ReactNode 
       retryTask,
       removeTask,
       clearCompletedTasks,
+      completedRevision,
       stats,
     }),
     [
@@ -437,6 +441,7 @@ export function ReleasePublishQueueProvider({ children }: { children: ReactNode 
       retryTask,
       removeTask,
       clearCompletedTasks,
+      completedRevision,
       stats,
     ],
   );

@@ -2,16 +2,21 @@
 
 搜索公共网盘曲库中的曲目列表。仅返回 `active`（可用）与 `disabled`（禁用）状态的曲目；`disabled` 曲目的 `playable` 字段为 `false`。网盘音乐作为独立 `cloud` 音源，不参与其他平台聚合搜索。
 
+> [!NOTE]
+> `GET /api/cloud-music/search` 为旧版兼容接口，返 `items`（含 `source: "cloud"`，不含 `hasMore`），用于兼容已上线历史客户端；新客户端请统一使用 `GET /api/cloud-music/v2/search`（返回标准分页结构 `{ list, total, offset, limit, hasMore }`）。
+
+---
+
+## 1. 旧版兼容接口：`GET /api/cloud-music/search`（返 `items`）
+
 - **请求方法**：`GET`
 - **请求路径**：`/api/cloud-music/search`
 - **需要鉴权**：否
 - **加密模式**：端到端加密
 
----
+### 请求参数
 
-## 请求参数
-
-### Query Parameters
+#### Query Parameters
 
 | 参数名 | 类型 | 必填 | 默认值 | 说明与限制 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -19,17 +24,15 @@
 | `offset` | `number` | 否 | `0` | 分页偏移量，最小 0 |
 | `limit` | `number` | 否 | `30` | 每页数量，最小 1，最大 100 |
 
-### 请求示例
+#### 请求示例
 
 ```http
 GET /api/cloud-music/search?keyword=晴天&offset=0&limit=20
 ```
 
----
+### 响应数据
 
-## 响应数据
-
-### 成功响应
+#### 成功响应
 
 ```json
 {
@@ -67,12 +70,12 @@ GET /api/cloud-music/search?keyword=晴天&offset=0&limit=20
 }
 ```
 
-### 响应字段说明
+#### 响应字段说明
 
 | 字段名 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `source` | `string` | 固定为 `"cloud"` |
-| `items` | `array` | 曲目列表 |
+| `items` | `array` | 曲目列表（旧版兼容字段） |
 | `items[].uuid` | `string` | 曲目唯一 UUID |
 | `items[].playable` | `boolean` | 是否可播放（`active` 为 true，`disabled` 为 false） |
 | `items[].cover.source` | `string` | 封面来源：`uploaded`（手动上传）、`embedded`（内嵌提取）、`default`（默认封面） |
@@ -81,3 +84,86 @@ GET /api/cloud-music/search?keyword=晴天&offset=0&limit=20
 | `total` | `number` | 符合条件的曲目总数 |
 | `offset` | `number` | 当前偏移量 |
 | `limit` | `number` | 每页数量 |
+
+---
+
+## 2. 新版标准分页接口：`GET /api/cloud-music/v2/search`
+
+查询条件与曲目字段结构同旧版接口一致，响应统一采用标准分页结构 `{ list, total, offset, limit, hasMore }`。
+
+- **请求方法**：`GET`
+- **请求路径**：`/api/cloud-music/v2/search`
+- **需要鉴权**：否
+- **加密模式**：端到端加密
+
+### 请求参数
+
+#### Query Parameters
+
+| 参数名 | 类型 | 必填 | 默认值 | 说明与限制 |
+| :--- | :--- | :--- | :--- | :--- |
+| `keyword` | `string` | 否 | `""` | 搜索关键词（支持匹配歌名、歌手、专辑、UUID） |
+| `offset` | `number` | 否 | `0` | 分页偏移量，最小 0 |
+| `limit` | `number` | 否 | `30` | 每页数量，最小 1，最大 100 |
+
+#### 请求示例
+
+```http
+GET /api/cloud-music/v2/search?keyword=晴天&offset=0&limit=20
+```
+
+### 响应数据
+
+#### 成功响应
+
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "data": {
+    "list": [
+      {
+        "uuid": "8c919a71-6c39-4d87-9eb5-c26693836101",
+        "source": "cloud",
+        "title": "晴天",
+        "artist": "周杰伦",
+        "album": "叶惠美",
+        "durationMs": 269000,
+        "format": "flac",
+        "playable": true,
+        "cover": {
+          "source": "uploaded",
+          "url": "/api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101/cover"
+        },
+        "lyrics": {
+          "format": "lrc",
+          "fileName": "晴天.lrc"
+        },
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000000
+      }
+    ],
+    "total": 1,
+    "offset": 0,
+    "limit": 20,
+    "hasMore": false
+  },
+  "success": true
+}
+```
+
+#### 响应字段说明
+
+| 字段名 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `list` | `array` | 当前页曲目列表 |
+| `list[].uuid` | `string` | 曲目唯一 UUID |
+| `list[].source` | `string` | 固定为 `"cloud"` |
+| `list[].playable` | `boolean` | 是否可播放（`active` 为 true，`disabled` 为 false） |
+| `list[].cover.source` | `string` | 封面来源：`uploaded`（手动上传）、`embedded`（内嵌提取）、`default`（默认封面） |
+| `list[].cover.url` | `string` | 稳定的相对封面入口 `/api/cloud-music/tracks/:uuid/cover`；该入口会即时重定向到私有签名 URL 或默认静态封面。 |
+| `list[].lyrics` | `object \| null` | 歌词信息（若有） |
+| `total` | `number` | 符合条件的曲目总数 |
+| `offset` | `number` | 当前偏移量 |
+| `limit` | `number` | 每页数量 |
+| `hasMore` | `boolean` | 是否还有下一页（`offset + list.length < total`） |

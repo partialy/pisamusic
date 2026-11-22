@@ -32,7 +32,7 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "devices": [
+    "list": [
       {
         "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
         "fingerprint": "desktop_fp...",
@@ -54,7 +54,8 @@
     ],
     "total": 1,
     "offset": 0,
-    "limit": 20
+    "limit": 20,
+    "hasMore": false
   },
   "success": true
 }

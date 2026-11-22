@@ -46,27 +46,30 @@ export default function UserManagementPage() {
   const [adminUserLibraryStatus, setAdminUserLibraryStatus] = useState<AdminUserLibraryStatus>("active");
   const [adminUserPlaylistFilter, setAdminUserPlaylistFilter] = useState<string | undefined>(undefined);
   const [adminUserLibraryPage, setAdminUserLibraryPage] = useState<AdminUserLibraryPage>({
-    items: [],
+    list: [],
     total: 0,
     offset: 0,
     limit: 30,
+    hasMore: false,
   });
   const [adminUserLibraryLoading, setAdminUserLibraryLoading] = useState(false);
   const [adminUserSyncLogsPage, setAdminUserSyncLogsPage] = useState<AdminUserSyncLogsPage>({
-    items: [],
+    list: [],
     total: 0,
     offset: 0,
     limit: 30,
+    hasMore: false,
     syncVersion: 0,
     syncLogFloor: 0,
   });
   const [adminUserSyncLogsFilter, setAdminUserSyncLogsFilter] = useState<AdminUserSyncLogFilter>({});
   const [adminUserSyncLogsLoading, setAdminUserSyncLogsLoading] = useState(false);
   const [adminUserMessagesPage, setAdminUserMessagesPage] = useState<AdminDirectMessagePage>({
-    items: [],
+    list: [],
     total: 0,
     offset: 0,
     limit: 30,
+    hasMore: false,
   });
   const [adminUserMessagesLoading, setAdminUserMessagesLoading] = useState(false);
 
@@ -78,7 +81,7 @@ export default function UserManagementPage() {
         offset: adminUserOffset,
         limit: adminUserLimit,
       });
-      setAdminUsers(result.users);
+      setAdminUsers(result.list);
       setAdminUserTotal(result.total);
     } catch (e) {
       alert(e instanceof Error ? e.message : "加载用户列表失败");
@@ -160,7 +163,7 @@ export default function UserManagementPage() {
         offset: currentOffset,
         limit: adminUserMessagesPage.limit,
       });
-      if (currentPage.items.length === 0 && currentOffset > 0) {
+      if (currentPage.list.length === 0 && currentOffset > 0) {
         await loadAdminUserMessages(
           selectedAdminUser.id,
           Math.max(0, currentOffset - adminUserMessagesPage.limit),

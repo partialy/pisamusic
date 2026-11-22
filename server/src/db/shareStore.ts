@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { PaginatedListData } from "../types/response";
+import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 import type { PublicUser } from "./userStore";
@@ -56,12 +58,7 @@ export type AdminShareListItem = {
   invalidatedAt: number | null;
 };
 
-export type AdminShareListResult = {
-  items: AdminShareListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-};
+export type AdminShareListResult = PaginatedListData<AdminShareListItem>;
 
 export type SharePublicSharer = {
   id: string;
@@ -249,13 +246,6 @@ function mapAdminRow(row: AdminShareRow): AdminShareListItem {
   };
 }
 
-function normalizePagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
-    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
-  };
-}
-
 function buildAdminWhere(filter: AdminShareFilter): { sql: string; params: Array<string | number> } {
   const clauses: string[] = [];
   const params: Array<string | number> = [];
@@ -401,12 +391,7 @@ export async function listAdminShares(filter: AdminShareFilter): Promise<AdminSh
        ${fromSql}
        ORDER BY s.updated_at DESC, s.created_at DESC, s.uuid ASC
        LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as AdminShareRow[];
-  return {
-    items: rows.map(mapAdminRow),
-    total: Number(totalRow.total) || 0,
-    offset,
-    limit,
-  };
+  return buildPaginatedList(rows.map(mapAdminRow), totalRow.total, offset, limit);
 }
 
 export async function readAdminShareRecord(uuid: string): Promise<AdminShareListItem | null> {
