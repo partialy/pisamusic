@@ -1,96 +1,129 @@
-version: '1.0'
+version: "1.0"
 name: deploy-server
 displayName: 部署 Server 服务端
-
+stages:
+- name: 构建并部署服务端
+  displayName: 构建并部署服务端
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: build@nodejs
+    name: build_and_deploy_server
+    displayName: 构建生产包并部署到宝塔服务器
+    nodeVersion: 22.22.0
+    commands:
+    - set -euo pipefail
+    - "# 确保使用 Node >= 22.22.3（从国内镜像拉取，约 2 秒）"
+    - if ! node -v 2>/dev/null | grep -qE '^v22\.'; then
+    - '  curl -fsSL "https://npmmirror.com/mirrors/node/v22.22.3/node-v22.22.3-linux-x64.tar.xz"
+      -o /tmp/node22.tar.xz'
+    - '  mkdir -p /tmp/node22'
+    - '  tar -xJf /tmp/node22.tar.xz -C /tmp/node22 --strip-components=1'
+    - '  export PATH="/tmp/node22/bin:$PATH"'
+    - fi
+    - node -v
+    - ""
+    - "# 配置国内镜像与 pnpm"
+    - npm config set registry https://registry.npmmirror.com
+    - if ! command -v pnpm >/dev/null 2>&1; then
+    - '  npm install -g pnpm@10 --registry=https://registry.npmmirror.com'
+    - fi
+    - pnpm config set registry https://registry.npmmirror.com
+    - pnpm -v
+    - ""
+    - "# 安装依赖并执行生产编译（排除测试文件）+ Admin 构建"
+    - pnpm --dir server install --frozen-lockfile
+    - pnpm --dir server/admin install --frozen-lockfile
+    - pnpm --dir server build:release
+    - ""
+    - "# 打包纯净发布产物"
+    - rm -rf /tmp/release-pkg /tmp/server-release.tar.gz
+    - mkdir -p /tmp/release-pkg
+    - cp -r server/dist /tmp/release-pkg/dist
+    - cp -r server/web-admin /tmp/release-pkg/web-admin
+    - cp -r server/frontend-html /tmp/release-pkg/frontend-html
+    - "[ -d server/static ] && cp -r server/static /tmp/release-pkg/static"
+    - "[ -d server/discover ] && cp -r server/discover /tmp/release-pkg/discover"
+    - cp server/package.json server/pnpm-lock.yaml /tmp/release-pkg/
+    - "[ -f server/.env.example ] && cp server/.env.example /tmp/release-pkg/.env.example"
+    - tar -czf /tmp/server-release.tar.gz -C /tmp/release-pkg .
+    - ls -lh /tmp/server-release.tar.gz
+    - ""
+    - "# 通过 SSH 上传并执行远端原子部署脚本"
+    - "if [ -z \"${SSH_PRIVATE_KEY:-}\" ] || [ -z \"${SERVER_HOST:-}\" ] || [ -z \"\
+      ${SERVER_USER:-}\" ]; then"
+    - "  echo \"ERROR: 缺少环境变量 SSH_PRIVATE_KEY / SERVER_HOST / SERVER_USER\""
+    - '  exit 1'
+    - fi
+    - if ! command -v ssh >/dev/null 2>&1 || ! command -v scp >/dev/null 2>&1; then
+    - '  if command -v yum >/dev/null 2>&1; then'
+    - '    yum install -y openssh-clients'
+    - '  elif command -v apt-get >/dev/null 2>&1; then'
+    - '    apt-get update && apt-get install -y openssh-client'
+    - '  fi'
+    - fi
+    - ""
+    - "PORT=\"${SERVER_PORT:-22}\""
+    - install -m 700 -d ~/.ssh
+    - printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+    - chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -p "$PORT" -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+    - ""
+    - SSH_OPTS="-i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=accept-new
+      -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=20"
+    - SCP_OPTS="-i ~/.ssh/deploy_key -P $PORT -o StrictHostKeyChecking=accept-new
+      -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=20"
+    - ""
+    - for attempt in 1 2 3; do
+    - "  if scp $SCP_OPTS /tmp/server-release.tar.gz deploy/deploy-server.sh \"${SERVER_USER}@${SERVER_HOST}:/tmp/\"\
+      ; then"
+    - '    break'
+    - '  fi'
+    - "  [ \"$attempt\" -eq 3 ] && { echo \"SCP upload failed after 3 attempts.\"\
+      ; exit 1; }"
+    - '  sleep 3'
+    - done
+    - ""
+    - "ssh $SSH_OPTS \"${SERVER_USER}@${SERVER_HOST}\" \\"
+    - "  \"sed -i 's/\\r$//' /tmp/deploy-server.sh && chmod +x /tmp/deploy-server.sh\
+      \ && SKIP_DB_BACKUP=${SKIP_DB_BACKUP:-0} FORCE_INSTALL=${FORCE_INSTALL:-0} /tmp/deploy-server.sh\
+      \ /tmp/server-release.tar.gz\""
+    notify:
+    - type: dingtalk
+      certificate: "17342075203"
+      events:
+      - fail
+      - success
+      content:
+      - pipeline
+      - stage
+      - task
+      - trigger
+      - operator
+      - detail
+      custom: ""
+      ats: "17342075203"
+    strategy:
+      retry: "0"
 triggers:
   trigger: auto
   push:
     branches:
+      prefix: []
       precise:
-        - main
+      - main
+      include: []
     paths:
+      precise: []
       include:
-        - server/.*
-        - \.workflow/deploy-server\.yml
-        - deploy/deploy-server\.sh
-
-stages:
-  - stage: build_and_deploy
-    displayName: 构建并部署服务端
-    strategy: naturally
-    trigger: auto
-    steps:
-      - step: build@nodejs
-        name: build_and_deploy_server
-        displayName: 构建生产包并部署到宝塔服务器
-        nodeVersion: 20.18.0
-        commands:
-          - set -euo pipefail
-          - |
-            # 确保使用 Node >= 22.22.3（从国内镜像拉取，约 2 秒）
-            if ! node -v 2>/dev/null | grep -qE '^v22\.'; then
-              curl -fsSL "https://npmmirror.com/mirrors/node/v22.22.3/node-v22.22.3-linux-x64.tar.xz" -o /tmp/node22.tar.xz
-              mkdir -p /tmp/node22
-              tar -xJf /tmp/node22.tar.xz -C /tmp/node22 --strip-components=1
-              export PATH="/tmp/node22/bin:$PATH"
-            fi
-            node -v
-          - |
-            # 配置国内镜像与 pnpm
-            npm config set registry https://registry.npmmirror.com
-            if ! command -v pnpm >/dev/null 2>&1; then
-              npm install -g pnpm@10 --registry=https://registry.npmmirror.com
-            fi
-            pnpm config set registry https://registry.npmmirror.com
-            pnpm -v
-          - |
-            # 安装依赖并执行生产编译（排除测试文件）+ Admin 构建
-            pnpm --dir server install --frozen-lockfile
-            pnpm --dir server/admin install --frozen-lockfile
-            pnpm --dir server build:release
-          - |
-            # 打包纯净发布产物
-            rm -rf /tmp/release-pkg /tmp/server-release.tar.gz
-            mkdir -p /tmp/release-pkg
-            cp -r server/dist /tmp/release-pkg/dist
-            cp -r server/web-admin /tmp/release-pkg/web-admin
-            cp -r server/frontend-html /tmp/release-pkg/frontend-html
-            [ -d server/static ] && cp -r server/static /tmp/release-pkg/static
-            [ -d server/discover ] && cp -r server/discover /tmp/release-pkg/discover
-            cp server/package.json server/pnpm-lock.yaml /tmp/release-pkg/
-            [ -f server/.env.example ] && cp server/.env.example /tmp/release-pkg/.env.example
-            tar -czf /tmp/server-release.tar.gz -C /tmp/release-pkg .
-            ls -lh /tmp/server-release.tar.gz
-          - |
-            # 通过 SSH 上传并执行远端原子部署脚本
-            if [ -z "${SSH_PRIVATE_KEY:-}" ] || [ -z "${SERVER_HOST:-}" ] || [ -z "${SERVER_USER:-}" ]; then
-              echo "ERROR: 缺少环境变量 SSH_PRIVATE_KEY / SERVER_HOST / SERVER_USER"
-              exit 1
-            fi
-            if ! command -v ssh >/dev/null 2>&1 || ! command -v scp >/dev/null 2>&1; then
-              if command -v yum >/dev/null 2>&1; then
-                yum install -y openssh-clients
-              elif command -v apt-get >/dev/null 2>&1; then
-                apt-get update && apt-get install -y openssh-client
-              fi
-            fi
-
-            PORT="${SERVER_PORT:-22}"
-            install -m 700 -d ~/.ssh
-            printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/deploy_key
-            chmod 600 ~/.ssh/deploy_key
-            ssh-keyscan -p "$PORT" -H "$SERVER_HOST" >> ~/.ssh/known_hosts
-
-            SSH_OPTS="-i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=20"
-            SCP_OPTS="-i ~/.ssh/deploy_key -P $PORT -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=20"
-
-            for attempt in 1 2 3; do
-              if scp $SCP_OPTS /tmp/server-release.tar.gz deploy/deploy-server.sh "${SERVER_USER}@${SERVER_HOST}:/tmp/"; then
-                break
-              fi
-              [ "$attempt" -eq 3 ] && { echo "SCP upload failed after 3 attempts."; exit 1; }
-              sleep 3
-            done
-
-            ssh $SSH_OPTS "${SERVER_USER}@${SERVER_HOST}" \
-              "sed -i 's/\r$//' /tmp/deploy-server.sh && chmod +x /tmp/deploy-server.sh && SKIP_DB_BACKUP=${SKIP_DB_BACKUP:-0} FORCE_INSTALL=${FORCE_INSTALL:-0} /tmp/deploy-server.sh /tmp/server-release.tar.gz"
+      - server/.*
+      - \.workflow/deploy-server\.yml
+      - deploy/deploy-server\.sh
+notify: []
+strategy:
+  blocking: true
+ref_variable:
+- SERVER_HOST
+- SERVER_PORT
+- SERVER_USER
+- SSH_PRIVATE_KEY
