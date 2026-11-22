@@ -19,7 +19,9 @@
     - 官网：`pisamusic.partialy.cn` -> `/www/wwwroot/node/pm-server/frontend-html`
   - 部署脚本 `.github/scripts/deploy-server.sh` 自动保护 `.env`、`data/`、`uploads/`、`.user.ini`、`.well-known/`，部署前自动备份 MySQL/SQLite（保留近 5 份于 `/www/wwwroot/node/pm-server-backups/db/`），保留近 3 版产物快照并在健康检查失败时自动回滚。
 
-### 需配置的 GitHub Repository Secrets
+### 需配置的 GitHub Secrets（Environment: `ali-deploy`）
+
+在 GitHub 仓库的 `Settings → Environments → ali-deploy`（`deploy-server.yml` 通过 `environment: ali-deploy` 绑定）中配置以下 Secrets：
 
 | Secret 名称 | 说明 | 示例 / 当前值参考 |
 | --- | --- | --- |
