@@ -4,7 +4,7 @@ import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 
 export const FAULT_REPORT_STATUSES = ["pending", "processed"] as const;
-export const FAULT_REPORT_SCENES = ["play_url", "desktop_network"] as const;
+export const FAULT_REPORT_SCENES = ["play_url", "desktop_network", "app_crash"] as const;
 export const FAULT_REPORT_PLATFORMS = ["android", "desktop"] as const;
 
 export type FaultReportStatus = (typeof FAULT_REPORT_STATUSES)[number];

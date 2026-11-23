@@ -16,7 +16,7 @@
 | 字段名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
 | `reportId` | `string` | 是 | 客户端生成的批次 UUID |
-| `scene` | `string` | 是 | 故障场景：`play_url`（播放取链失败）或 `desktop_network`（PC网络错误） |
+| `scene` | `string` | 是 | 故障场景：`play_url`（播放取链失败）、`desktop_network`（PC网络错误）或 `app_crash`（应用崩溃堆栈） |
 | `environment` | `object` | 是 | 客户端运行环境信息 |
 | `environment.platform` | `string` | 是 | `android` 或 `desktop` |
 | `environment.arch` | `string` | 是 | 硬件架构（如 `arm64-v8a` 或 `x64`） |

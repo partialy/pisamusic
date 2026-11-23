@@ -1,6 +1,6 @@
 # 分页查询故障上报批次列表
 
-管理后台分页查询客户端上报的故障批次列表，支持按场景（`play_url` / `desktop_network`）与处理状态筛选。
+管理后台分页查询客户端上报的故障批次列表，支持按场景（`play_url` / `desktop_network` / `app_crash`）与处理状态筛选。
 
 - **请求方法**：`GET`
 - **请求路径**：`/api/admin/fault-reports`
@@ -16,7 +16,7 @@
 | 参数名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
 | `status` | `string` | 否 | `pending` 或 `processed` |
-| `scene` | `string` | 否 | `play_url` 或 `desktop_network` |
+| `scene` | `string` | 否 | `play_url`、`desktop_network` 或 `app_crash` |
 | `keyword` | `string` | 否 | 品牌/型号/版本模糊搜索 |
 | `offset` | `number` | 否 | 分页偏移量，默认 0 |
 | `limit` | `number` | 否 | 每页条数（默认 20） |
