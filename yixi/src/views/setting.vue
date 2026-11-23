@@ -1,32 +1,16 @@
 <template>
-  <div ref="settingScrollRef" class="setting-con">
+  <div ref="settingScrollRef" class="setting-page-root">
     <n-tabs
       v-model:value="activeName"
       type="line"
       :animated="themeStore.pageTransitionEnabled">
-      <n-tab-pane name="basic" tab="基本设置">
-        <BasicSetting></BasicSetting>
-      </n-tab-pane>
-      <n-tab-pane name="local" tab="本地设置">
-        <LocalSetting></LocalSetting>
-      </n-tab-pane>
-      <n-tab-pane name="sync" tab="同步设置">
-        <SyncSetting></SyncSetting>
-      </n-tab-pane>
-      <n-tab-pane name="lyric" tab="歌词设置">
-        <LyricSetting></LyricSetting>
-      </n-tab-pane>
-      <n-tab-pane name="shortcut" tab="快捷键设置">
-        <ShortcutSetting></ShortcutSetting>
-      </n-tab-pane>
-      <n-tab-pane name="advance" tab="高级设置">
-        <AdvanceSetting></AdvanceSetting>
-      </n-tab-pane>
-      <n-tab-pane name="about" tab="关于">
-        <AboutSetting></AboutSetting>
-      </n-tab-pane>
-      <n-tab-pane name="announcements" tab="公告">
-        <AnnouncementSetting />
+      <n-tab-pane
+        v-for="item in settingTabItems"
+        :key="item.name"
+        :name="item.name"
+        :tab="item.tab">
+        <component :is="item.component" />
+        <div class="tab-bottom-spacer" aria-hidden="true" />
       </n-tab-pane>
     </n-tabs>
   </div>
@@ -43,7 +27,7 @@ import {
   ShortcutSetting,
   SyncSetting,
 } from "@/components/setting";
-import { ref, watch } from "vue";
+import { ref, watch, type Component } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useKeepAliveScroll } from "@/composables/useKeepAliveScroll";
 import { useThemeStore } from "@/store/theme";
@@ -52,16 +36,18 @@ defineOptions({ name: "SettingView" });
 
 type SettingTab = "basic" | "local" | "sync" | "lyric" | "shortcut" | "advance" | "about" | "announcements";
 
-const SETTING_TABS = new Set<SettingTab>([
-  "basic",
-  "local",
-  "sync",
-  "lyric",
-  "shortcut",
-  "advance",
-  "about",
-  "announcements",
-]);
+const settingTabItems: ReadonlyArray<{ name: SettingTab; tab: string; component: Component }> = [
+  { name: "basic", tab: "基本设置", component: BasicSetting },
+  { name: "local", tab: "本地设置", component: LocalSetting },
+  { name: "sync", tab: "同步设置", component: SyncSetting },
+  { name: "lyric", tab: "歌词设置", component: LyricSetting },
+  { name: "shortcut", tab: "快捷键设置", component: ShortcutSetting },
+  { name: "advance", tab: "高级设置", component: AdvanceSetting },
+  { name: "about", tab: "关于", component: AboutSetting },
+  { name: "announcements", tab: "公告", component: AnnouncementSetting },
+];
+
+const SETTING_TABS = new Set<SettingTab>(settingTabItems.map((item) => item.name));
 
 const route = useRoute();
 const router = useRouter();
@@ -94,7 +80,7 @@ function resolveSettingTab(value: unknown): SettingTab {
 </script>
 
 <style lang="scss" scoped>
-.setting-con {
+.setting-page-root {
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -135,13 +121,12 @@ function resolveSettingTab(value: unknown): SettingTab {
   min-height: 0;
 }
 
-:deep(.n-tab-pane) {
+:deep(.n-tabs .n-tabs-pane-wrapper .n-tab-pane) {
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
   overflow-y: auto;
   padding-right: 12px;
-  padding-bottom: 16px;
   scrollbar-width: none;
   -ms-overflow-style: none;
 
@@ -150,6 +135,11 @@ function resolveSettingTab(value: unknown): SettingTab {
     width: 0;
     height: 0;
   }
+}
+
+.tab-bottom-spacer {
+  height: 16px;
+  flex-shrink: 0;
 }
 
 :deep(*::-webkit-scrollbar) {

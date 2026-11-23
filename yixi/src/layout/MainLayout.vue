@@ -1,30 +1,15 @@
 <template>
   <div class="main-layout-root">
     <n-space vertical class="layout-space">
-      <n-layout
-        has-sider
-        class="app-shell">
-        <n-layout-sider
-          class="app-sider"
-          bordered
-          collapse-mode="width"
-          :collapsed-width="88"
-          :width="232"
-          :collapsed="collapsed"
-          show-trigger
-          @collapse="collapsed = true"
-          @expand="collapsed = false">
+      <n-layout has-sider class="app-shell">
+        <n-layout-sider class="app-sider" bordered collapse-mode="width" :collapsed-width="88" :width="232"
+          :collapsed="collapsed" show-trigger @collapse="collapsed = true" @expand="collapsed = false">
           <div class="brand-container" :class="{ collapsed }">
             <n-image :src="logo" preview-disabled class="brand-logo" />
             <span v-if="!collapsed" class="brand-title">PisaMusic</span>
           </div>
-          <n-menu
-            v-model:value="activeTab"
-            :collapsed="collapsed"
-            :collapsed-width="80"
-            :collapsed-icon-size="20"
-            :options="menuOptions"
-            @update:value="handleChangeMenu" />
+          <n-menu v-model:value="activeTab" :collapsed="collapsed" :collapsed-width="80" :collapsed-icon-size="20"
+            :options="menuOptions" @update:value="handleChangeMenu" />
         </n-layout-sider>
         <n-layout class="app-main-layout">
           <div class="right-content">
@@ -272,7 +257,7 @@ function renderMenuIcon(icon: Component) {
     flex: 1;
     min-height: 0;
     overflow-y: overlay;
-    padding: 1rem 1.5rem 0 1rem;
+    padding: 1rem 1rem 0 1rem;
     background: transparent;
   }
 }

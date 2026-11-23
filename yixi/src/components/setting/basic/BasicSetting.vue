@@ -1,253 +1,201 @@
 <template>
   <div class="settings-stack setting-con">
     <SettingSection title="主题与外观" description="设置应用主题与强调色。">
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">主题模式</div>
-        <div class="setting-desc">选择浅色、深色，或跟随系统外观。</div>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">主题模式</div>
+          <div class="setting-desc">选择浅色、深色，或跟随系统外观。</div>
+        </div>
+        <ThemeModeSegmented :model-value="themeStore.mode" @update:model-value="handleThemeModeChange" />
       </div>
-      <ThemeModeSegmented
-        :model-value="themeStore.mode"
-        @update:model-value="handleThemeModeChange" />
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">主题色</div>
-        <div class="setting-desc">用于按钮、进度条、选中态与 UI 主色。</div>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">主题色</div>
+          <div class="setting-desc">用于按钮、进度条、选中态与 UI 主色。</div>
+        </div>
+        <div class="accent-setting">
+          <AppColorPicker :value="themeStore.accentColor" @update:value="handleAccentColorChange" />
+          <n-button secondary @click="themeStore.resetAccentColor">
+            恢复默认
+          </n-button>
+        </div>
       </div>
-      <div class="accent-setting">
-        <AppColorPicker
-          :value="themeStore.accentColor"
-          @update:value="handleAccentColorChange" />
-        <n-button secondary @click="themeStore.resetAccentColor">
-          恢复默认
-        </n-button>
-      </div>
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">跟随歌曲自动换色</div>
-        <div class="setting-desc">开启后，切歌时会根据封面自动更新主题强调色。</div>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">跟随歌曲自动换色</div>
+          <div class="setting-desc">开启后，切歌时会根据封面自动更新主题强调色。</div>
+        </div>
+        <n-switch :value="themeStore.followSongAccent" @update:value="handleFollowSongAccentChange" />
       </div>
-      <n-switch
-        :value="themeStore.followSongAccent"
-        @update:value="handleFollowSongAccentChange" />
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">彩色进度条</div>
-        <div class="setting-desc">开启后，底部播放器进度条采用三色流光霓虹效果。</div>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">彩色进度条</div>
+          <div class="setting-desc">开启后，底部播放器进度条采用三色流光霓虹效果。</div>
+        </div>
+        <div class="colorful-progress-controls">
+          <n-button secondary circle size="small" title="重置流光颜色" aria-label="重置流光颜色"
+            @click="themeStore.resetColorfulProgressColors">
+            <template #icon>
+              <n-icon :size="15">
+                <RefreshCw />
+              </n-icon>
+            </template>
+          </n-button>
+          <AppColorPicker :single-color="false" :value="colorfulProgressColorItems" title="彩色进度条颜色" :min-count="3"
+            :max-count="3" :max-display-count="3" :allow-edit-count="false"
+            @confirm="handleColorfulProgressColorsConfirm" />
+          <n-switch :value="themeStore.colorfulProgressBar" aria-label="彩色进度条"
+            @update:value="handleColorfulProgressBarChange" />
+        </div>
       </div>
-      <div class="colorful-progress-controls">
-        <n-button
-          secondary
-          circle
-          size="small"
-          title="重置流光颜色"
-          aria-label="重置流光颜色"
-          @click="themeStore.resetColorfulProgressColors">
-          <template #icon>
-            <n-icon :size="15"><RefreshCw /></n-icon>
-          </template>
-        </n-button>
-        <AppColorPicker
-          :single-color="false"
-          :value="colorfulProgressColorItems"
-          title="彩色进度条颜色"
-          :min-count="3"
-          :max-count="3"
-          :max-display-count="3"
-          :allow-edit-count="false"
-          @confirm="handleColorfulProgressColorsConfirm" />
-        <n-switch
-          :value="themeStore.colorfulProgressBar"
-          aria-label="彩色进度条"
-          @update:value="handleColorfulProgressBarChange" />
-      </div>
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">页面切换动画</div>
-        <div class="setting-desc">{{ currentPageTransitionMeta.description }}</div>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">页面切换动画</div>
+          <div class="setting-desc">{{ currentPageTransitionMeta.description }}</div>
+        </div>
+        <n-select class="startup-animation-select" :value="themeStore.pageTransition"
+          :options="pageTransitionSelectOptions" @update:value="handlePageTransitionChange" />
       </div>
-      <n-select
-        class="startup-animation-select"
-        :value="themeStore.pageTransition"
-        :options="pageTransitionSelectOptions"
-        @update:value="handlePageTransitionChange" />
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">启动动画</div>
-        <div class="setting-desc">{{ currentStartupMeta.description }}（下次启动时生效）</div>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">启动动画</div>
+          <div class="setting-desc">{{ currentStartupMeta.description }}（下次启动时生效）</div>
+        </div>
+        <n-select class="startup-animation-select" :value="themeStore.startupAnimation"
+          :options="startupAnimationSelectOptions" @update:value="handleStartupAnimationChange" />
       </div>
-      <n-select
-        class="startup-animation-select"
-        :value="themeStore.startupAnimation"
-        :options="startupAnimationSelectOptions"
-        @update:value="handleStartupAnimationChange" />
-    </div>
 
-    <n-collapse class="startup-preview-collapse">
-      <n-collapse-item :title="`预览效果：${currentStartupMeta.label}`" name="preview">
-        <StartupAnimationPreview
-          :style-id="themeStore.startupAnimation"
-          :default-surface="themeStore.resolvedColorScheme" />
-      </n-collapse-item>
-    </n-collapse>
+      <n-collapse class="startup-preview-collapse">
+        <n-collapse-item :title="`预览效果：${currentStartupMeta.label}`" name="preview">
+          <StartupAnimationPreview :style-id="themeStore.startupAnimation"
+            :default-surface="themeStore.resolvedColorScheme" />
+        </n-collapse-item>
+      </n-collapse>
 
     </SettingSection>
     <SettingSection title="应用背景" description="选择背景颜色或图片，调节图片显示效果。">
-    <div class="setting-item">
-      <div class="setting-info">
-        <div class="setting-title">背景模式</div>
-        <div class="setting-desc">选择纯色/渐变色彩或自定义背景图片。</div>
-      </div>
-      <n-select
-        class="background-mode-select"
-        :value="themeStore.backgroundMode"
-        :options="backgroundModeOptions"
-        @update:value="handleBackgroundModeChange" />
-    </div>
-
-    <!-- 颜色模式下的设置项 -->
-    <template v-if="themeStore.backgroundMode === 'color'">
       <div class="setting-item">
         <div class="setting-info">
-          <div class="setting-title">自动设置背景</div>
-          <div class="setting-desc">开启后根据主题色自动生成应用背景渐变。</div>
+          <div class="setting-title">背景模式</div>
+          <div class="setting-desc">选择纯色/渐变色彩或自定义背景图片。</div>
         </div>
-        <n-switch
-          :value="themeStore.autoBackground"
-          @update:value="handleAutoBackgroundChange" />
+        <n-select class="background-mode-select" :value="themeStore.backgroundMode" :options="backgroundModeOptions"
+          @update:value="handleBackgroundModeChange" />
       </div>
 
-      <div class="setting-item">
-        <div class="setting-info">
-          <div class="setting-title">渐变方向</div>
-          <div class="setting-desc">控制侧栏与应用轨道背景的渐变方向。</div>
-        </div>
-        <n-select
-          class="gradient-direction"
-          :value="themeStore.gradientDirection"
-          :options="gradientDirectionOptions"
-          @update:value="handleGradientDirectionChange" />
-      </div>
-
-      <div class="setting-item">
-        <div class="setting-info">
-          <div class="setting-title">渐变颜色</div>
-          <div class="setting-desc">关闭自动背景后可编辑，最多 5 个颜色。</div>
-        </div>
-        <div class="gradient-setting-controls">
-          <AppColorPicker
-            :single-color="false"
-            :value="gradientColorItems"
-            title="应用背景渐变颜色"
-            :min-count="2"
-            :max-count="5"
-            :max-display-count="3"
-            :allow-edit-count="true"
-            :disabled="themeStore.autoBackground"
-            @confirm="handleGradientColorsConfirm" />
-          <n-button secondary @click="themeStore.resetBackground">
-            恢复默认背景
-          </n-button>
-        </div>
-      </div>
-    </template>
-
-    <!-- 图片模式下的设置项 -->
-    <template v-else>
-      <div class="setting-item image-setting-item">
-        <div class="setting-info">
-          <div class="setting-title">当前图片</div>
-          <div class="setting-desc">可选择自定义图片，建议4:3</div>
-        </div>
-        <div class="current-image-control">
-          <div class="image-thumb-wrapper current-thumb">
-            <img :src="themeStore.backgroundImage" class="image-thumb" alt="当前背景" />
+      <!-- 颜色模式下的设置项 -->
+      <template v-if="themeStore.backgroundMode === 'color'">
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-title">自动设置背景</div>
+            <div class="setting-desc">开启后根据主题色自动生成应用背景渐变。</div>
           </div>
-          <n-button
-            secondary
-            circle
-            title="选择本地图片"
-            class="upload-btn"
-            @click="handleSelectCustomImage">
-            <template #icon>
-              <n-icon><Upload /></n-icon>
-            </template>
-          </n-button>
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/*"
-            style="display: none"
-            @change="handleFileInputChange" />
+          <n-switch :value="themeStore.autoBackground" @update:value="handleAutoBackgroundChange" />
         </div>
-      </div>
 
-      <div class="setting-item image-setting-item">
-        <div class="setting-info">
-          <div class="setting-title">图片库</div>
-          <div class="setting-desc">管理与选用壁纸图片库</div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-title">渐变方向</div>
+            <div class="setting-desc">控制侧栏与应用轨道背景的渐变方向。</div>
+          </div>
+          <n-select class="gradient-direction" :value="themeStore.gradientDirection" :options="gradientDirectionOptions"
+            @update:value="handleGradientDirectionChange" />
         </div>
-        <div class="gallery-control">
-          <div class="preset-images-control">
-            <div
-              v-for="item in latestThreeImages"
-              :key="item.id"
-              class="image-thumb-wrapper preset-thumb"
-              :class="{ active: themeStore.backgroundImage === item.url }"
-              :title="item.name"
-              @click="handleSelectGalleryImage(item.url)">
-              <img :src="item.url" class="image-thumb" :alt="item.name" />
-              <div v-if="themeStore.backgroundImage === item.url" class="active-badge">
-                <n-icon size="12"><Check /></n-icon>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-title">渐变颜色</div>
+            <div class="setting-desc">关闭自动背景后可编辑，最多 5 个颜色。</div>
+          </div>
+          <div class="gradient-setting-controls">
+            <AppColorPicker :single-color="false" :value="gradientColorItems" title="应用背景渐变颜色" :min-count="2"
+              :max-count="5" :max-display-count="3" :allow-edit-count="true" :disabled="themeStore.autoBackground"
+              @confirm="handleGradientColorsConfirm" />
+            <n-button secondary @click="themeStore.resetBackground">
+              恢复默认背景
+            </n-button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 图片模式下的设置项 -->
+      <template v-else>
+        <div class="setting-item image-setting-item">
+          <div class="setting-info">
+            <div class="setting-title">当前图片</div>
+            <div class="setting-desc">可选择自定义图片，建议4:3</div>
+          </div>
+          <div class="current-image-control">
+            <div class="image-thumb-wrapper current-thumb">
+              <img :src="themeStore.backgroundImage" class="image-thumb" alt="当前背景" />
+            </div>
+            <n-button secondary circle title="选择本地图片" class="upload-btn" @click="handleSelectCustomImage">
+              <template #icon>
+                <n-icon>
+                  <Upload />
+                </n-icon>
+              </template>
+            </n-button>
+            <input ref="fileInputRef" type="file" accept="image/*" style="display: none"
+              @change="handleFileInputChange" />
+          </div>
+        </div>
+
+        <div class="setting-item image-setting-item">
+          <div class="setting-info">
+            <div class="setting-title">图片库</div>
+            <div class="setting-desc">管理与选用壁纸图片库</div>
+          </div>
+          <div class="gallery-control">
+            <div class="preset-images-control">
+              <div v-for="item in latestThreeImages" :key="item.id" class="image-thumb-wrapper preset-thumb"
+                :class="{ active: themeStore.backgroundImage === item.url }" :title="item.name"
+                @click="handleSelectGalleryImage(item.url)">
+                <img :src="item.url" class="image-thumb" :alt="item.name" />
+                <div v-if="themeStore.backgroundImage === item.url" class="active-badge">
+                  <n-icon size="12">
+                    <Check />
+                  </n-icon>
+                </div>
               </div>
             </div>
+            <n-button secondary circle title="打开图片库" class="gallery-btn" @click="showImageCenterModal = true">
+              <template #icon>
+                <n-icon :size="18">
+                  <Images />
+                </n-icon>
+              </template>
+            </n-button>
           </div>
-          <n-button
-            secondary
-            circle
-            title="打开图片库"
-            class="gallery-btn"
-            @click="showImageCenterModal = true">
-            <template #icon>
-              <n-icon :size="18"><Images /></n-icon>
-            </template>
-          </n-button>
         </div>
-      </div>
 
-      <div class="setting-item single-column blur-setting-item">
-        <div class="setting-info">
-          <div class="setting-title">背景模糊度</div>
-          <div class="setting-desc">调节背景图片的模糊程度（0-100）。</div>
+        <div class="setting-item single-column blur-setting-item">
+          <div class="setting-info">
+            <div class="setting-title">背景模糊度</div>
+            <div class="setting-desc">调节背景图片的模糊程度（0-100）。</div>
+          </div>
+          <SettingAdjustment :value="themeStore.backgroundBlur" label="背景模糊度" @update:value="handleBlurChange" />
         </div>
-        <SettingAdjustment :value="themeStore.backgroundBlur" label="背景模糊度" @update:value="handleBlurChange" />
-      </div>
 
-      <div class="setting-item single-column blur-setting-item">
-        <div class="setting-info">
-          <div class="setting-title">背景亮度</div>
-          <div class="setting-desc">调节背景图片的明暗程度（0-100%）。</div>
+        <div class="setting-item single-column blur-setting-item">
+          <div class="setting-info">
+            <div class="setting-title">背景亮度</div>
+            <div class="setting-desc">调节背景图片的明暗程度（0-100%）。</div>
+          </div>
+          <SettingAdjustment :value="themeStore.backgroundBrightness" label="背景亮度"
+            @update:value="handleBrightnessChange" />
         </div>
-        <SettingAdjustment :value="themeStore.backgroundBrightness" label="背景亮度" @update:value="handleBrightnessChange" />
-      </div>
-    </template>
+      </template>
 
     </SettingSection>
 
     <!-- 图片库 Modal -->
-    <AppImageCenterModal
-      v-model:show="showImageCenterModal"
-      :current-url="themeStore.backgroundImage"
+    <AppImageCenterModal v-model:show="showImageCenterModal" :current-url="themeStore.backgroundImage"
       @confirm="handleConfirmFromGallery" />
 
     <SettingSection title="性能与能耗" description="管理后台省资源策略与低能耗模式。">
@@ -256,9 +204,7 @@
           <div class="setting-title">自动低能耗</div>
           <div class="setting-desc">最小化超过10分钟进入低能耗模式，节省资源，开启后app被最小化、关闭到托盘，10分钟后进入低能耗模式</div>
         </div>
-        <n-switch
-          :value="lowPowerStore.autoLowPowerOnMinimize"
-          @update:value="handleAutoLowPowerChange" />
+        <n-switch :value="lowPowerStore.autoLowPowerOnMinimize" @update:value="handleAutoLowPowerChange" />
       </div>
     </SettingSection>
 
@@ -268,11 +214,8 @@
           <div class="setting-title">退出App时执行操作</div>
           <div class="setting-desc">非选择“每次询问”时，关闭按钮将直接执行对应操作而不再弹出确认框。</div>
         </div>
-        <n-select
-          class="close-action-select"
-          :value="settingStore.basic.closeAppAction"
-          :options="closeAppActionOptions"
-          @update:value="handleCloseAppActionChange" />
+        <n-select class="close-action-select" :value="settingStore.basic.closeAppAction"
+          :options="closeAppActionOptions" @update:value="handleCloseAppActionChange" />
       </div>
     </SettingSection>
   </div>
@@ -485,6 +428,7 @@ const handleFileInputChange = (event: Event) => {
 
 <style lang="scss" scoped>
 @use "../settingLayout.scss";
+
 .setting-con {
   .accent-setting {
     display: flex;
