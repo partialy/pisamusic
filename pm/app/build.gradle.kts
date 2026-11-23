@@ -14,8 +14,8 @@ android {
         applicationId = "cn.partialy.pm"
         minSdk = 29
         targetSdk = 35
-        versionCode = 533
-        versionName = "2.8.5"
+        versionCode = 534
+        versionName = "2.8.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
