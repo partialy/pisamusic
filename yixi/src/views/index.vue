@@ -1,5 +1,5 @@
 <template>
-  <div class="index-container mw1600">
+  <div ref="indexContainerRef" class="index-container mw1600">
     <div class="title-card">
       <WelcomeCard
         :hot-songs="topPreviewSongs"
@@ -57,6 +57,8 @@
         :skeleton-count="24"
         :max-rows="4" />
     </HomeReveal>
+
+    <AppBackTop :listen-to="getBackTopTarget" />
   </div>
 </template>
 
@@ -65,6 +67,7 @@ import { computed, onMounted, ref } from "vue";
 
 defineOptions({ name: "HomeIndex" });
 import { useRouter } from "vue-router";
+import AppBackTop from "@/components/common/AppBackTop.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import WelcomeCard from "@/components/home/WelcomeCard.vue";
 import HomeSongGrid from "@/components/home/HomeSongGrid.vue";
@@ -243,6 +246,12 @@ const loadHomeData = async () => {
     getWyPersonalizedPlaylist(),
   ]);
 };
+
+const indexContainerRef = ref<HTMLElement | null>(null);
+
+function getBackTopTarget() {
+  return (indexContainerRef.value?.closest(".content") as HTMLElement | null) || document;
+}
 
 onMounted(() => {
   void loadHomeData();

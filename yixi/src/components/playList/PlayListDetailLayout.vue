@@ -1,5 +1,6 @@
 <template>
-  <div class="play-list-detail-layout" v-if="!loading && listDetail">
+  <div class="play-list-detail-shell">
+    <div class="play-list-detail-layout" v-if="!loading && listDetail">
     <div class="detail-header" :style="{ height: isMini ? '120px' : '220px' }">
       <div class="detail-header-left" :style="{ width: isMini ? '100px' : '200px' }">
         <div class="detail-header-left-img" :style="{ width: isMini ? '100px' : '200px' }">
@@ -86,7 +87,9 @@
       <n-skeleton text style="margin: 8px 0" :repeat="10" />
     </div>
   </div>
-  <n-empty v-else :description="loadError || '歌单暂不可用'" />
+    <AppBackTop v-if="!loading && listDetail" :listen-to="getBackTopTarget" />
+    <n-empty v-else-if="!loading" :description="loadError || '歌单暂不可用'" />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -125,6 +128,7 @@ import ShareDialog from "@/components/common/ShareDialog.vue";
 import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
 import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
+import AppBackTop from "@/components/common/AppBackTop.vue";
 import BatchSegmentedActions, { type SegmentedActionItem } from "@/components/batch/BatchSegmentedActions.vue";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import SongList from "@/components/list/SongList.vue";
@@ -145,7 +149,12 @@ const batchToolbarTarget = ref<HTMLElement | null>(null);
 const batchMode = ref(false);
 const batchMorph = useBatchToolbarMorph(batchMode, batchToolbarTarget);
 function enterPlaylistBatch(event: MouseEvent) { batchMorph.captureOrigin(event); void songListRef.value?.enterBatch(); }
-watch(() => [route.query.id, route.query.origin], () => { batchMorph.reset(); batchMode.value = false; songListRef.value?.exitBatch(); });
+watch(() => [route.query.id, route.query.origin], () => {
+  if (route.path !== "/playlist/detail") return;
+  batchMorph.reset();
+  batchMode.value = false;
+  songListRef.value?.exitBatch();
+});
 const conversionVisible = ref(false);
 const searchFocus = ref(false);
 const loading = ref(false);
@@ -692,6 +701,10 @@ const loadSongsInChunks = async () => {
   requestAnimationFrame(loadNextChunk);
 };
 
+const getBackTopTarget = () => {
+  return songListRef.value?.getScrollElement() || listScrollContainer || document;
+};
+
 // 列表触顶
 const onToTop = () => {
   isMini.value = false;
@@ -700,6 +713,7 @@ const onToTop = () => {
 watch(
   () => [route.query.id, route.query.origin],
   async () => {
+    if (route.path !== "/playlist/detail") return;
     savedListScrollTop = 0;
     loadVersion.value++;
     listDetail.value = undefined;
@@ -730,6 +744,14 @@ watch(
   background-color: var(--surface-control-active) !important;
   border-radius: var(--radius-control);
   box-shadow: var(--shadow-card);
+}
+
+.play-list-detail-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .play-list-detail-layout {

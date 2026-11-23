@@ -369,7 +369,11 @@ onBeforeUnmount(() => {
   observer.disconnect();
 });
 
-defineExpose({ enterBatch: enterInternalBatch, exitBatch: () => exitInternalBatch() });
+defineExpose({
+  enterBatch: enterInternalBatch,
+  exitBatch: () => exitInternalBatch(),
+  getScrollElement: () => (virtListRef.value?.$el as HTMLElement | null) ?? null,
+});
 </script>
 
 <style lang="scss" scoped>

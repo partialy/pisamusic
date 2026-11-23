@@ -6,25 +6,15 @@
         <span class="subtitle">{{ headerSubtitle }}</span>
       </div>
       <div class="header-actions">
-        <n-button
-          type="primary"
-          class="shuffle-btn"
-          :disabled="!filteredPlaylists.length || initialLoading"
-          :loading="playingRandom"
-          @click="handleRandomPlay">
+        <n-button type="primary" class="shuffle-btn" :disabled="!filteredPlaylists.length || initialLoading"
+          :loading="playingRandom" @click="handleRandomPlay">
           <template #icon>
             <n-icon :component="Play" />
           </template>
           随机播放
         </n-button>
-        <n-select
-          v-model:value="activeSource"
-          class="source-select"
-          size="small"
-          :options="sourceOptions"
-          :consistent-menu-width="false"
-          :disabled="initialLoading || tagsLoading"
-          @update:value="handleSourceChange" />
+        <n-select v-model:value="activeSource" class="source-select" size="small" :options="sourceOptions"
+          :consistent-menu-width="false" :disabled="initialLoading || tagsLoading" @update:value="handleSourceChange" />
       </div>
     </header>
 
@@ -36,20 +26,11 @@
             <n-skeleton text round class="tag-skeleton-label" />
           </div>
         </div>
-        <BatchSegmentedActions
-          v-else
-          always-show-label
-          aria-label="歌单分类"
-          :actions="tagActions"
+        <BatchSegmentedActions v-else always-show-label aria-label="歌单分类" :actions="tagActions"
           @action="handleTagAction">
           <template #popover="{ action }">
             <div v-if="tagByKey.get(action.key)?.children.length" class="tag-popover">
-              <n-button
-                v-for="item in tagByKey.get(action.key)?.children"
-                :key="item.id"
-                quaternary
-                size="small"
-                round
+              <n-button v-for="item in tagByKey.get(action.key)?.children" :key="item.id" quaternary size="small" round
                 :class="{ active: selectedTag.id === item.id && selectedTag.source === item.source }"
                 @click="handleClickTag(item)">
                 {{ item.name }}
@@ -59,50 +40,27 @@
         </BatchSegmentedActions>
       </div>
 
-      <n-input
-        v-model:value="searchKey"
-        round
-        class="playlist-search"
-        :class="{ focused: searchFocused || searchKey }"
-        clearable
-        placeholder="搜索"
-        @focus="searchFocused = true"
-        @blur="searchFocused = false">
+      <n-input v-model:value="searchKey" round class="playlist-search" :class="{ focused: searchFocused || searchKey }"
+        clearable placeholder="搜索" @focus="searchFocused = true" @blur="searchFocused = false">
         <template #prefix>
           <n-icon :component="Search" />
         </template>
       </n-input>
     </div>
 
-    <div
-      ref="contentRef"
-      class="playlist-content"
-      @scroll.passive="handleScrollableContentScroll"
+    <div ref="contentRef" class="playlist-content" @scroll.passive="handleScrollableContentScroll"
       @wheel.passive="handleScrollableContentWheel">
-      <PlaylistCollect
-        :playlist="filteredPlaylists"
-        :loading="initialLoading"
-        :skeleton-count="24" />
+      <PlaylistCollect :playlist="filteredPlaylists" :loading="initialLoading" :skeleton-count="24" />
 
-      <n-empty
-        v-if="!initialLoading && !filteredPlaylists.length"
-        class="empty-state"
-        description="暂无歌单" />
+      <n-empty v-if="!initialLoading && !filteredPlaylists.length" class="empty-state" description="暂无歌单" />
 
       <div ref="endLineRef" class="end-line">
-        <ListEndState
-          v-if="!initialLoading && filteredPlaylists.length && !normalizedSearch"
-          :loading="hasNext"
-          :show-spin="moreLoading"
-          loading-text="正在加载更多..." />
+        <ListEndState v-if="!initialLoading && filteredPlaylists.length && !normalizedSearch" :loading="hasNext"
+          :show-spin="moreLoading" loading-text="正在加载更多..." />
       </div>
     </div>
 
-    <n-back-top
-      class="scroll-top-btn"
-      :right="20"
-      :bottom="120"
-      :listen-to="getBackTopTarget" />
+    <AppBackTop :listen-to="getBackTopTarget" />
   </div>
 </template>
 
@@ -112,7 +70,6 @@ import type { Component } from "vue";
 
 defineOptions({ name: "PlaylistSquare" });
 import {
-  NBackTop,
   NButton,
   NEmpty,
   NIcon,
@@ -122,6 +79,7 @@ import {
   type SelectOption,
 } from "naive-ui";
 import { Play, Search } from "lucide-vue-next";
+import AppBackTop from "@/components/common/AppBackTop.vue";
 import BatchSegmentedActions, { type SegmentedActionItem } from "@/components/batch/BatchSegmentedActions.vue";
 import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
@@ -685,7 +643,7 @@ onBeforeUnmount(() => {
   height: 100%;
   padding: 0 14px;
 
-  & + & {
+  &+& {
     border-left: 1px solid var(--border-subtle);
   }
 }
@@ -708,18 +666,6 @@ onBeforeUnmount(() => {
 .end-line {
   width: 100%;
   margin-top: 0.5rem;
-}
-
-.scroll-top-btn {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  z-index: 20;
-  background-color: var(--color-bg-default);
-  border: none;
-  opacity: 0.5;
-
-  &:hover {
-    opacity: 1;
-  }
 }
 
 @media (max-width: 820px) {
