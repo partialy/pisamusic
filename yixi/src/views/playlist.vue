@@ -30,52 +30,33 @@
 
     <div ref="tagsRef" class="tag-toolbar">
       <div class="tags">
-        <template v-if="tagsLoading">
-          <n-skeleton v-for="i in 8" :key="i" class="tag-skeleton" />
-        </template>
-        <template v-else>
-          <template v-for="tag in tags" :key="tag.id">
-            <n-popover
-              v-if="tag.children.length"
-              style="max-width: 640px"
-              placement="bottom"
-              trigger="click"
-              :arrow-style="{ background: 'var(--color-card-bg)' }">
-              <template #trigger>
-                <n-button
-                  class="tag-button"
-                  :class="{ active: isGroupActive(tag) }">
-                  {{ tag.name }}
-                  <template #icon>
-                    <n-icon :component="chooseIcon(tag.name)" />
-                  </template>
-                </n-button>
-              </template>
-              <div class="tag-popover">
-                <n-button
-                  v-for="item in tag.children"
-                  :key="item.id"
-                  quaternary
-                  size="small"
-                  round
-                  :class="{ active: selectedTag.id === item.id }"
-                  @click="handleClickTag(item)">
-                  {{ item.name }}
-                </n-button>
-              </div>
-            </n-popover>
-            <n-button
-              v-else
-              class="tag-button"
-              :class="{ active: selectedTag.id === tag.id }"
-              @click="handleClickTag(tag)">
-              {{ tag.name }}
-              <template #icon>
-                <n-icon :component="chooseIcon(tag.name)" />
-              </template>
-            </n-button>
+        <div v-if="tagsLoading" class="tag-skeleton-group" aria-hidden="true">
+          <div v-for="i in 6" :key="i" class="tag-skeleton-segment">
+            <n-skeleton circle class="tag-skeleton-icon" />
+            <n-skeleton text round class="tag-skeleton-label" />
+          </div>
+        </div>
+        <BatchSegmentedActions
+          v-else
+          always-show-label
+          aria-label="歌单分类"
+          :actions="tagActions"
+          @action="handleTagAction">
+          <template #popover="{ action }">
+            <div v-if="tagByKey.get(action.key)?.children.length" class="tag-popover">
+              <n-button
+                v-for="item in tagByKey.get(action.key)?.children"
+                :key="item.id"
+                quaternary
+                size="small"
+                round
+                :class="{ active: selectedTag.id === item.id && selectedTag.source === item.source }"
+                @click="handleClickTag(item)">
+                {{ item.name }}
+              </n-button>
+            </div>
           </template>
-        </template>
+        </BatchSegmentedActions>
       </div>
 
       <n-input
@@ -134,15 +115,16 @@ import {
   NEmpty,
   NIcon,
   NInput,
-  NPopover,
   NSelect,
   NSkeleton,
   type SelectOption,
 } from "naive-ui";
 import { Play, Search } from "lucide-vue-next";
+import BatchSegmentedActions, { type SegmentedActionItem } from "@/components/batch/BatchSegmentedActions.vue";
 import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import {
+  ListUnorderedIcon,
   SceneIcon,
   EmotionIcon,
   StyleIcon,
@@ -225,6 +207,8 @@ const headerSubtitle = computed(() => {
 
 function chooseIcon(tagName: string): Component {
   switch (tagName) {
+    case "全部":
+      return ListUnorderedIcon;
     case "风格":
       return StyleIcon;
     case "场景":
@@ -241,6 +225,30 @@ function chooseIcon(tagName: string): Component {
     default:
       return QuestionIcon;
   }
+}
+
+const tagByKey = computed(() => new Map(tags.value.map((tag) => [String(tag.id), tag])));
+
+const tagActions = computed<SegmentedActionItem[]>(() =>
+  tags.value.map((tag) => {
+    const active = tag.children.length
+      ? isGroupActive(tag)
+      : selectedTag.value.id === tag.id && selectedTag.value.source === tag.source;
+    return {
+      key: String(tag.id),
+      label: tag.name,
+      icon: chooseIcon(tag.name),
+      active,
+      primary: active,
+      hasPopover: tag.children.length > 0,
+    };
+  })
+);
+
+function handleTagAction(key: string) {
+  const tag = tagByKey.value.get(key);
+  if (!tag || tag.children.length) return;
+  void handleClickTag(tag);
 }
 
 async function handleSourceChange(value: string | number | null) {
@@ -612,9 +620,16 @@ onBeforeUnmount(() => {
 .tags {
   display: flex;
   flex: 1;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .playlist-search {
@@ -624,16 +639,6 @@ onBeforeUnmount(() => {
 
   &.focused {
     width: 220px;
-  }
-}
-
-.tag-button {
-  border-radius: var(--radius-pill);
-
-  &.active {
-    color: var(--text-accent);
-    border-color: var(--border-row-selected);
-    background: var(--surface-control-active);
   }
 }
 
@@ -657,10 +662,39 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
 }
 
-.tag-skeleton {
-  width: 82px;
-  height: 34px;
-  border-radius: var(--radius-control);
+.tag-skeleton-group {
+  box-sizing: border-box;
+  height: var(--batch-control-height, 36px);
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+}
+
+.tag-skeleton-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 14px;
+
+  & + & {
+    border-left: 1px solid var(--border-subtle);
+  }
+}
+
+.tag-skeleton-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.tag-skeleton-label {
+  width: 28px;
+  height: 13px;
 }
 
 .empty-state {
