@@ -17,33 +17,35 @@
     </div>
 
     <div class="mine-content" @wheel.passive="handleScrollableContentWheel">
-      <MineLocalSongsPanel
-        v-if="activeTab === 'local'"
-        @scroll="handleScrollableContentScroll"
-        @scroll-to-top="handleScrollableContentTop"
-        @wheel="handleScrollableContentWheel"
-        @expand-header="expandHeader"
-      />
-      <MinePlaylistPanel
-        v-else-if="activeTab === 'playlist'"
-        @scroll="handleScrollableContentScroll"
-        @expand-header="expandHeader"
-        @go-account="switchMineTab('account')"
-      />
-      <MineDownloadPanel
-        v-else-if="activeTab === 'download'"
-        @scroll="handleScrollableContentScroll"
-        @scroll-to-top="handleScrollableContentTop"
-        @wheel="handleScrollableContentWheel"
-        @expand-header="expandHeader"
-      />
-      <MineCloudPanel
-        v-else-if="activeTab === 'cloud' && accounts.wy.loggedIn"
-        @scroll="handleScrollableContentScroll"
-        @scroll-to-top="handleScrollableContentTop"
-        @expand-header="expandHeader"
-      />
-      <MineAccountCards v-else />
+      <Transition :name="tabTransitionName" mode="out-in">
+        <MineLocalSongsPanel
+          v-if="activeTab === 'local'"
+          @scroll="handleScrollableContentScroll"
+          @scroll-to-top="handleScrollableContentTop"
+          @wheel="handleScrollableContentWheel"
+          @expand-header="expandHeader"
+        />
+        <MinePlaylistPanel
+          v-else-if="activeTab === 'playlist'"
+          @scroll="handleScrollableContentScroll"
+          @expand-header="expandHeader"
+          @go-account="switchMineTab('account')"
+        />
+        <MineDownloadPanel
+          v-else-if="activeTab === 'download'"
+          @scroll="handleScrollableContentScroll"
+          @scroll-to-top="handleScrollableContentTop"
+          @wheel="handleScrollableContentWheel"
+          @expand-header="expandHeader"
+        />
+        <MineCloudPanel
+          v-else-if="activeTab === 'cloud' && accounts.wy.loggedIn"
+          @scroll="handleScrollableContentScroll"
+          @scroll-to-top="handleScrollableContentTop"
+          @expand-header="expandHeader"
+        />
+        <MineAccountCards v-else />
+      </Transition>
     </div>
   </div>
 </template>
@@ -60,6 +62,8 @@ import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 import { useLocalDownloadLibrary } from "@/composables/useLocalDownloadLibrary";
 import { useMineLibraryStore } from "@/store";
+import { useThemeStore } from "@/store/theme";
+import { getPageTransitionMeta } from "@/theme/pageTransitionOptions";
 
 type MineTab = "local" | "playlist" | "download" | "cloud" | "account";
 
@@ -74,6 +78,10 @@ const VALID_TABS = new Set<MineTab>([
 const route = useRoute();
 const router = useRouter();
 const store = useMineLibraryStore();
+const themeStore = useThemeStore();
+const tabTransitionName = computed(
+  () => getPageTransitionMeta(themeStore.pageTransition).transitionName || undefined,
+);
 const { accounts } = useCookieAccountStatus();
 const { mergedLocalSongs, downloadedSongs } = useLocalDownloadLibrary({
   poll: false,
