@@ -37,6 +37,41 @@
         </button>
       </n-dropdown>
 
+      <n-popover
+        v-else-if="action.hasPopover"
+        style="max-width: 640px"
+        placement="bottom"
+        trigger="click"
+        :arrow-style="{ background: 'var(--color-card-bg)' }"
+      >
+        <template #trigger>
+          <button
+            type="button"
+            class="batch-segment"
+            :class="{ 'is-primary': action.primary }"
+            :disabled="action.disabled || action.loading"
+            :title="action.label"
+            :aria-label="action.label"
+            :aria-pressed="action.active"
+            :aria-busy="action.loading || undefined"
+          >
+            <component
+              :is="action.loading && action.spinIcon !== true ? LoadingIcon : action.icon"
+              :size="17"
+              :stroke-width="1.8"
+              class="batch-segment-icon"
+              :class="{ spinning: action.loading }"
+              :style="action.iconColor ? { '--segment-icon-color': action.iconColor } : undefined"
+              aria-hidden="true"
+            />
+            <span class="batch-segment-label" aria-hidden="true">
+              <span class="batch-segment-text">{{ action.label }}</span>
+            </span>
+          </button>
+        </template>
+        <slot name="popover" :action="action" />
+      </n-popover>
+
       <button
         v-else
         type="button"
@@ -68,7 +103,7 @@
 
 <script setup lang="ts">
 import type { Component } from "vue";
-import { NDropdown, type DropdownOption } from "naive-ui";
+import { NDropdown, NPopover, type DropdownOption } from "naive-ui";
 import { LoadingIcon } from "@/icons";
 
 export interface SegmentedActionItem {
@@ -81,6 +116,7 @@ export interface SegmentedActionItem {
   loading?: boolean;
   primary?: boolean;
   spinIcon?: boolean;
+  hasPopover?: boolean;
   dropdownOptions?: DropdownOption[];
 }
 
