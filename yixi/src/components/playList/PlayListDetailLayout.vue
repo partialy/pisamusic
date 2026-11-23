@@ -100,7 +100,9 @@ import {
   NEmpty,
   useMessage,
 } from "naive-ui";
-import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, h, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from "vue";
+
+defineOptions({ name: "PlayListDetailLayout" });
 
 import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getSongCover } from "@/utils/common";
@@ -626,10 +628,15 @@ onMounted(async () => {
 });
 
 const isMini = ref(false);
+let listScrollContainer: HTMLElement | null = null;
+let savedListScrollTop = 0;
+
 // 列表滚动
 const onScroll = (event: Event) => {
   const container = event.target as HTMLElement;
+  listScrollContainer = container;
   const scrollTop = container.scrollTop;
+  savedListScrollTop = scrollTop;
   isMini.value = true;
 
   // 检测是否滚动到顶部
@@ -637,6 +644,25 @@ const onScroll = (event: Event) => {
     onToTop();
   }
 };
+
+onDeactivated(() => {
+  if (listScrollContainer) {
+    savedListScrollTop = listScrollContainer.scrollTop;
+  }
+});
+
+onActivated(() => {
+  const targetScrollTop = savedListScrollTop;
+  if (targetScrollTop <= 0) return;
+
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      if (listScrollContainer) {
+        listScrollContainer.scrollTop = targetScrollTop;
+      }
+    });
+  });
+});
 
 // 列表触底
 const onToBottom = () => {
@@ -674,6 +700,7 @@ const onToTop = () => {
 watch(
   () => [route.query.id, route.query.origin],
   async () => {
+    savedListScrollTop = 0;
     loadVersion.value++;
     listDetail.value = undefined;
     conversionVisible.value = false;
