@@ -135,6 +135,7 @@ function switchMineTab(tab: MineTab) {
   }
   activeTab.value = tab;
   expandHeader();
+  if (route.path !== "/mine") return;
   const nextQuery = {
     ...route.query,
     tab: tab === "local" ? undefined : tab,
@@ -145,6 +146,7 @@ function switchMineTab(tab: MineTab) {
 watch(
   () => route.query.tab,
   (tab) => {
+    if (route.path !== "/mine") return;
     const resolved = resolveMineTab(tab);
     if (resolved !== activeTab.value) {
       activeTab.value = resolved;

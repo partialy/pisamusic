@@ -73,11 +73,13 @@ const activeName = ref<SettingTab>(resolveSettingTab(route.query.tab));
 watch(
   () => route.query.tab,
   (tab) => {
+    if (route.path !== "/setting") return;
     activeName.value = resolveSettingTab(tab);
   }
 );
 
 watch(activeName, (tab) => {
+  if (route.path !== "/setting") return;
   if (resolveSettingTab(route.query.tab) === tab && route.query.tab === tab) return;
   const query = { ...route.query, tab: tab === "basic" ? undefined : tab };
   void router.replace({ path: "/setting", query });
