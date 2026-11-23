@@ -17,19 +17,13 @@
             @action="handleSourceChange"
           />
           <BatchSegmentedActions
-            aria-label="批量选择操作"
+            aria-label="歌单操作"
             :actions="selectActions"
             @action="handleSelectAction"
           />
         </div>
 
         <div class="toolbar-right">
-          <BatchSegmentedActions
-            always-show-label
-            aria-label="刷新三方歌单"
-            :actions="refreshActions"
-            @action="handleRefreshAction"
-          />
           <ExpandableSearchInput v-model:value="searchKey" placeholder="搜索歌单" />
         </div>
       </div>
@@ -108,7 +102,7 @@
           :description="
             searchKey.trim()
               ? '未找到匹配的歌单'
-              : '暂无可用歌单，可点击右上角「刷新数据」重新拉取'
+              : '暂无可用歌单，可点击「刷新数据」重新拉取'
           "
         />
       </div>
@@ -262,6 +256,14 @@ const sourceActions = computed<SegmentedActionItem[]>(() => [
 
 const selectActions = computed<SegmentedActionItem[]>(() => [
   {
+    key: "refresh",
+    label: "刷新数据",
+    icon: RefreshCw,
+    loading: store.candidatePulling,
+    spinIcon: true,
+    disabled: busy.value,
+  },
+  {
     key: "selectAll",
     label: "全选",
     icon: ListChecks,
@@ -272,17 +274,6 @@ const selectActions = computed<SegmentedActionItem[]>(() => [
     label: "反选",
     icon: ArrowLeftRight,
     disabled: busy.value || !importableFilteredCandidates.value.length,
-  },
-]);
-
-const refreshActions = computed<SegmentedActionItem[]>(() => [
-  {
-    key: "refresh",
-    label: "刷新数据",
-    icon: RefreshCw,
-    loading: store.candidatePulling,
-    spinIcon: true,
-    disabled: busy.value,
   },
 ]);
 
@@ -335,6 +326,10 @@ function handleSourceChange(key: string) {
 
 function handleSelectAction(key: string) {
   if (busy.value) return;
+  if (key === "refresh") {
+    void handleRefreshAction();
+    return;
+  }
   const next = new Set(selectedKeys.value);
   if (key === "selectAll") {
     importableFilteredCandidates.value.forEach((item) => next.add(playlistKey(item)));
@@ -348,8 +343,8 @@ function handleSelectAction(key: string) {
   selectedKeys.value = next;
 }
 
-async function handleRefreshAction(key: string) {
-  if (key !== "refresh" || busy.value) return;
+async function handleRefreshAction() {
+  if (busy.value) return;
   if (!hasAnyThirdPartyLogin.value) {
     window.$message.warning("请先登录酷狗或网易云账号后再刷新");
     return;
