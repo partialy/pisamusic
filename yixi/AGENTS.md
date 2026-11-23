@@ -266,9 +266,9 @@
 
 ## 我的页、自建歌单与云盘缓存补充
 - `我的` 页顶层入口顺序为 `本地歌曲`（默认）、`歌单`、`下载`、`云盘`（仅 WY 已登录时显示）、`账号`：账号卡片保留，各子模块分别拆到 `src/components/mine/MineLocalSongsPanel.vue`、`MinePlaylistPanel.vue`、`MineDownloadPanel.vue`、`MineCloudPanel.vue`、`MineAccountCards.vue` 内，不要再把大量业务逻辑堆回 `src/views/mine/index.vue`。
-- 歌单右侧下拉过滤包含 `全部 / 自建 / KG / WY`，左侧为 `添加 / 刷新 / 多选` 胶囊组；云盘页已收敛为 WY 单源。
-- 自建歌单使用 `source: "local"`，与 KG/WY 歌单缓存统一写入 SQLite `user_playlists`；自建歌单歌曲写入 `user_playlist_tracks`，云盘歌曲缓存写入 `user_cloud_songs`。
-- `useMineLibraryStore` 负责我的页歌单与云盘缓存：启动时优先读取 SQLite，再在本次 App 生命周期内自动刷新一次网络数据；手动刷新失败时继续展示本地缓存。
+- 歌单右侧下拉过滤包含 `全部 / 自建 / KG / WY`，左侧为 `添加 / 导入歌单 / 多选` 胶囊组；云盘页已收敛为 WY 单源。
+- 自建歌单使用 `source: "local"`，与已导入的 KG/WY 歌单统一写入 SQLite `user_playlists`（其中仅 `local` 歌单写入 `sync_outbox` 参与跨端同步）；自建歌单歌曲写入 `user_playlist_tracks`，云盘歌曲缓存写入 `user_cloud_songs`。
+- `useMineLibraryStore` 负责我的页歌单、三方候选歌单缓存与云盘缓存：启动时优先读取 SQLite（不自动覆盖拉取三方歌单）。点击「导入歌单」时先检查 SQLite settings `mine-third-party-playlist-candidates` 候选缓存，有缓存直接打开 `ThirdPartyPlaylistImportModal.vue`，无缓存则按 KG（`page=1..500, pageSize=30` + `data.list_count`）/ WY（`offset, limit=30` + `more`）分页拉取已登录三方账号歌单并持久化缓存后弹出；弹窗支持搜索、分音源过滤（`全部 / KG / WY`）、刷新数据、多选导入与全部导入（经 `library:playlists:import` 增量写入并跳过已存在项），主列表支持右键及多选移除已导入的 KG/WY 歌单。
 - 自建歌单标签存入 `payload_json.tags`，最多 3 个，保存前需要过滤空标签并去重。
 - 歌曲右键 `添加到歌单` 只允许添加到自建歌单；无自建歌单时从弹窗内引导新建，创建完成后继续执行添加。
 - 自建歌单封面通过 `dialog:select-playlist-cover` 选择并缓存到 `app.getPath("userData")/data/covers/playlists`；renderer 不直接读写文件系统。

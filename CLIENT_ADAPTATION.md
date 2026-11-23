@@ -43,3 +43,30 @@
       - 页面组件：`yixi/src/views/cloud/CloudSubmitPlaceholderView.vue`
 
 - **清理计划**：待 `pm` 与 `yixi` 均切换至 v2 并覆盖历史版本后，再评估下线旧版 `/api/cloud-music/search` 与 `/api/cloud-music/submit/my-history`。
+
+---
+
+### 2. 三方账号 Cookie 歌单拉取缓存与可选导入弹窗
+
+- **状态**：`[ ] 待适配`
+- **背景与原因**：`yixi` PC 端「我的 - 歌单」已将三方 Cookie 歌单导入升级为“缓存 + 可选导入 Modal”模式：点击「导入歌单」时优先检查本地缓存，无缓存再拉取 KG / WY 歌单并持久化缓存，随后弹出选择框支持搜索、分音源过滤（全部 / KG / WY）、刷新数据、多选导入、全部导入及已导入状态标记/跳过；同时支持在列表中移除已导入的三方歌单。目前 `pm` Android 端仍为侧拉栏一键全量导入并直接写入 `favorite_playlists`，后续需对齐该可选导入体验。
+- **核心交互对齐要求**：
+  1. **拉取与缓存**：拉取已登录 KG / WY Cookie 账号歌单元数据后先缓存至本机持久化存储（账号退出登录时清理对应缓存，弹窗内支持手动刷新重拉）。
+  2. **可选导入弹窗**：展示缓存的候选歌单列表，支持：
+     - 关键词搜索与分音源过滤（全部 / KG / WY）；
+     - 标记已导入歌单并禁止重复勾选/跳过重复项；
+     - 多选导入、全部导入及导入结果统计（新增 / 跳过数）；
+     - 弹窗内手动「刷新数据」重新拉取并更新缓存。
+- **涉及客户端与模块路径**：
+  - **`yixi/`（PC Electron / Vue）**
+    - `[x]` 已完成：
+      - `yixi/src/store/mineLibrary.ts`（`mine-third-party-playlist-candidates` 候选缓存、分页对齐、增量导入）
+      - `yixi/src/components/mine/ThirdPartyPlaylistImportModal.vue`（可选导入弹窗）
+      - `yixi/src/components/mine/MinePlaylistPanel.vue`（导入入口、主列表展示与多选移除）
+      - `yixi/electron/database/accountLibraryRepository.ts`（`importUserPlaylists` 增量入库与非 `local` 歌单移除）
+  - **`pm/`（Android / Kotlin）**
+    - `[ ]` 三方歌单拉取缓存与可选导入弹窗：
+      - 入口与拉取逻辑：`pm/app/src/main/java/cn/partialy/pm/activity/MainActivity.kt`（`importLoggedInPlaylistsFromDrawer`、`importKgPlaylistsForLoggedInSource`、`importWyPlaylistsForLoggedInSource`）
+      - Cookie 仓库层：`pm/app/src/main/java/cn/partialy/pm/network/cookie/KugouCookieRepository.kt`、`pm/app/src/main/java/cn/partialy/pm/network/cookie/WyCookieRepository.kt`、`pm/app/src/main/java/cn/partialy/pm/network/cookie/MusicCookieManager.kt`
+      - 歌单列表与收藏管理：`pm/app/src/main/java/cn/partialy/pm/ui/mine/MinePlaylistsTabFragment.kt`、`pm/app/src/main/java/cn/partialy/pm/utils/playlistUtil/PlaylistCollectionManager.kt`
+      - 待新增：三方候选歌单本地缓存表/存储及可选导入弹窗 UI（支持搜索、分音源过滤、刷新数据、多选导入、全部导入）。
