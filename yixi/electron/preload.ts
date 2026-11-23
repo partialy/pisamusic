@@ -231,8 +231,10 @@ const libraryIpc = {
     invokeLibrary("library:playlists:create", cloneIpcPayload(playlist)),
   upsertUserPlaylist: (playlist: any) =>
     invokeLibrary("library:playlists:upsert", cloneIpcPayload(playlist)),
-  replaceUserPlaylists: (payload: { source: "kg" | "wy" | "kw" | "qq"; playlists: any[] }) =>
+  replaceUserPlaylists: (payload: { source: "kg" | "wy" | "kw" | "qq"; playlists: any[]; identityRevision?: number }) =>
     invokeLibrary("library:playlists:replace-source", cloneIpcPayload(payload)),
+  importUserPlaylists: (payload: { playlists: any[]; identityRevision?: number }) =>
+    invokeLibrary("library:playlists:import", cloneIpcPayload(payload)),
   listUserPlaylistTracks: (payload: { playlistId: string }) =>
     invokeLibrary("library:playlists:tracks:list", cloneIpcPayload(payload)),
   addUserPlaylistTrack: (payload: { playlistId: string; track: any }) =>

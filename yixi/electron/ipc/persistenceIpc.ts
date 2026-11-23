@@ -106,6 +106,7 @@ export function setupPersistenceIpc() {
   scoped("library:playlists:create", true, (context, playlist) => context.repo.createUserPlaylist(playlist).playlist);
   scoped("library:playlists:upsert", true, (context, playlist) => context.repo.upsertUserPlaylist(playlist));
   scoped("library:playlists:replace-source", true, (context, payload) => context.repo.replaceUserPlaylists(payload.source, payload.playlists));
+  scoped("library:playlists:import", true, (context, payload) => context.repo.importUserPlaylists(Array.isArray(payload?.playlists) ? payload.playlists : []));
   scoped("library:playlists:tracks:list", false, (context, payload) => {
     const resolve = createLocalTrackResolver(context.repo);
     return context.repo.listUserPlaylistTracks(payload.playlistId).map(item => ({ ...item, payload: resolve(item.payload) }));
@@ -113,7 +114,7 @@ export function setupPersistenceIpc() {
   scoped("library:playlists:tracks:add", true, (context, payload) => context.repo.addUserPlaylistTrack(payload.playlistId, readTrack(context, payload.track)));
   scoped("library:playlists:create-with-tracks", true, (context, payload) => context.repo.createUserPlaylist(payload.playlist, prepareLibraryTracks(payload.tracks, context.repo)));
   scoped("library:playlists:update", true, (context, payload) => context.repo.updateUserPlaylist(payload.playlistId, payload.patch));
-  scoped("library:playlists:remove", true, (context, payload) => getAppDatabase().applySyncTransaction(() => { const removed = context.repo.removeUserPlaylist(payload.source, payload.id); if (removed) discardPlaylistCover(context, payload.id); return removed; }));
+  scoped("library:playlists:remove", true, (context, payload) => getAppDatabase().applySyncTransaction(() => { const removed = context.repo.removeUserPlaylist(payload.source, payload.id); if (removed && payload.source === "local") discardPlaylistCover(context, payload.id); return removed; }));
   scoped("library:playlists:tracks:bulk-add", true, (context, payload) => context.repo.addUserPlaylistTracks(payload.playlistId, prepareLibraryTracks(payload.tracks, context.repo)));
   scoped("library:playlists:tracks:bulk-remove", true, (context, payload) => context.repo.removeUserPlaylistTracks(payload.playlistId, payload.keys));
 

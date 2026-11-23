@@ -48,6 +48,7 @@ export class AccountLibraryRepository {
       .run(this.scope.accountId, type, key, JSON.stringify(payload), previous?.created_at ?? createdAt ?? now, now);
   }
   private event(input: SyncOperationInput, options: LibraryWriteOptions) {
+    if (input.itemType === "user_playlist" && !input.itemKey.startsWith("local:")) return;
     if (!options.fromSync && input.itemType === "user_playlist" && input.itemKey.startsWith("local:") && input.action === "upsert") {
       notePlaylistUserEdit(this.db, this.scope.accountId, input.itemKey.slice("local:".length), input.payload as PlaylistSnapshot, options.clientUpdatedAt ?? new Date().toISOString());
     }
@@ -251,6 +252,24 @@ export class AccountLibraryRepository {
       return this.listUserPlaylists(source);
     });
   }
+  importUserPlaylists(playlists: PlaylistSnapshot[]) {
+    return this.transaction(() => {
+      let added = 0;
+      let skipped = 0;
+      for (const raw of playlists) {
+        const normalized = normalizePlaylistSnapshot(raw);
+        if (normalized.source === "local") continue;
+        const key = favoriteKey(normalized.source, normalized.id);
+        if (this.row("user_playlist", key)) {
+          skipped++;
+          continue;
+        }
+        this.upsertUserPlaylist(normalized, { fromSync: true });
+        added++;
+      }
+      return { added, skipped };
+    });
+  }
   listUserPlaylistTracks(playlistId: string): ScopedPlaylistTrack[] {
     const rows = this.db.prepare(`SELECT * FROM account_playlist_tracks WHERE account_id = ? AND playlist_id = ?
       ORDER BY COALESCE(sort_order,fallback_order),server_version,track_key`).all(this.scope.accountId, playlistId) as TrackRow[];
@@ -325,14 +344,19 @@ export class AccountLibraryRepository {
   removeUserPlaylistTrack(playlistId: string, source: string, id: string, options: LibraryWriteOptions = {}) { return this.removeUserPlaylistTracks(playlistId, [{ source, id }], options).removed.length > 0; }
   removeUserPlaylist(source: string, id: string, options: LibraryWriteOptions = {}) {
     return this.transaction(() => {
-      if (!this.row("user_playlist", favoriteKey(source, id))) return false;
-      // 每个子关系产生独立 delete，不依赖父墓碑隐式清理。
-      if (this.scope.accountId && !options.fromSync) for (const track of this.listUserPlaylistTracks(id)) {
-        this.event({ itemType: "playlist_track", itemKey: `${id}|${track.source}:${this.syncTrackId(track.payload)}`, action: "delete" }, options);
+      const key = favoriteKey(source, id);
+      if (!this.row("user_playlist", key)) return false;
+      if (source === "local") {
+        // 每个子关系产生独立 delete，不依赖父墓碑隐式清理。
+        if (this.scope.accountId && !options.fromSync) for (const track of this.listUserPlaylistTracks(id)) {
+          this.event({ itemType: "playlist_track", itemKey: `${id}|${track.source}:${this.syncTrackId(track.payload)}`, action: "delete" }, options);
+        }
+        this.db.prepare("DELETE FROM account_playlist_tracks WHERE account_id = ? AND playlist_id = ?").run(this.scope.accountId, id);
       }
-      this.db.prepare("DELETE FROM account_playlist_tracks WHERE account_id = ? AND playlist_id = ?").run(this.scope.accountId, id);
-      const removed = this.removeItem("user_playlist", favoriteKey(source, id), { fromSync: true });
-      this.event({ itemType: "user_playlist", itemKey: favoriteKey(source, id), action: "delete" }, options);
+      const removed = this.removeItem("user_playlist", key, { fromSync: true });
+      if (source === "local") {
+        this.event({ itemType: "user_playlist", itemKey: key, action: "delete" }, options);
+      }
       return removed;
     });
   }

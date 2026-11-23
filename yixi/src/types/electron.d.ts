@@ -931,6 +931,10 @@ type ElectronIpcApi = {
     playlists: PlaylistSnapshot[];
     identityRevision?: number;
   }) => Promise<UserPlaylistItem[]>;
+  importUserPlaylists: (payload: {
+    playlists: PlaylistSnapshot[];
+    identityRevision?: number;
+  }) => Promise<{ added: number; skipped: number }>;
   listUserPlaylistTracks: (payload: { playlistId: string }) => Promise<UserPlaylistTrackItem[]>;
   addUserPlaylistTrack: (payload: {
     playlistId: string;

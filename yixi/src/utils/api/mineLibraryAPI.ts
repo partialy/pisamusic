@@ -1,6 +1,7 @@
 import { captureLibraryRevision, isCurrentLibraryRevision } from "@/utils/libraryIdentity";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { reportError } from "@/utils/errorReporter";
+import { normalizePlaylist } from "@/utils/playlist";
 import { normalizeSong } from "@/utils/song";
 import { toRaw } from "vue";
 
@@ -47,6 +48,21 @@ export async function replaceMinePlaylists(source: Exclude<CommonPlaylist["sourc
   });
 }
 
+export async function importMinePlaylists(playlists: CommonPlaylist[], identityRevision?: number) {
+  const normalizedPlaylists = playlists.map((item) =>
+    normalizePlaylist(toRaw(item) as unknown as Record<string, unknown>)
+  );
+  return invokeMineApi("importMinePlaylists", { count: normalizedPlaylists.length }, async () => {
+    if (identityRevision !== undefined && !isCurrentLibraryRevision(identityRevision)) {
+      throw new Error("账号已变化，请重试");
+    }
+    return window.electronAPI.importUserPlaylists({
+      playlists: normalizedPlaylists,
+      identityRevision,
+    });
+  });
+}
+
 export async function listMinePlaylistSongs(playlistId: string) {
   return invokeMineApi("listMinePlaylistSongs", { playlistId }, async () => {
     const items = await window.electronAPI.listUserPlaylistTracks({ playlistId });
@@ -90,10 +106,15 @@ export async function saveMinePlaylistEdit(input: import("@/types/playlistCover"
     return item.payload as CommonPlaylist;
   });
 }
-export async function removeMinePlaylist(playlistId: string, identityRevision: number) {
-  return invokeMineApi("removeMinePlaylist", { playlistId }, async () => {
+export async function removeMinePlaylist(
+  target: Pick<CommonPlaylist, "source" | "id"> | string,
+  identityRevision: number
+) {
+  const source = typeof target === "string" ? "local" : target.source;
+  const playlistId = typeof target === "string" ? target : target.id;
+  return invokeMineApi("removeMinePlaylist", { source, playlistId }, async () => {
     if (!isCurrentLibraryRevision(identityRevision)) throw new Error("账号已变化，请重新确认");
-    return window.electronAPI.removeUserPlaylist({ source: "local", id: playlistId, identityRevision });
+    return window.electronAPI.removeUserPlaylist({ source, id: playlistId, identityRevision });
   });
 }
 export async function retryMinePlaylistCover(playlistId: string, identityRevision: number) {
