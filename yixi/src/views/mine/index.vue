@@ -104,7 +104,7 @@ const tabs = computed(() => {
     {
       key: "playlist",
       label: "歌单",
-      meta: store.playlists.length || "待加载",
+      meta: store.initialized ? store.playlists.length : store.playlists.length || "待加载",
     },
     { key: "download", label: "下载", meta: downloadedSongs.value.length },
   ];

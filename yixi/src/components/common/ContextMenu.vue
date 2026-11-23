@@ -269,28 +269,43 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
     },
   ];
 
-  if (props.playlistEditable && playlist.source === "local") {
-    playlistOptions.push(
-      { type: "divider", key: "playlist-divider" },
-      {
-        label: "编辑",
-        props: {
-          title: "编辑",
-          onClick: () => emit("editPlaylist", playlist),
+  if (props.playlistEditable) {
+    if (playlist.source === "local") {
+      playlistOptions.push(
+        { type: "divider", key: "playlist-divider" },
+        {
+          label: "编辑",
+          props: {
+            title: "编辑",
+            onClick: () => emit("editPlaylist", playlist),
+          },
+          icon: renderIcon(SquarePen, {}, { size: 20 }),
+          key: "playlist-edit",
         },
-        icon: renderIcon(SquarePen, {}, { size: 20 }),
-        key: "playlist-edit",
-      },
-      {
-        label: "删除",
-        props: {
-          title: "删除",
-          onClick: () => emit("deletePlaylist", playlist),
-        },
-        icon: renderIcon(Trash2, {}, { size: 20 }),
-        key: "playlist-delete",
-      }
-    );
+        {
+          label: "删除",
+          props: {
+            title: "删除",
+            onClick: () => emit("deletePlaylist", playlist),
+          },
+          icon: renderIcon(Trash2, {}, { size: 20 }),
+          key: "playlist-delete",
+        }
+      );
+    } else {
+      playlistOptions.push(
+        { type: "divider", key: "playlist-divider" },
+        {
+          label: "移除歌单",
+          props: {
+            title: "移除歌单",
+            onClick: () => emit("deletePlaylist", playlist),
+          },
+          icon: renderIcon(Trash2, {}, { size: 20 }),
+          key: "playlist-delete",
+        }
+      );
+    }
   }
 
   return playlistOptions;

@@ -27,17 +27,7 @@
     </div>
 
     <div class="playlist-scroll" @scroll.passive="emit('scroll', $event)">
-      <n-empty
-        v-if="missingThirdPartyLogin"
-        class="empty-state"
-        description="登录三方账号后可自动同步"
-      >
-        <template #extra>
-          <n-button type="primary" round @click="emit('goAccount')">去登录</n-button>
-        </template>
-      </n-empty>
-
-      <template v-else-if="filteredPlaylists.length">
+      <template v-if="filteredPlaylists.length">
         <PlaylistCollect
           :playlist="filteredPlaylists"
           :selectable="batchMode"
@@ -52,6 +42,16 @@
       </template>
 
       <n-empty
+        v-else-if="missingThirdPartyLogin"
+        class="empty-state"
+        description="登录三方账号后可拉取并导入歌单"
+      >
+        <template #extra>
+          <n-button type="primary" round @click="emit('goAccount')">去登录</n-button>
+        </template>
+      </n-empty>
+
+      <n-empty
         v-else
         class="empty-state"
         :description="store.playlistError || '暂无歌单内容'"
@@ -60,12 +60,16 @@
 
     <CreatePlaylistDialog ref="createDialogRef" />
     <PlaylistEditDialog ref="editDialogRef" />
+    <ThirdPartyPlaylistImportModal
+      ref="importModalRef"
+      @go-account="emit('goAccount')"
+    />
     <n-dropdown
       :show="batchMenu.show"
       :x="batchMenu.x"
       :y="batchMenu.y"
       trigger="manual"
-      :options="[{ key: 'delete', label: '删除所选歌单' }]"
+      :options="[{ key: 'delete', label: '删除/移除所选歌单' }]"
       @clickoutside="batchMenu.show = false"
       @select="batchMenu.show = false; deleteSelected()"
     />
@@ -77,11 +81,11 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { NButton, NDropdown, NEmpty } from "naive-ui";
 import {
   ArrowLeftRight,
+  Download,
   ListChecks,
   ListMusic,
   LogOut,
   Plus,
-  RefreshCw,
   Square,
   SquarePen,
   Trash2,
@@ -89,6 +93,7 @@ import {
 import { KGIcon, ListUnorderedIcon, NeteaseIcon } from "@/icons";
 import type { CommonPlaylist } from "@/types/song";
 import PlaylistEditDialog from "./PlaylistEditDialog.vue";
+import ThirdPartyPlaylistImportModal from "./ThirdPartyPlaylistImportModal.vue";
 import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { useMineLibraryStore } from "@/store";
 import CreatePlaylistDialog from "@/components/mine/CreatePlaylistDialog.vue";
@@ -115,6 +120,7 @@ const { accounts } = useCookieAccountStatus();
 const { confirmDelete } = usePlaylistManagement();
 const editDialogRef = ref<InstanceType<typeof PlaylistEditDialog> | null>(null);
 const createDialogRef = ref<InstanceType<typeof CreatePlaylistDialog> | null>(null);
+const importModalRef = ref<InstanceType<typeof ThirdPartyPlaylistImportModal> | null>(null);
 const activeSource = ref<PlaylistFilter>("all");
 const searchKey = ref("");
 
@@ -131,7 +137,7 @@ const sourceActions = computed<SegmentedActionItem[]>(() => [
     icon: ListUnorderedIcon,
     active: activeSource.value === "all",
     primary: activeSource.value === "all",
-    disabled: batchMode.value || batchBusy.value,
+    disabled: batchBusy.value,
   },
   {
     key: "local",
@@ -140,7 +146,7 @@ const sourceActions = computed<SegmentedActionItem[]>(() => [
     iconColor: "#18a058",
     active: activeSource.value === "local",
     primary: activeSource.value === "local",
-    disabled: batchMode.value || batchBusy.value,
+    disabled: batchBusy.value,
   },
   {
     key: "kg",
@@ -149,7 +155,7 @@ const sourceActions = computed<SegmentedActionItem[]>(() => [
     iconColor: "#1296DB",
     active: activeSource.value === "kg",
     primary: activeSource.value === "kg",
-    disabled: batchMode.value || batchBusy.value,
+    disabled: batchBusy.value,
   },
   {
     key: "wy",
@@ -158,7 +164,7 @@ const sourceActions = computed<SegmentedActionItem[]>(() => [
     iconColor: "#d71920",
     active: activeSource.value === "wy",
     primary: activeSource.value === "wy",
-    disabled: batchMode.value || batchBusy.value,
+    disabled: batchBusy.value,
   },
 ]);
 
@@ -179,11 +185,7 @@ const missingThirdPartyLogin = computed(() => {
 });
 
 const sourcePlaylists = computed(() =>
-  batchMode.value
-    ? store.localPlaylists
-    : missingThirdPartyLogin.value
-      ? []
-      : store.getPlaylistsBySource(activeSource.value)
+  store.getPlaylistsBySource(activeSource.value)
 );
 
 const filteredPlaylists = computed(() => {
@@ -197,7 +199,7 @@ const filteredPlaylists = computed(() => {
 });
 
 const selection = useBatchSelection(
-  () => store.localPlaylists,
+  () => store.playlists,
   filteredPlaylists
 );
 
@@ -209,18 +211,17 @@ const defaultActions = computed<SegmentedActionItem[]>(() => [
     disabled: batchBusy.value,
   },
   {
-    key: "refresh",
-    label: "刷新",
-    icon: RefreshCw,
-    loading: store.playlistRefreshing,
-    spinIcon: true,
-    disabled: batchBusy.value || missingThirdPartyLogin.value,
+    key: "import",
+    label: "导入歌单",
+    icon: Download,
+    loading: store.candidatePulling,
+    disabled: batchBusy.value || store.candidatePulling,
   },
   {
     key: "batch",
     label: "多选",
     icon: SquarePen,
-    disabled: batchBusy.value || !store.localPlaylists.length,
+    disabled: batchBusy.value || !store.playlists.length,
   },
 ]);
 
@@ -266,7 +267,7 @@ onBeforeUnmount(() => {
 watch(searchKey, () => emit("expandHeader"));
 
 function handleSourceAction(key: string) {
-  if (batchMode.value || batchBusy.value) return;
+  if (batchBusy.value) return;
   const next = key as PlaylistFilter;
   if (next === activeSource.value) return;
   activeSource.value = next;
@@ -276,15 +277,38 @@ function handleSourceAction(key: string) {
 function handleDefaultAction(key: string, event: MouseEvent) {
   if (key === "add") {
     createDialogRef.value?.open();
-  } else if (key === "refresh") {
-    if (missingThirdPartyLogin.value) return;
-    void store.refreshPlaylists(true);
+  } else if (key === "import") {
+    void handleOpenImportModal();
   } else if (key === "batch") {
-    if (batchBusy.value || !store.localPlaylists.length) return;
+    if (batchBusy.value || !store.playlists.length) return;
     batchMorph.captureOrigin(event);
     selection.clear();
     batchMode.value = true;
     batchMenu.value.show = false;
+  }
+}
+
+async function handleOpenImportModal() {
+  if (batchBusy.value || store.candidatePulling) return;
+  await store.loadCandidateCache();
+  if (store.hasCandidateCache) {
+    importModalRef.value?.open();
+    return;
+  }
+
+  if (!accounts.kg.loggedIn && !accounts.wy.loggedIn) {
+    window.$message.warning("请先登录酷狗或网易云账号后再拉取导入歌单");
+    emit("goAccount");
+    return;
+  }
+
+  try {
+    await store.pullCandidatePlaylists();
+    importModalRef.value?.open();
+  } catch (error) {
+    window.$message.error(
+      error instanceof Error ? error.message : "拉取三方歌单失败，请检查账号登录状态"
+    );
   }
 }
 
@@ -323,9 +347,9 @@ async function deleteSelected() {
   if (!targets.length) return;
   const revision = await captureLibraryRevision();
   window.$dialog.warning({
-    title: "删除所选自建歌单？",
-    content: `将删除 ${targets.length} 个歌单及其曲目关系，不删除音频文件。`,
-    positiveText: "删除",
+    title: "删除/移除所选歌单？",
+    content: `将删除或移除所选的 ${targets.length} 个歌单（不删除本地音频文件，不影响第三方平台原歌单）。`,
+    positiveText: "确认",
     negativeText: "取消",
     onPositiveClick: async () => {
       if (!isCurrentLibraryRevision(revision)) return false;
@@ -350,13 +374,13 @@ async function deleteSelected() {
         if (!isCurrentLibraryRevision(revision)) return;
         await store.loadCache();
         window.$message.info(
-          `已删除 ${result.succeeded}，跳过 ${result.skipped}，失败 ${result.failed}，未执行 ${result.unexecuted}。`
+          `已移除 ${result.succeeded}，跳过 ${result.skipped}，失败 ${result.failed}，未执行 ${result.unexecuted}。`
         );
         selection.clear();
       } catch (error) {
         if (isCurrentLibraryRevision(revision)) {
           window.$message.error(
-            error instanceof Error ? error.message : "批量删除失败"
+            error instanceof Error ? error.message : "批量移除失败"
           );
         }
         return false;

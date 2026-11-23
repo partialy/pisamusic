@@ -88,7 +88,7 @@ const {
 } = useCookieAccountStatus();
 
 function syncAfterThirdPartyLogin(source: CookieSource) {
-  void mineLibrary.refreshPlaylists(true);
+  void mineLibrary.pullCandidatePlaylists([source]).catch(() => null);
   if (source === "wy") {
     void mineLibrary.refreshCloudSongs(true);
   }
@@ -181,6 +181,7 @@ async function refreshAccount(source: CookieSource) {
 async function logout(source: CookieSource) {
   await clearUserCookie(source);
   resetCookieAccountStatus(source);
+  await mineLibrary.clearCandidateCache(source);
   window.$message.success(`${accountMeta[source].name} 登录 Cookie 已清除`);
 }
 </script>
