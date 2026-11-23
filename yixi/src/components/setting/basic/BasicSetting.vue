@@ -71,6 +71,18 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <div class="setting-title">页面切换动画</div>
+        <div class="setting-desc">{{ currentPageTransitionMeta.description }}</div>
+      </div>
+      <n-select
+        class="startup-animation-select"
+        :value="themeStore.pageTransition"
+        :options="pageTransitionSelectOptions"
+        @update:value="handlePageTransitionChange" />
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
         <div class="setting-title">启动动画</div>
         <div class="setting-desc">{{ currentStartupMeta.description }}（下次启动时生效）</div>
       </div>
@@ -289,6 +301,11 @@ import {
   type StartupAnimationStyle,
 } from "@/startup/startupAnimationOptions";
 import {
+  PAGE_TRANSITION_OPTIONS,
+  getPageTransitionMeta,
+  type PageTransitionStyle,
+} from "@/theme/pageTransitionOptions";
+import {
   useThemeStore,
   type BackgroundMode,
   type GradientDirection,
@@ -333,6 +350,11 @@ const startupAnimationSelectOptions = STARTUP_ANIMATION_OPTIONS.map((item) => ({
   value: item.value,
 }));
 const currentStartupMeta = computed(() => getStartupAnimationMeta(themeStore.startupAnimation));
+const pageTransitionSelectOptions = PAGE_TRANSITION_OPTIONS.map((item) => ({
+  label: item.label,
+  value: item.value,
+}));
+const currentPageTransitionMeta = computed(() => getPageTransitionMeta(themeStore.pageTransition));
 
 const handleThemeModeChange = (value: ThemeMode) => {
   void themeStore.setMode(value);
@@ -374,6 +396,10 @@ const handleColorfulProgressColorsConfirm = (
 
 const handleStartupAnimationChange = (value: string) => {
   void themeStore.setStartupAnimation(value as StartupAnimationStyle);
+};
+
+const handlePageTransitionChange = (value: string) => {
+  void themeStore.setPageTransition(value as PageTransitionStyle);
 };
 
 const handleBackgroundModeChange = (value: string) => {

@@ -19,9 +19,7 @@
           <n-modal-provider>
             <div v-if="!lowPowerStore.active" class="app-content-wrapper">
               <router-view v-show="!showPlayer" v-slot="{ Component }">
-                <Transition name="main-page" mode="in-out">
-                  <component :is="Component" />
-                </Transition>
+                <component :is="Component" />
               </router-view>
               <PlayerBar class="player-bar"></PlayerBar>
               <Transition name="player-slide">
@@ -528,14 +526,6 @@ onBeforeUnmount(() => {
 
 .hidePlayer {
   animation: player-out 0.3s;
-}
-
-.main-page-enter-active {
-  animation: player-out 0.5s ease-in-out;
-}
-
-.main-page-leave-active {
-  animation: player-in 0.5s ease-in-out;
 }
 
 .player-slide-leave-active {

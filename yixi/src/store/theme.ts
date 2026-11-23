@@ -41,6 +41,11 @@ import {
   normalizeStartupAnimationStyle,
   type StartupAnimationStyle,
 } from "@/startup/startupAnimationOptions";
+import {
+  DEFAULT_PAGE_TRANSITION_STYLE,
+  normalizePageTransitionStyle,
+  type PageTransitionStyle,
+} from "@/theme/pageTransitionOptions";
 import type { GlobalTheme, GlobalThemeOverrides } from "naive-ui";
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
@@ -88,6 +93,7 @@ export type AppThemeSetting = {
   colorfulProgressBar?: boolean;
   colorfulProgressColors?: string[];
   startupAnimation?: StartupAnimationStyle;
+  pageTransition?: PageTransitionStyle;
   autoBackground: boolean;
   gradientDirection: GradientDirection;
   gradientColors: string[];
@@ -116,6 +122,7 @@ const DEFAULT_THEME: AppThemeSetting = {
   colorfulProgressBar: false,
   colorfulProgressColors: [...DEFAULT_COLORFUL_PROGRESS_COLORS],
   startupAnimation: DEFAULT_STARTUP_ANIMATION_STYLE,
+  pageTransition: DEFAULT_PAGE_TRANSITION_STYLE,
   autoBackground: false,
   gradientDirection: DEFAULT_GRADIENT_DIRECTION,
   gradientColors: DEFAULT_LIGHT_GRADIENT_COLORS,
@@ -133,6 +140,8 @@ export const useThemeStore = defineStore("theme", () => {
   const colorfulProgressBar = ref(Boolean(DEFAULT_THEME.colorfulProgressBar));
   const colorfulProgressColors = ref<string[]>([...DEFAULT_COLORFUL_PROGRESS_COLORS]);
   const startupAnimation = ref<StartupAnimationStyle>(DEFAULT_STARTUP_ANIMATION_STYLE);
+  const pageTransition = ref<PageTransitionStyle>(DEFAULT_PAGE_TRANSITION_STYLE);
+  const pageTransitionEnabled = computed(() => pageTransition.value !== "none");
   const autoBackground = ref(DEFAULT_THEME.autoBackground);
   const gradientDirection = ref<GradientDirection>(DEFAULT_THEME.gradientDirection);
   const gradientColors = ref<string[]>([...DEFAULT_THEME.gradientColors]);
@@ -262,6 +271,11 @@ export const useThemeStore = defineStore("theme", () => {
     await persist();
   }
 
+  async function setPageTransition(style: PageTransitionStyle) {
+    pageTransition.value = normalizePageTransitionStyle(style);
+    await persist();
+  }
+
   async function setAutoBackground(enabled: boolean) {
     autoBackground.value = enabled;
     applyRuntimeTheme();
@@ -378,6 +392,7 @@ export const useThemeStore = defineStore("theme", () => {
       theme?.colorfulProgressColors
     );
     startupAnimation.value = normalizeStartupAnimationStyle(theme?.startupAnimation);
+    pageTransition.value = normalizePageTransitionStyle(theme?.pageTransition);
     autoBackground.value =
       typeof theme?.autoBackground === "boolean"
         ? theme.autoBackground
@@ -441,6 +456,7 @@ export const useThemeStore = defineStore("theme", () => {
         colorfulProgressColors.value
       ),
       startupAnimation: startupAnimation.value,
+      pageTransition: pageTransition.value,
       autoBackground: autoBackground.value,
       gradientDirection: gradientDirection.value,
       gradientColors: normalizeGradientColors(gradientColors.value),
@@ -498,6 +514,8 @@ export const useThemeStore = defineStore("theme", () => {
     colorfulProgressBar,
     colorfulProgressColors,
     startupAnimation,
+    pageTransition,
+    pageTransitionEnabled,
     autoBackground,
     gradientDirection,
     gradientColors,
@@ -517,6 +535,7 @@ export const useThemeStore = defineStore("theme", () => {
     setColorfulProgressColors,
     resetColorfulProgressColors,
     setStartupAnimation,
+    setPageTransition,
     setAutoBackground,
     setGradientDirection,
     setGradientColor,

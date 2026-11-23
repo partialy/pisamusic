@@ -1,6 +1,9 @@
 <template>
   <div class="setting-con">
-    <n-tabs v-model:value="activeName" type="line" animated>
+    <n-tabs
+      v-model:value="activeName"
+      type="line"
+      :animated="themeStore.pageTransitionEnabled">
       <n-tab-pane name="basic" tab="基本设置">
         <BasicSetting></BasicSetting>
       </n-tab-pane>
@@ -42,6 +45,7 @@ import {
 } from "@/components/setting";
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useThemeStore } from "@/store/theme";
 
 type SettingTab = "basic" | "local" | "sync" | "lyric" | "shortcut" | "advance" | "about" | "announcements";
 
@@ -58,6 +62,7 @@ const SETTING_TABS = new Set<SettingTab>([
 
 const route = useRoute();
 const router = useRouter();
+const themeStore = useThemeStore();
 const activeName = ref<SettingTab>(resolveSettingTab(route.query.tab));
 
 watch(

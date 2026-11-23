@@ -1,0 +1,99 @@
+/* 页面切换动画（用于 MainLayout 内部路由视图） */
+
+.page-fade-slide-up-enter-active,
+.page-fade-slide-up-leave-active,
+.page-slide-horizontal-enter-active,
+.page-slide-horizontal-leave-active,
+.page-soft-scale-enter-active,
+.page-soft-scale-leave-active {
+  will-change: transform, opacity;
+}
+
+/* 1. 柔滑上浮 */
+.page-fade-slide-up-enter-active {
+  transition:
+    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.page-fade-slide-up-leave-active {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.page-fade-slide-up-enter-from {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+}
+
+.page-fade-slide-up-leave-to {
+  opacity: 0;
+  transform: translate3d(0, -6px, 0);
+}
+
+/* 2. 横向轻推 */
+.page-slide-horizontal-enter-active {
+  transition:
+    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.page-slide-horizontal-leave-active {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.page-slide-horizontal-enter-from {
+  opacity: 0;
+  transform: translate3d(20px, 0, 0);
+}
+
+.page-slide-horizontal-leave-to {
+  opacity: 0;
+  transform: translate3d(-14px, 0, 0);
+}
+
+/* 3. 景深微聚 */
+.page-soft-scale-enter-active {
+  transition:
+    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.page-soft-scale-leave-active {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.page-soft-scale-enter-from {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
+.page-soft-scale-leave-to {
+  opacity: 0;
+  transform: scale(1.01);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-slide-up-enter-active,
+  .page-fade-slide-up-leave-active,
+  .page-slide-horizontal-enter-active,
+  .page-slide-horizontal-leave-active,
+  .page-soft-scale-enter-active,
+  .page-soft-scale-leave-active {
+    transition: opacity 0.12s linear;
+  }
+
+  .page-fade-slide-up-enter-from,
+  .page-fade-slide-up-leave-to,
+  .page-slide-horizontal-enter-from,
+  .page-slide-horizontal-leave-to,
+  .page-soft-scale-enter-from,
+  .page-soft-scale-leave-to {
+    transform: none;
+  }
+}

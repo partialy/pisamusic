@@ -31,7 +31,9 @@
             <Header class="header" @refresh="refreshContent" />
             <div class="content">
               <router-view v-slot="{ Component }">
-                <component :is="Component" :key="`${route.fullPath}:${contentRefreshKey}`" />
+                <Transition :name="pageTransitionName" mode="out-in">
+                  <component :is="Component" :key="`${route.path}:${contentRefreshKey}`" />
+                </Transition>
               </router-view>
             </div>
           </div>
@@ -61,10 +63,17 @@ import AppAnnouncementAutoPopup from "@/components/home/AppAnnouncementAutoPopup
 import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
 import { KGIcon, NeteaseIcon } from "@/icons";
 import logo from "@/assets/pisamusic_icon_1024.png";
+import "@/css/pageTransitions.css";
 import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
+import { useThemeStore } from "@/store/theme";
+import { getPageTransitionMeta } from "@/theme/pageTransitionOptions";
 
 const router = useRouter();
 const route = useRoute();
+const themeStore = useThemeStore();
+const pageTransitionName = computed(
+  () => getPageTransitionMeta(themeStore.pageTransition).transitionName || undefined,
+);
 const collapsed = ref(false);
 const contentRefreshKey = ref(0);
 const { accounts } = useCookieAccountStatus();
