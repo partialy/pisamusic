@@ -1,6 +1,5 @@
 import { createRouter, createWebHashHistory, createWebHistory, type RouteRecordRaw } from "vue-router";
 import MainLayout from "../layout/MainLayout.vue";
-import { NotFound } from "../components";
 import { openLegacyMediaDetail } from "@/share/mediaDetailRoute";
 
 const routes: Array<RouteRecordRaw> = [
@@ -124,7 +123,7 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: "",
         name: "NotFound",
-        component: NotFound,
+        component: () => import("../components/404.vue"),
         meta: { title: "PisaMusic - 页面走丢了" },
       },
     ],

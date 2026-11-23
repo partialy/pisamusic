@@ -109,7 +109,7 @@
 
 <script setup lang="ts">
 import SearchHistoryPopover from "./search/SearchHistoryPopover.vue";
-import { ElectronOperation } from "@/components";
+import ElectronOperation from "./ElectronOperation.vue";
 import { SleepTimerEntry } from "./sleepTimer";
 import PlaylistLinkImportDialog from "./playList/PlaylistLinkImportDialog.vue";
 import AppShareDialog from "./common/AppShareDialog.vue";

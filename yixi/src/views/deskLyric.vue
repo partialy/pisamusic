@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { AMLyric } from '@/components';
+import AMLyric from "@/components/player/AMLyric.vue";
 </script>
 
 <style lang="scss" scoped>

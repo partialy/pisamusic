@@ -72,6 +72,39 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, "index.html"),
         },
+        output: {
+          manualChunks(id) {
+            const normalizedId = id.replace(/\\/g, "/");
+            if (!normalizedId.includes("/node_modules/")) return;
+            if (
+              normalizedId.includes("/node_modules/naive-ui/") ||
+              normalizedId.includes("/node_modules/seemly/") ||
+              normalizedId.includes("/node_modules/vooks/") ||
+              normalizedId.includes("/node_modules/evtd/") ||
+              normalizedId.includes("/node_modules/treemate/") ||
+              normalizedId.includes("/node_modules/css-render/")
+            ) {
+              return "naive-ui";
+            }
+            if (
+              normalizedId.includes("/node_modules/lucide-vue-next/") ||
+              normalizedId.includes("/node_modules/@vicons/")
+            ) {
+              return "icons";
+            }
+            if (
+              normalizedId.includes("/node_modules/@applemusic-like-lyrics/") ||
+              normalizedId.includes("/node_modules/@pixi/")
+            ) {
+              return "amll";
+            }
+            if (
+              /\/node_modules\/(?:vue|@vue|vue-router|pinia)\//.test(normalizedId)
+            ) {
+              return "vue-vendor";
+            }
+          },
+        },
       },
     },
     plugins: [

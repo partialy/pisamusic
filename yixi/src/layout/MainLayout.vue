@@ -56,7 +56,7 @@ import {
   UserRound,
   Wrench,
 } from "lucide-vue-next";
-import { Header } from "../components";
+import Header from "../components/Header.vue";
 import AppAnnouncementAutoPopup from "@/components/home/AppAnnouncementAutoPopup.vue";
 import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
 import { KGIcon, NeteaseIcon } from "@/icons";

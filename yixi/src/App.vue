@@ -27,7 +27,7 @@
               <Transition name="player-slide">
                 <MainPlayer v-if="showPlayer" class="player" />
               </Transition>
-              <EqualizerModal />
+              <EqualizerModal v-if="equalizerMounted" />
               <AppDialogHost />
             </div>
             <ImportUnassociatedLibrary :logged-in="userStore.isLogin" auto-prompt :show-entry="false" />
@@ -47,14 +47,24 @@ import {
   NMessageProvider,
   NButton,
 } from "naive-ui";
-import { h, onBeforeUnmount, ref, Transition, watch, watchEffect } from "vue";
+import { defineAsyncComponent, h, onBeforeUnmount, ref, Transition, watch, watchEffect } from "vue";
 import { useRouter } from "vue-router";
-import { PlayerBar, MainPlayer, EqualizerModal } from "./components";
+import PlayerBar from "./components/player/PlayerBar.vue";
+
+const MainPlayer = defineAsyncComponent(() => import("./components/player/MainPlayer.vue"));
+const EqualizerModal = defineAsyncComponent(() => import("./components/equalizer/EqualizerModal.vue"));
+const ImportUnassociatedLibrary = defineAsyncComponent(
+  () => import("./components/setting/sync/ImportUnassociatedLibrary.vue")
+);
+const AppDirectMessagePopup = defineAsyncComponent(
+  () => import("./components/directMessage/AppDirectMessagePopup.vue")
+);
 
 import {
   useCommonStore,
   useCollectStore,
   useAudioStore,
+  useEqualizerStore,
   useLowPowerStore,
   useLyricStore,
   useMineLibraryStore,
@@ -82,12 +92,19 @@ import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
 import { setupDesktopLyricBridge } from "./desktopLyric/desktopLyricBridge";
 import { setupLyricPlaybackBridge } from "./desktopLyric/lyricPlaybackBridge";
-import ImportUnassociatedLibrary from "./components/setting/sync/ImportUnassociatedLibrary.vue";
-import AppDirectMessagePopup from "./components/directMessage/AppDirectMessagePopup.vue";
 import AppDialogHost from "./components/common/AppDialogHost.vue";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
+const equalizerStore = useEqualizerStore();
+const equalizerMounted = ref(false);
+watch(
+  () => equalizerStore.showModal,
+  (show) => {
+    if (show) equalizerMounted.value = true;
+  },
+  { immediate: true }
+);
 const lowPowerStore = useLowPowerStore();
 const lyric = useLyricStore();
 const mineLibrary = useMineLibraryStore();
