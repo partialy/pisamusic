@@ -3,7 +3,7 @@
     <div class="left">
       <!-- 后退,刷新按钮 -->
       <n-button-group>
-        <n-button secondary class="back-btn left-btn" @click="goBack">
+        <n-button secondary class="back-btn left-btn" :disabled="!canGoBack" @click="goBack">
           <template #icon>
             <n-icon :component="BackIcon" />
           </template>
@@ -124,7 +124,7 @@ import {
   NDropdown,
   type DropdownOption,
 } from "naive-ui";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   AboutIcon,
   BackIcon,
@@ -164,6 +164,15 @@ const { isLogin, userInfo } = storeToRefs(userStore);
 const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const accountVipActive = computed(() => isSystemVipActive(userStore));
 const router = useRouter();
+const route = useRoute();
+const canGoBack = ref(false);
+watch(
+  () => route.fullPath,
+  () => {
+    canGoBack.value = Boolean(window.history.state?.back);
+  },
+  { immediate: true },
+);
 const emit = defineEmits<{
   refresh: [];
 }>();
@@ -176,6 +185,7 @@ const openDevTools = () => {
 };
 const { openAccountLogin: login } = useAccountLoginDialog();
 const goBack = () => {
+  if (!canGoBack.value) return;
   router.back();
 };
 

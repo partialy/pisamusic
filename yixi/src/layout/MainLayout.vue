@@ -29,10 +29,12 @@
         <n-layout class="app-main-layout">
           <div class="right-content">
             <Header class="header" @refresh="refreshContent" />
-            <div class="content">
+            <div ref="contentContainerRef" class="content">
               <router-view v-slot="{ Component }">
-                <Transition :name="pageTransitionName" mode="out-in">
-                  <component :is="Component" :key="`${route.path}:${contentRefreshKey}`" />
+                <Transition :name="pageTransitionName" mode="out-in" @enter="handlePageEnter">
+                  <KeepAlive :max="8" :exclude="NON_CACHED_VIEWS">
+                    <component :is="Component" :key="getPageComponentKey()" />
+                  </KeepAlive>
                 </Transition>
               </router-view>
             </div>
@@ -46,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, watch, type Component } from "vue";
+import { computed, h, nextTick, reactive, ref, watch, type Component } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NIcon, NImage, NLayout, NLayoutSider, NMenu, NSpace, type MenuOption } from "naive-ui";
 import {
@@ -75,7 +77,45 @@ const pageTransitionName = computed(
   () => getPageTransitionMeta(themeStore.pageTransition).transitionName || undefined,
 );
 const collapsed = ref(false);
-const contentRefreshKey = ref(0);
+const contentContainerRef = ref<HTMLElement | null>(null);
+const refreshVersionMap = reactive<Record<string, number>>({});
+const contentScrollMap = new Map<string, number>();
+const NON_CACHED_VIEWS = [
+  "CloudSubmitPlaceholderView",
+  "ProfileView",
+  "EditProfileView",
+  "debugger",
+  "404",
+];
+
+function getPageScopeKey(targetRoute = route) {
+  if (targetRoute.path === "/playlist/detail") {
+    const origin = String(targetRoute.query.origin ?? "");
+    const id = String(targetRoute.query.id ?? "");
+    return `${targetRoute.path}:${origin}:${id}`;
+  }
+  return targetRoute.path;
+}
+
+function getPageComponentKey() {
+  const scopeKey = getPageScopeKey(route);
+  return `${scopeKey}:${refreshVersionMap[scopeKey] ?? 0}`;
+}
+
+function restoreContentScroll(targetScopeKey = getPageScopeKey(route)) {
+  const saved = contentScrollMap.get(targetScopeKey) ?? 0;
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      if (contentContainerRef.value) {
+        contentContainerRef.value.scrollTop = saved;
+      }
+    });
+  });
+}
+
+function handlePageEnter() {
+  restoreContentScroll(getPageScopeKey(route));
+}
 const { accounts } = useCookieAccountStatus();
 const isDev = import.meta.env.DEV;
 
@@ -128,11 +168,18 @@ const cookieAccountMenuOptions = computed<MenuOption[]>(() => {
 });
 
 watch(
-  () => route.path,
-  (path) => {
+  () => [route.path, getPageScopeKey(route)] as const,
+  ([path, scopeKey], prev) => {
     activeTab.value = routeToMenuKey(path);
+    const prevScopeKey = prev?.[1];
+    if (prevScopeKey && prevScopeKey !== scopeKey && contentContainerRef.value) {
+      contentScrollMap.set(prevScopeKey, contentContainerRef.value.scrollTop);
+    }
+    if (!pageTransitionName.value) {
+      restoreContentScroll(scopeKey);
+    }
   },
-  { immediate: true }
+  { immediate: true, flush: "sync" }
 );
 
 function handleChangeMenu(key: string) {
@@ -151,7 +198,12 @@ function handleChangeMenu(key: string) {
 }
 
 function refreshContent() {
-  contentRefreshKey.value += 1;
+  const scopeKey = getPageScopeKey(route);
+  contentScrollMap.delete(scopeKey);
+  refreshVersionMap[scopeKey] = (refreshVersionMap[scopeKey] ?? 0) + 1;
+  if (contentContainerRef.value) {
+    contentContainerRef.value.scrollTop = 0;
+  }
 }
 
 function renderMenuIcon(icon: Component) {
