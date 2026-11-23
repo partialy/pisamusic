@@ -6,6 +6,12 @@
         <p>查看最近运行日志，必要时导出 log 文件用于排查问题。</p>
       </div>
       <div class="header-actions">
+        <n-button secondary @click="openNotFoundTest">
+          <template #icon>
+            <n-icon :component="AlertCircle" />
+          </template>
+          404 测试
+        </n-button>
         <n-button secondary :loading="loading" @click="loadRecentLogs">
           <template #icon>
             <n-icon :component="RefreshCw" />
@@ -55,12 +61,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { NAlert, NButton, NEmpty, NIcon } from "naive-ui";
-import { Download, FolderOpen, RefreshCw } from "lucide-vue-next";
+import { AlertCircle, Download, FolderOpen, RefreshCw } from "lucide-vue-next";
 import electronAPI from "@/utils/electron";
 
 type LogReadResult = Awaited<ReturnType<typeof electronAPI.getRecentLogs>>;
 
+const router = useRouter();
 const loading = ref(false);
 const logResult = ref<LogReadResult>({
   error: null,
@@ -100,6 +108,10 @@ async function openLogsDir() {
   await electronAPI.openLogsDir();
 }
 
+function openNotFoundTest() {
+  void router.push("/debug-404-test");
+}
+
 function formatDate(value: string | null) {
   if (!value) return "";
   const date = new Date(value);
@@ -107,7 +119,21 @@ function formatDate(value: string | null) {
   return date.toLocaleString();
 }
 
-onMounted(() => {
+onMounted(async () => {
+  if (!import.meta.env.DEV) {
+    void router.replace("/");
+    return;
+  }
+  try {
+    const isDev = await electronAPI.isDevelopmentRuntime?.();
+    if (isDev === false) {
+      void router.replace("/");
+      return;
+    }
+  } catch {
+    void router.replace("/");
+    return;
+  }
   void loadRecentLogs();
 });
 </script>
