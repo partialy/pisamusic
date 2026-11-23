@@ -262,33 +262,64 @@ class PlaylistCollectionManager @Inject constructor(
         }
     }
 
+    data class BatchImportResult(
+        val added: Int,
+        val skipped: Int,
+    )
+
     /**
      * 收藏网络歌单（[CollectedPlaylistType.KG]、[CollectedPlaylistType.WY]、[CollectedPlaylistType.IMPORT_KG]、[CollectedPlaylistType.IMPORT_WY] 等，非 [CollectedPlaylistType.LOCAL]）。
      * 写入前统一归一化为规范源类型 [KG] / [WY]，与 SQLite 读取及同步模型保持一致；若同源同 id 已存在则忽略。
      */
     fun addNetworkPlaylist(playlist: CollectedPlaylist): Boolean {
-        require(playlist.type != CollectedPlaylistType.LOCAL) {
-            "use createLocalPlaylist for local playlists"
-        }
-        if (playlist.id.isBlank()) return false
-        val normalized = playlist.copy(type = playlist.type.canonicalStorageType())
+        return addNetworkPlaylists(listOf(playlist)).added > 0
+    }
+
+    /**
+     * 批量增量导入网络歌单（单次 SQLite 事务与单次同步触发）。
+     */
+    fun addNetworkPlaylists(playlists: List<CollectedPlaylist>): BatchImportResult {
+        if (playlists.isEmpty()) return BatchImportResult(added = 0, skipped = 0)
         ensureIndexLoaded()
-        var added = false
+        var added = 0
+        var skipped = 0
         synchronized(lock) {
-            val key = storageKey(normalized)
-            val aliasKey = storageKey(playlist)
-            if (!playlistsByKey.containsKey(key) && !playlistsByKey.containsKey(aliasKey)) {
-                added = favoriteDb.addPlaylist(normalized)
-                if (added) {
-                    playlistsByKey[key] = favoriteDb.getPlaylists()
-                        .firstOrNull { it.type == normalized.type && it.id == normalized.id }
-                        ?: normalized
+            val candidatesToInsert = ArrayList<CollectedPlaylist>(playlists.size)
+            val plannedKeys = HashSet<String>()
+            for (playlist in playlists) {
+                require(playlist.type != CollectedPlaylistType.LOCAL) {
+                    "use createLocalPlaylist for local playlists"
+                }
+                if (playlist.id.isBlank()) {
+                    skipped++
+                    continue
+                }
+                val normalized = playlist.copy(type = playlist.type.canonicalStorageType())
+                val key = storageKey(normalized)
+                val aliasKey = storageKey(playlist)
+                if (playlistsByKey.containsKey(key) ||
+                    playlistsByKey.containsKey(aliasKey) ||
+                    !plannedKeys.add(key)
+                ) {
+                    skipped++
+                    continue
+                }
+                candidatesToInsert.add(normalized)
+            }
+            if (candidatesToInsert.isNotEmpty()) {
+                val inserted = favoriteDb.addPlaylists(candidatesToInsert)
+                added = inserted.size
+                skipped += candidatesToInsert.size - added
+                for (saved in inserted) {
+                    playlistsByKey[storageKey(saved)] = saved
+                }
+                if (added > 0) {
                     refreshPlaylistsFlowLocked()
                 }
             }
         }
-        if (added) SyncWorkRunner.request(context)
-        return added
+        if (added > 0) SyncWorkRunner.request(context)
+        return BatchImportResult(added = added, skipped = skipped)
     }
 
     fun removePlaylist(type: CollectedPlaylistType, id: String): Boolean {

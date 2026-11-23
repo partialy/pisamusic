@@ -34,7 +34,7 @@ private data class MusicLoginSession(
 class MusicCookieManager @Inject constructor(
     @ApplicationContext context: Context,
 ) {
-    private val helper = LocalMusicDbOpenHelper(context)
+    private val helper = LocalMusicDbOpenHelper.shared(context.applicationContext)
     private val lock = Any()
     private val sessions = linkedMapOf<String, MusicLoginSession>()
     private var loaded = false
@@ -59,12 +59,22 @@ class MusicCookieManager @Inject constructor(
         }
         val session = MusicLoginSession(normalized, cleanCookie, profile)
         synchronized(lock) {
-            helper.writableDatabase.insertWithOnConflict(
+            ensureLoadedLocked()
+            val previousUserId = sessions[normalized]?.profile?.userId?.trim().orEmpty()
+            val nextUserId = profile.userId.trim()
+            val accountSwitched = previousUserId.isNotEmpty() &&
+                nextUserId.isNotEmpty() &&
+                previousUserId != nextUserId
+            val db = helper.writableDatabase
+            db.insertWithOnConflict(
                 TABLE,
                 null,
                 session.toContentValues(),
                 SQLiteDatabase.CONFLICT_REPLACE,
             )
+            if (accountSwitched) {
+                ThirdPartyPlaylistCandidateStore.clearSourceInDb(db, normalized)
+            }
             sessions[normalized] = session
             loaded = true
         }
@@ -73,7 +83,9 @@ class MusicCookieManager @Inject constructor(
     fun clear(source: String) {
         val normalized = normalizeSource(source)
         synchronized(lock) {
-            helper.writableDatabase.delete(TABLE, "source = ?", arrayOf(normalized))
+            val db = helper.writableDatabase
+            db.delete(TABLE, "source = ?", arrayOf(normalized))
+            ThirdPartyPlaylistCandidateStore.clearSourceInDb(db, normalized)
             sessions.remove(normalized)
             loaded = true
         }
@@ -81,7 +93,9 @@ class MusicCookieManager @Inject constructor(
 
     fun clearAll() {
         synchronized(lock) {
-            helper.writableDatabase.delete(TABLE, null, null)
+            val db = helper.writableDatabase
+            db.delete(TABLE, null, null)
+            ThirdPartyPlaylistCandidateStore.clearAllInDb(db)
             sessions.clear()
             loaded = true
         }

@@ -34,17 +34,52 @@ internal class FavoritePlaylistsDbStore(context: Context) {
     }
 
     fun addPlaylist(playlist: CollectedPlaylist, recordChange: Boolean = true): Boolean = transaction { db ->
-        if (playlist.id.isBlank() || playlist.type == CollectedPlaylistType.LOCAL) return@transaction false
+        insertInTransaction(db, playlist, System.currentTimeMillis(), recordChange) != null
+    }
+
+    fun addPlaylists(playlists: List<CollectedPlaylist>, recordChange: Boolean = true): List<CollectedPlaylist> {
+        if (playlists.isEmpty()) return emptyList()
+        return transaction { db ->
+            val inserted = ArrayList<CollectedPlaylist>(playlists.size)
+            var now = System.currentTimeMillis()
+            for (playlist in playlists) {
+                insertInTransaction(db, playlist, now, recordChange)?.let { saved ->
+                    inserted.add(saved)
+                    now++
+                }
+            }
+            inserted
+        }
+    }
+
+    private fun insertInTransaction(
+        db: SQLiteDatabase,
+        playlist: CollectedPlaylist,
+        now: Long,
+        recordChange: Boolean,
+    ): CollectedPlaylist? {
+        if (playlist.id.isBlank() || playlist.type == CollectedPlaylistType.LOCAL) return null
         val scope = account.current()
-        if (existsInTypeFamily(db, scope, playlist.type, playlist.id)) return@transaction false
-        val now = System.currentTimeMillis()
-        val added = db.insertWithOnConflict(TABLE, null,
-            playlist.toValues(now, now).apply { put("account_id", scope) }, SQLiteDatabase.CONFLICT_IGNORE) != -1L
-        if (added && recordChange) outbox.enqueueInTransaction(db, scope,
-            cn.partialy.pm.sync.SyncPayloads.TYPE_FAVORITE_PLAYLIST,
-            cn.partialy.pm.sync.SyncPayloads.playlistKey(playlist), cn.partialy.pm.sync.SyncPayloads.ACTION_UPSERT,
-            cn.partialy.pm.sync.SyncPayloads.playlistPayload(playlist.copy(favoritedAt = now)))
-        added
+        if (existsInTypeFamily(db, scope, playlist.type, playlist.id)) return null
+        val saved = playlist.copy(favoritedAt = now)
+        val added = db.insertWithOnConflict(
+            TABLE,
+            null,
+            saved.toValues(now, now).apply { put("account_id", scope) },
+            SQLiteDatabase.CONFLICT_IGNORE,
+        ) != -1L
+        if (!added) return null
+        if (recordChange) {
+            outbox.enqueueInTransaction(
+                db,
+                scope,
+                cn.partialy.pm.sync.SyncPayloads.TYPE_FAVORITE_PLAYLIST,
+                cn.partialy.pm.sync.SyncPayloads.playlistKey(saved),
+                cn.partialy.pm.sync.SyncPayloads.ACTION_UPSERT,
+                cn.partialy.pm.sync.SyncPayloads.playlistPayload(saved),
+            )
+        }
+        return saved
     }
 
     fun removePlaylist(type: CollectedPlaylistType, id: String, recordChange: Boolean = true): Boolean = transaction { db ->

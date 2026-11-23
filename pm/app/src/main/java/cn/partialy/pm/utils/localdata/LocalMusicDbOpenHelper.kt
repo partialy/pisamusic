@@ -22,6 +22,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
         createAppConfigTable(db)
         cn.partialy.pm.sync.SyncStateSchema.prepare(db, appContext)
+        createThirdPartyPlaylistCandidateTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -64,6 +65,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 16) cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
         if (oldVersion < 17) createAppConfigTable(db)
         if (oldVersion < 18) cn.partialy.pm.sync.SyncStateSchema.prepare(db, appContext)
+        if (oldVersion < 19) createThirdPartyPlaylistCandidateTables(db)
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -208,6 +210,36 @@ internal class LocalMusicDbOpenHelper(context: Context) :
                 vip_type TEXT NOT NULL DEFAULT '',
                 raw_profile_json TEXT NOT NULL DEFAULT '{}',
                 updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createThirdPartyPlaylistCandidateTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS third_party_playlist_candidates (
+                source TEXT NOT NULL,
+                playlist_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                intro TEXT NOT NULL DEFAULT '',
+                cover TEXT NOT NULL DEFAULT '',
+                song_count INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (source, playlist_id)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS idx_tp_candidates_source_order ON third_party_playlist_candidates(source, sort_order)"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS third_party_playlist_cache_meta (
+                source TEXT PRIMARY KEY,
+                updated_at INTEGER NOT NULL,
+                item_count INTEGER NOT NULL DEFAULT 0
             )
             """.trimIndent()
         )
@@ -417,7 +449,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
             sharedInstance ?: LocalMusicDbOpenHelper(context.applicationContext).also { sharedInstance = it }
         }
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 18
+        private const val DB_VERSION = 19
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {

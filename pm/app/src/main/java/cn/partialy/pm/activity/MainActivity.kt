@@ -35,8 +35,6 @@ import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.directmessage.DirectMessageCheckSource
 import cn.partialy.pm.directmessage.DirectMessageCoordinator
 import cn.partialy.pm.model.AnnouncementItem
-import cn.partialy.pm.model.CollectedPlaylist
-import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.player.SleepTimerManager
@@ -47,7 +45,6 @@ import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.config.StartupSnapshotStore
-import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.auth.AccountSessionStore
@@ -95,9 +92,6 @@ class MainActivity : BaseDownloadActivity() {
     lateinit var playlistCollectionManager: PlaylistCollectionManager
 
     @Inject
-    lateinit var kugouCookieRepository: KugouCookieRepository
-
-    @Inject
     lateinit var configManager: ConfigManager
 
     @Inject
@@ -136,7 +130,6 @@ class MainActivity : BaseDownloadActivity() {
     private lateinit var drawerBackCallback: OnBackPressedCallback
 
     private var drawerContentBinding: MainDrawerContentBinding? = null
-    private var drawerPlaylistImportInProgress = false
 
     private var localModeReason: String? = null
     private var currentTopLevelDestination = MainTopLevelDestination.HOME
@@ -182,6 +175,9 @@ class MainActivity : BaseDownloadActivity() {
         observeSleepTimer()
         applyInsets()
         applyLocalModeFromIntent(intent)
+        if (isLocalMode()) {
+            configManager.enterLocalMode()
+        }
 
         applyWyProfileBackgroundFromLogin()
 
@@ -636,116 +632,13 @@ class MainActivity : BaseDownloadActivity() {
         }
     }
 
-    private data class DrawerPlaylistImportSummary(
-        val added: Int,
-        val skipped: Int,
-    )
-
     private fun importLoggedInPlaylistsFromDrawer() {
-        if (drawerPlaylistImportInProgress) return
-        val sources = listOf(MusicCookieManager.SOURCE_KG, MusicCookieManager.SOURCE_WY)
-            .filter { musicCookieManager.getCookie(it).exist }
-        if (sources.isEmpty()) {
+        if (!musicCookieManager.hasAnyLogin()) {
             PmMessage.warning(this, R.string.drawer_import_playlists_login_required)
             return
         }
-        drawerPlaylistImportInProgress = true
-        setDrawerThirdPartyActionsEnabled(false)
-        PmMessage.info(this, R.string.drawer_import_all_running)
         closeMainDrawer()
-        lifecycleScope.launch {
-            var added = 0
-            var skipped = 0
-            var failed = false
-            try {
-                val summaries = withContext(Dispatchers.IO) {
-                    sources.map { source ->
-                        when (source) {
-                            MusicCookieManager.SOURCE_KG -> importKgPlaylistsForLoggedInSource()
-                            MusicCookieManager.SOURCE_WY -> importWyPlaylistsForLoggedInSource()
-                            else -> null
-                        }
-                    }
-                }
-                for (summary in summaries) {
-                    if (summary == null) {
-                        failed = true
-                    } else {
-                        added += summary.added
-                        skipped += summary.skipped
-                    }
-                }
-                val message = if (failed) {
-                    getString(R.string.drawer_import_all_failed)
-                } else {
-                    getString(R.string.drawer_import_all_done, added, skipped)
-                }
-                if (failed) PmMessage.warning(this@MainActivity, message, durationMs = 3500L)
-                else PmMessage.success(this@MainActivity, message, durationMs = 3500L)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                cn.partialy.pm.utils.GlobalExceptionHandler.recordHandledException(
-                    methodName = "MainActivity.importLoggedInPlaylistsFromDrawer",
-                    throwable = e,
-                )
-                PmMessage.warning(this@MainActivity, getString(R.string.drawer_import_all_failed), durationMs = 3500L)
-            } finally {
-                drawerPlaylistImportInProgress = false
-                setDrawerThirdPartyActionsEnabled(true)
-            }
-        }
-    }
-
-    private suspend fun importKgPlaylistsForLoggedInSource(): DrawerPlaylistImportSummary? {
-        val items = kugouCookieRepository.fetchAllUserPlaylists().getOrNull() ?: return null
-        var added = 0
-        var skipped = 0
-        for (item in items) {
-            val id = item.globalCollectionId?.takeIf { it.isNotBlank() }
-                ?: item.listid?.takeIf { it > 0 }?.toString()
-                ?: continue
-            val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
-            val rawCover = item.pic?.takeIf { it.isNotBlank() }
-                ?: item.createUserPic?.takeIf { it.isNotBlank() }
-                ?: ""
-            val cp = CollectedPlaylist(
-                type = CollectedPlaylistType.KG,
-                id = id,
-                name = name,
-                intro = "",
-                cover = rawCover,
-                count = item.count ?: 0,
-            )
-            if (playlistCollectionManager.addNetworkPlaylist(cp)) added++ else skipped++
-        }
-        return DrawerPlaylistImportSummary(added, skipped)
-    }
-
-    private suspend fun importWyPlaylistsForLoggedInSource(): DrawerPlaylistImportSummary? {
-        val uid = wyCookieRepository.getProfile()?.userId?.toLongOrNull() ?: return null
-        val items = wyCookieRepository.fetchAllUserPlaylists(uid).getOrNull() ?: return null
-        var added = 0
-        var skipped = 0
-        for (item in items) {
-            val id = item.id?.takeIf { it > 0 }?.toString() ?: continue
-            val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
-            val cp = CollectedPlaylist(
-                type = CollectedPlaylistType.WY,
-                id = id,
-                name = name,
-                intro = item.description?.trim().orEmpty(),
-                cover = item.coverImgUrl?.trim().orEmpty(),
-                count = item.trackCount ?: 0,
-            )
-            if (playlistCollectionManager.addNetworkPlaylist(cp)) added++ else skipped++
-        }
-        return DrawerPlaylistImportSummary(added, skipped)
-    }
-
-    private fun setDrawerThirdPartyActionsEnabled(enabled: Boolean) {
-        drawerContentBinding?.drawerImportPlaylistsRow?.isEnabled = enabled
-        drawerContentBinding?.drawerClearThirdPartyLogin?.isEnabled = enabled
+        ThirdPartyPlaylistImportActivity.start(this)
     }
 
     private fun observeSleepTimer() {

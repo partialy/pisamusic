@@ -155,6 +155,7 @@
 | UI 类型 | 用途 | 参考位置 | 规则 |
 | --- | --- | --- | --- |
 | 在线歌单多选页 | KG/WY 歌曲搜索、多选、下载、收藏与添加到 | `activity/OnlinePlaylistBatchActivity.kt`、`res/layout/activity_online_playlist_batch.xml` | 复用 `LocalPlaylistSongManagementAdapter`；底部全选、反选、操作三项；操作菜单复用 `ActionMenuBottomSheet`；未完整加载时禁用全量全选，缺页显示重试；搜索外勾选保留。 |
+| 三方歌单可选导入页 | KG/WY 候选歌单缓存、筛选、多选与增量导入 | `activity/ThirdPartyPlaylistImportActivity.kt`、`ui/mine/ThirdPartyPlaylistImportAdapter.kt`、`ui/mine/ThirdPartyPlaylistImportRules.kt`、`res/layout/activity_third_party_playlist_import.xml`、`res/layout/item_third_party_playlist_import.xml`、`res/layout/item_third_party_source_option.xml` | 顶栏展示返回、`已选择 n/x 个` 与刷新按钮；搜索与药丸来源筛选（全部/KG/WY，复用 `layout_search_source_dropdown.xml`）同行排列；底部固定全选、反选、导入三项；已导入项置标禁用且禁止重复勾选。 |
 | 添加到目标选择器 | 单曲或批量添加到队列、已有或新建自建歌单 | `ui/dialog/AddToPlaylistBottomSheet.kt`、`res/layout/item_pick_local_playlist_row.xml` | 共用目标行、封面与队列计数；超过 100 首确认；返回实际新增、已存在与失败结果。 |
 | 在线转本地确认与进度 | 完整抓取 KG/WY 歌单并事务创建本地副本 | `ui/playlistdetail/OnlinePlaylistToLocalCoordinator.kt`、`OnlinePlaylistToLocalViewModel.kt` | 复用 `PmMinimalDialog` 与 Material 加载指示器；加载可取消、保存不可取消；ViewModel 保留旋转会话，成功只跳转一次。 |
 | 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 歌曲更多/分享详情与歌单详情统一优先 1024，失败按 720/480/240/原 URL 降级，再用既有占位；KG 解析模板及已知固定尺寸目录，WY 解析真实 query 尺寸并保留编码参数/fragment；列表缩略图独立取用。 |
