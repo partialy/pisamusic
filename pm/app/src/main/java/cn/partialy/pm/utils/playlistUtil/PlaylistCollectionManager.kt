@@ -218,11 +218,18 @@ class PlaylistCollectionManager @Inject constructor(
         }
     }
 
+    private fun CollectedPlaylistType.canonicalStorageType(): CollectedPlaylistType = when (this) {
+        CollectedPlaylistType.KG, CollectedPlaylistType.IMPORT_KG -> CollectedPlaylistType.KG
+        CollectedPlaylistType.WY, CollectedPlaylistType.IMPORT_WY -> CollectedPlaylistType.WY
+        CollectedPlaylistType.LOCAL -> CollectedPlaylistType.LOCAL
+    }
+
     fun isCollected(type: CollectedPlaylistType, id: String): Boolean {
         if (id.isBlank()) return false
         ensureIndexLoaded()
         synchronized(lock) {
-            return playlistsByKey.containsKey(storageKey(type, id))
+            return playlistsByKey.containsKey(storageKey(type.canonicalStorageType(), id)) ||
+                playlistsByKey.containsKey(storageKey(type, id))
         }
     }
 
@@ -230,7 +237,8 @@ class PlaylistCollectionManager @Inject constructor(
         if (id.isBlank()) return null
         ensureIndexLoaded()
         synchronized(lock) {
-            return playlistsByKey[storageKey(type, id)]
+            return playlistsByKey[storageKey(type.canonicalStorageType(), id)]
+                ?: playlistsByKey[storageKey(type, id)]
         }
     }
 
@@ -256,21 +264,25 @@ class PlaylistCollectionManager @Inject constructor(
 
     /**
      * 收藏网络歌单（[CollectedPlaylistType.KG]、[CollectedPlaylistType.WY]、[CollectedPlaylistType.IMPORT_KG]、[CollectedPlaylistType.IMPORT_WY] 等，非 [CollectedPlaylistType.LOCAL]）。
-     * 若已存在同 type+id 则忽略。
+     * 写入前统一归一化为规范源类型 [KG] / [WY]，与 SQLite 读取及同步模型保持一致；若同源同 id 已存在则忽略。
      */
     fun addNetworkPlaylist(playlist: CollectedPlaylist): Boolean {
         require(playlist.type != CollectedPlaylistType.LOCAL) {
             "use createLocalPlaylist for local playlists"
         }
         if (playlist.id.isBlank()) return false
+        val normalized = playlist.copy(type = playlist.type.canonicalStorageType())
         ensureIndexLoaded()
         var added = false
         synchronized(lock) {
-            val key = storageKey(playlist)
-            if (!playlistsByKey.containsKey(key)) {
-                added = favoriteDb.addPlaylist(playlist)
+            val key = storageKey(normalized)
+            val aliasKey = storageKey(playlist)
+            if (!playlistsByKey.containsKey(key) && !playlistsByKey.containsKey(aliasKey)) {
+                added = favoriteDb.addPlaylist(normalized)
                 if (added) {
-                    playlistsByKey[key] = favoriteDb.getPlaylists().first { it.type == playlist.type && it.id == playlist.id }
+                    playlistsByKey[key] = favoriteDb.getPlaylists()
+                        .firstOrNull { it.type == normalized.type && it.id == normalized.id }
+                        ?: normalized
                     refreshPlaylistsFlowLocked()
                 }
             }
@@ -284,19 +296,22 @@ class PlaylistCollectionManager @Inject constructor(
         ensureIndexLoaded()
         var removed = false
         synchronized(lock) {
-            val key = storageKey(type, id)
-            val removedPl = playlistsByKey[key]
+            val canonicalType = type.canonicalStorageType()
+            val canonicalKey = storageKey(canonicalType, id)
+            val rawKey = storageKey(type, id)
+            val removedPl = playlistsByKey[canonicalKey] ?: playlistsByKey[rawKey]
             if (removedPl != null) {
-                if (type == CollectedPlaylistType.LOCAL) {
+                if (canonicalType == CollectedPlaylistType.LOCAL) {
                     val previousCoverReferences = localDb.allCoverReferences()
                     localDb.removeWithOutbox(removedPl, syncOutbox)
                     localSongsByPlaylistId.remove(id)
                     localSongsLoaded.remove(id)
                     cleanupReleasedCovers(previousCoverReferences)
                 } else {
-                    favoriteDb.removePlaylist(type, id)
+                    favoriteDb.removePlaylist(canonicalType, id)
                 }
-                playlistsByKey.remove(key)
+                playlistsByKey.remove(canonicalKey)
+                playlistsByKey.remove(rawKey)
                 refreshPlaylistsFlowLocked()
                 removed = true
             }

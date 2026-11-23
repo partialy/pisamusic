@@ -36,6 +36,7 @@ internal class FavoritePlaylistsDbStore(context: Context) {
     fun addPlaylist(playlist: CollectedPlaylist, recordChange: Boolean = true): Boolean = transaction { db ->
         if (playlist.id.isBlank() || playlist.type == CollectedPlaylistType.LOCAL) return@transaction false
         val scope = account.current()
+        if (existsInTypeFamily(db, scope, playlist.type, playlist.id)) return@transaction false
         val now = System.currentTimeMillis()
         val added = db.insertWithOnConflict(TABLE, null,
             playlist.toValues(now, now).apply { put("account_id", scope) }, SQLiteDatabase.CONFLICT_IGNORE) != -1L
@@ -49,7 +50,10 @@ internal class FavoritePlaylistsDbStore(context: Context) {
     fun removePlaylist(type: CollectedPlaylistType, id: String, recordChange: Boolean = true): Boolean = transaction { db ->
         if (id.isBlank() || type == CollectedPlaylistType.LOCAL) return@transaction false
         val scope = account.current()
-        val removed = db.delete(TABLE, "account_id=? AND playlist_type=? AND playlist_id=?", arrayOf(scope,type.name,id)) > 0
+        val family = typeFamily(type)
+        val placeholders = family.joinToString(",") { "?" }
+        val args = arrayOf(scope, *family.toTypedArray(), id)
+        val removed = db.delete(TABLE, "account_id=? AND playlist_type IN ($placeholders) AND playlist_id=?", args) > 0
         if (removed && recordChange) outbox.enqueueInTransaction(db, scope,
             cn.partialy.pm.sync.SyncPayloads.TYPE_FAVORITE_PLAYLIST,
             cn.partialy.pm.sync.SyncPayloads.playlistKey(CollectedPlaylist(type,id,"")), cn.partialy.pm.sync.SyncPayloads.ACTION_DELETE)
@@ -58,11 +62,43 @@ internal class FavoritePlaylistsDbStore(context: Context) {
 
     fun upsertFromSync(playlist: CollectedPlaylist) = transaction { db ->
         val scope = account.current()
-        val existing = db.rawQuery("SELECT created_at FROM $TABLE WHERE account_id=? AND playlist_type=? AND playlist_id=?",
-            arrayOf(scope,playlist.type.name,playlist.id)).use { if (it.moveToFirst()) it.getLong(0) else System.currentTimeMillis() }
-        val values = playlist.toValues(playlist.favoritedAt?.takeIf { it > 0 } ?: existing,System.currentTimeMillis()).apply { put("account_id",scope) }
-        if (db.update(TABLE,values,"account_id=? AND playlist_type=? AND playlist_id=?",arrayOf(scope,playlist.type.name,playlist.id)) == 0)
-            db.insertOrThrow(TABLE,null,values)
+        val family = typeFamily(playlist.type)
+        val placeholders = family.joinToString(",") { "?" }
+        val queryArgs = arrayOf(scope, *family.toTypedArray(), playlist.id)
+        val existing = db.rawQuery(
+            "SELECT created_at FROM $TABLE WHERE account_id=? AND playlist_type IN ($placeholders) AND playlist_id=? ORDER BY created_at ASC LIMIT 1",
+            queryArgs,
+        ).use { if (it.moveToFirst()) it.getLong(0) else System.currentTimeMillis() }
+        val values = playlist.toValues(playlist.favoritedAt?.takeIf { it > 0 } ?: existing, System.currentTimeMillis())
+            .apply { put("account_id", scope) }
+        // 若存在历史同源别名行，先更新同源记录；仅当无记录时插入。
+        if (db.update(TABLE, values, "account_id=? AND playlist_type=? AND playlist_id=?", arrayOf(scope, playlist.type.name, playlist.id)) == 0) {
+            val aliasUpdated = family.filter { it != playlist.type.name }.any { alias ->
+                db.update(TABLE, values.apply { put("playlist_type", alias) }, "account_id=? AND playlist_type=? AND playlist_id=?", arrayOf(scope, alias, playlist.id)) > 0
+            }
+            if (!aliasUpdated) {
+                values.put("playlist_type", playlist.type.name)
+                db.insertOrThrow(TABLE, null, values)
+            }
+        }
+    }
+
+    private fun existsInTypeFamily(db: SQLiteDatabase, scope: String, type: CollectedPlaylistType, id: String): Boolean {
+        val family = typeFamily(type)
+        val placeholders = family.joinToString(",") { "?" }
+        val args = arrayOf(scope, *family.toTypedArray(), id)
+        return db.rawQuery(
+            "SELECT 1 FROM $TABLE WHERE account_id=? AND playlist_type IN ($placeholders) AND playlist_id=? LIMIT 1",
+            args,
+        ).use { it.moveToFirst() }
+    }
+
+    private fun typeFamily(type: CollectedPlaylistType): List<String> = when (type) {
+        CollectedPlaylistType.KG, CollectedPlaylistType.IMPORT_KG ->
+            listOf(CollectedPlaylistType.KG.name, CollectedPlaylistType.IMPORT_KG.name)
+        CollectedPlaylistType.WY, CollectedPlaylistType.IMPORT_WY ->
+            listOf(CollectedPlaylistType.WY.name, CollectedPlaylistType.IMPORT_WY.name)
+        CollectedPlaylistType.LOCAL -> listOf(CollectedPlaylistType.LOCAL.name)
     }
 
     private fun <T> transaction(action: (SQLiteDatabase) -> T): T {

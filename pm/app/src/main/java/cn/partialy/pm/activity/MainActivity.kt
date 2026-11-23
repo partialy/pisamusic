@@ -682,6 +682,14 @@ class MainActivity : BaseDownloadActivity() {
                 }
                 if (failed) PmMessage.warning(this@MainActivity, message, durationMs = 3500L)
                 else PmMessage.success(this@MainActivity, message, durationMs = 3500L)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                cn.partialy.pm.utils.GlobalExceptionHandler.recordHandledException(
+                    methodName = "MainActivity.importLoggedInPlaylistsFromDrawer",
+                    throwable = e,
+                )
+                PmMessage.warning(this@MainActivity, getString(R.string.drawer_import_all_failed), durationMs = 3500L)
             } finally {
                 drawerPlaylistImportInProgress = false
                 setDrawerThirdPartyActionsEnabled(true)
@@ -702,7 +710,7 @@ class MainActivity : BaseDownloadActivity() {
                 ?: item.createUserPic?.takeIf { it.isNotBlank() }
                 ?: ""
             val cp = CollectedPlaylist(
-                type = CollectedPlaylistType.IMPORT_KG,
+                type = CollectedPlaylistType.KG,
                 id = id,
                 name = name,
                 intro = "",
@@ -723,7 +731,7 @@ class MainActivity : BaseDownloadActivity() {
             val id = item.id?.takeIf { it > 0 }?.toString() ?: continue
             val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
             val cp = CollectedPlaylist(
-                type = CollectedPlaylistType.IMPORT_WY,
+                type = CollectedPlaylistType.WY,
                 id = id,
                 name = name,
                 intro = item.description?.trim().orEmpty(),
