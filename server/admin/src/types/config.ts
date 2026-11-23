@@ -599,7 +599,7 @@ export type AdminWebsiteVisitListResponse = PaginatedListData<AdminWebsiteVisitL
 export type AdminWebsiteDownloadListResponse = PaginatedListData<AdminWebsiteDownloadListItem>;
 
 export type FaultReportStatus = "pending" | "processed";
-export type FaultReportScene = "play_url" | "desktop_network";
+export type FaultReportScene = "play_url" | "desktop_network" | "app_crash";
 export type FaultReportPlatform = "android" | "desktop";
 
 export type FaultReportLog = {

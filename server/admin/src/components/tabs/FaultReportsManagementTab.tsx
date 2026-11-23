@@ -112,10 +112,14 @@ export default function FaultReportsManagementTab({
       key: "scene",
       width: 220,
       render: (_, record) => {
-        const isDesktop = record.scene === "desktop_network";
+        const tagColor = record.scene === "app_crash"
+          ? "red"
+          : record.scene === "desktop_network"
+            ? "blue"
+            : "cyan";
         return (
           <div className="min-w-0">
-            <Tag color={isDesktop ? "blue" : "cyan"}>
+            <Tag color={tagColor}>
               {FAULT_REPORT_SCENE_LABELS[record.scene] || record.scene}
             </Tag>
             <Tooltip title={record.id}>
@@ -274,6 +278,7 @@ export default function FaultReportsManagementTab({
               { label: "全部场景", value: "" },
               { label: "获取播放地址", value: "play_url" },
               { label: "PC 网络请求", value: "desktop_network" },
+              { label: "应用崩溃", value: "app_crash" },
             ]}
           />
 

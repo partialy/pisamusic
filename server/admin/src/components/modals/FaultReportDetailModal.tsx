@@ -64,6 +64,8 @@ export default function FaultReportDetailModal({
   const isProcessed = report.status === "processed";
   const nextStatus: FaultReportStatus = isProcessed ? "pending" : "processed";
   const isDesktop = report.platform === "desktop";
+  const isAppCrash = report.scene === "app_crash";
+  const sceneTagColor = isAppCrash ? "red" : isDesktop ? "blue" : "cyan";
 
   const collapseItems = report.logs.map((log, index) => ({
     key: log.clientLogId || String(index),
@@ -75,9 +77,11 @@ export default function FaultReportDetailModal({
             {log.methodName || log.failureType}
           </Text>
           <span className="text-xs text-slate-400 truncate hidden sm:inline">
-            {isDesktop
-              ? `${formatFaultReportTime(log.occurredAt)} · ${log.requestMethod || "-"} · ${log.errorType || "network"}`
-              : `${formatFaultReportTime(log.occurredAt)} · ${log.songSource || ""}/${log.songId || ""} · ${log.quality || "auto"}`}
+            {isAppCrash
+              ? `${formatFaultReportTime(log.occurredAt)} · ${log.failureType || "crash"} · ${log.errorType || "Throwable"}`
+              : isDesktop
+                ? `${formatFaultReportTime(log.occurredAt)} · ${log.requestMethod || "-"} · ${log.errorType || "network"}`
+                : `${formatFaultReportTime(log.occurredAt)} · ${log.songSource || ""}/${log.songId || ""} · ${log.quality || "auto"}`}
           </span>
         </div>
 
@@ -98,16 +102,21 @@ export default function FaultReportDetailModal({
       <div className="space-y-2 pt-1">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <LogField label="失败类型" value={log.failureType} />
-          <LogField
-            label={isDesktop ? "HTTP 方法 / 状态码" : "HTTP / Nonce ID"}
-            value={`${log.requestMethod || "-"} ${log.responseCode ?? "-"} / ${log.nonceId || "-"}`}
-          />
+          {!isAppCrash && (
+            <LogField
+              label={isDesktop ? "HTTP 方法 / 状态码" : "HTTP / Nonce ID"}
+              value={`${log.requestMethod || "-"} ${log.responseCode ?? "-"} / ${log.nonceId || "-"}`}
+            />
+          )}
         </div>
 
-        <LogField label="请求完整地址" value={log.requestUrl} />
-        {!isDesktop && <LogField label="解析音频直链" value={log.resolvedUrl} />}
-        <LogField label="请求参数 (JSON)" value={log.requestParamsJson} />
-        <LogField label="响应体 (Response Body)" value={log.responseBody} />
+        {!isAppCrash && <LogField label="请求完整地址" value={log.requestUrl} />}
+        {!isDesktop && !isAppCrash && <LogField label="解析音频直链" value={log.resolvedUrl} />}
+        <LogField
+          label={isAppCrash ? "线程上下文 (JSON)" : "请求参数 (JSON)"}
+          value={log.requestParamsJson}
+        />
+        {!isAppCrash && <LogField label="响应体 (Response Body)" value={log.responseBody} />}
         <LogField
           label="异常信息"
           value={`${log.errorType || ""}\n${log.errorMessage || ""}`.trim()}
@@ -125,7 +134,7 @@ export default function FaultReportDetailModal({
         <Space align="center" size={8}>
           <BugOutlined className="text-rose-500 text-lg" />
           <span className="text-base font-bold text-slate-800">故障上报批次详情</span>
-          <Tag color={isDesktop ? "blue" : "cyan"}>
+          <Tag color={sceneTagColor}>
             {FAULT_REPORT_SCENE_LABELS[report.scene] || report.scene}
           </Tag>
           <Tag color={isProcessed ? "success" : "warning"}>

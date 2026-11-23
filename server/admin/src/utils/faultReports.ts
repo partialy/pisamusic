@@ -3,6 +3,7 @@ import type { FaultReportScene, FaultReportStatus } from "../types/config";
 export const FAULT_REPORT_SCENE_LABELS: Record<FaultReportScene, string> = {
   play_url: "获取播放地址",
   desktop_network: "PC 网络请求",
+  app_crash: "应用崩溃",
 };
 export const FAULT_REPORT_STATUS_LABELS: Record<FaultReportStatus, string> = { pending: "待处理", processed: "已处理" };
 

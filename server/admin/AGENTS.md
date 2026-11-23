@@ -25,7 +25,7 @@
 - App 推广图标保存才切换引用，当前图标禁止删除；二维码地址仅允许本站 HTTPS `/app-share/`，不允许手填 code。
 - 用户详情分类表格按 `/api/admin/users/:id/library` 分页，默认 30 条（支持 `favoriteSongs` / `favoritePlaylists` / `userPlaylists` / `playlistTracks` / `listeningHistory` 与 `active/deleted/all` 墓碑筛选），并通过 `UserSyncLogsPanel`（`/api/admin/users/:id/sync-logs`）只读排查同步变更日志与 `syncLogFloor`；不暴露密码 hash。系统 VIP 与第三方音乐账号分离，不支持永久 VIP；启用必须设置未来到期时间，关闭写入 `0 / NULL`。
 - “验证码记录”位于用户管理下方，支持多维筛选、分页和删除；保留 email / phone、用途与发送 / 验证 / 过期 / 失败状态语义。
-- 反馈与故障上报使用 `pending / processed` 两态；故障页支持 Android `play_url` 与 PC `desktop_network` 筛选、详情、JSON / ZIP 导出和级联删除。
+- 反馈与故障上报使用 `pending / processed` 两态；故障页支持 Android `play_url`、PC `desktop_network` 与崩溃 `app_crash` 筛选、详情、JSON / ZIP 导出和级联删除。
 - 一起听后台支持在线 / 历史列表详情与在线房间安全解散，不影响普通用户接口契约。专属消息硬删除不提供客户端撤回语义；公告停用不删除历史及回执。
 - 邮件 provider 默认含 `aliyun / 阿里云`、`resend / Resend`。端点批量替换只修改 hostname，保留协议、端口、路径，替换后仍须“保存端点”。
 - 服务发现的 API / realtime 地址须为纯 origin，仅 HTTPS（开发 localhost 可用 HTTP），不带认证信息、路径、query 或 hash；更新 feed 可含路径，但必须是无认证信息、query、hash 的 HTTPS URL，后端保存时也须校验。
