@@ -191,7 +191,8 @@ start_server() {
     echo "ERROR: BT start script not found or not executable: $BT_START_SCRIPT"
     return 1
   fi
-  su -s /bin/bash www -c "bash '$BT_START_SCRIPT'"
+  # 关闭继承的部署锁文件描述符，避免后台常驻 Node 进程长期持有 flock 锁。
+  su -s /bin/bash www -c "bash '$BT_START_SCRIPT'" 9>&-
 }
 
 wait_for_health() {
