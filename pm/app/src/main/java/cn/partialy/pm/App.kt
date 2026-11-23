@@ -17,10 +17,15 @@ class App : Application() {
     @Inject
     lateinit var configManager: ConfigManager
 
+    @Inject
+    lateinit var serviceDiscoveryManager: cn.partialy.pm.network.discovery.ServiceDiscoveryManager
+
     @Inject lateinit var loveManager: cn.partialy.pm.utils.loveUtil.LoveManager
 
     override fun onCreate() {
         super.onCreate()
+        serviceDiscoveryManager.prepareCachedOriginSync()
+        configManager.restoreCachedRuntimeIfNeeded()
         loveManager.preloadFromDiskAsync()
         PmMessage.init(this)
         TokenManager.init(this)

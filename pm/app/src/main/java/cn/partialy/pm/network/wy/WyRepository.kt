@@ -141,6 +141,9 @@ class WyRepository @Inject constructor(
         return try {
             val cacheKey = "wy_url_${id}_$br"
             cache.get<WySongUrlResponse>(cacheKey)?.let { return Result.success(it) }
+            if (!configManager.isRuntimeAvailable()) {
+                configManager.ensureBootstrapReadyIfNeeded()
+            }
             val target = configManager.wySongTarget()
             val body = urlProxy.songUrl(
                 url = target.url,
@@ -152,6 +155,8 @@ class WyRepository @Inject constructor(
             )
             cache.set(cacheKey, body)
             Result.success(body)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -167,6 +172,9 @@ class WyRepository @Inject constructor(
                 ?: return Result.failure(IllegalArgumentException("wy songUrlV1: invalid id $id"))
             val cacheKey = "wy_url_v1_${id}_$level"
             cache.get<WySongUrlResponse>(cacheKey)?.let { return Result.success(it) }
+            if (!configManager.isRuntimeAvailable()) {
+                configManager.ensureBootstrapReadyIfNeeded()
+            }
             val target = configManager.wySongV1Target()
             val body = urlProxy.songUrlV1(
                 url = target.url,
@@ -179,6 +187,8 @@ class WyRepository @Inject constructor(
             )
             cache.set(cacheKey, body)
             Result.success(body)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

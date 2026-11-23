@@ -169,6 +169,67 @@ class RuntimeEndpointInterceptorTest {
         )
     }
 
+    @Test
+    fun `unavailable endpoints trigger on-demand recovery and refresh gateway signing state`() {
+        val unavailableState = ConfigManager.RuntimeBootstrapState(
+            endpoints = ConfigManager.createUnavailableEndpoints(),
+            gatewaySign = ConfigManager.RuntimeGatewaySign("partialypartialypartialypartialy", "yixivip"),
+            gatewayEndpointPrefixes = emptySet(),
+        )
+        val recoveredState = ConfigManager.RuntimeBootstrapState(
+            endpoints = endpoints.copy(kgBaseUrl = "https://recovered.example.com/api/"),
+            gatewaySign = ConfigManager.RuntimeGatewaySign("recovered-secret", "recovered-as"),
+            gatewayEndpointPrefixes = setOf("https://recovered.example.com/api/"),
+        )
+        var currentState = unavailableState
+        GatewaySignRuntime.bind { currentState }
+        val interceptor = RuntimeEndpointInterceptor(
+            endpointProvider = { currentState.endpoints },
+            runtimeStateProvider = { currentState },
+            ensureReadyIfUnavailable = {
+                currentState = recoveredState
+                true
+            },
+        )
+        var proceededRequest: Request? = null
+        val terminal = okhttp3.Interceptor { chain ->
+            proceededRequest = chain.request()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(okhttp3.Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(ByteArray(0).toResponseBody(null))
+                .build()
+        }
+
+        OkHttpClient.Builder()
+            .addInterceptor(interceptor)
+            .addInterceptor(GatewaySignInterceptor())
+            .addInterceptor(terminal)
+            .build()
+            .newCall(Request.Builder().url("${RuntimeEndpointKind.KG.placeholderBaseUrl}register/dev").build())
+            .execute()
+            .close()
+
+        val signed = requireNotNull(proceededRequest)
+        assertEquals("https://recovered.example.com/api/register/dev?res-dec=1", signed.url.toString())
+        val timestamp = requireNotNull(signed.header("t"))
+        val nonce = requireNotNull(signed.header("n"))
+        assertEquals(
+            GatewaySigner.buildSignature(
+                method = "GET",
+                url = signed.url,
+                bodyBytes = ByteArray(0),
+                timestamp = timestamp,
+                nonce = nonce,
+                asValue = "recovered-as",
+                secret = "recovered-secret",
+            ),
+            signed.header("s"),
+        )
+    }
+
     private fun execute(interceptor: RuntimeEndpointInterceptor, url: String): String {
         var proceededUrl: String? = null
         val terminal = okhttp3.Interceptor { chain ->

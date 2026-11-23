@@ -23,7 +23,10 @@ import retrofit2.http.Query
 
 interface KgApiService {
     @GET("register/dev")
-    suspend fun registerDev(): KgRegisterDevResponse
+    suspend fun registerDev(
+        @Header("X-PM-Playback-Trace-Id") playbackTraceId: String? = null,
+        @Header("X-PM-Playback-Method") playbackMethodName: String? = null,
+    ): KgRegisterDevResponse
 
     @GET("everyday/recommend")
     suspend fun getRecommendSongs(): BaseResponse<RecommendSongResponse>

@@ -55,11 +55,18 @@ class ConfigManager @Inject constructor(
     private val systemApiService: SystemApiService,
     private val serviceDiscoveryManager: ServiceDiscoveryManager,
     private val startupSnapshotStore: StartupSnapshotStore,
+    private val bootstrapRuntimeCache: BootstrapRuntimeCache,
 ) {
     constructor(
         systemApiService: SystemApiService,
         serviceDiscoveryManager: ServiceDiscoveryManager,
-    ) : this(systemApiService, serviceDiscoveryManager, StartupSnapshotStore())
+        startupSnapshotStore: StartupSnapshotStore = StartupSnapshotStore(),
+    ) : this(systemApiService, serviceDiscoveryManager, startupSnapshotStore, NoOpBootstrapRuntimeCache())
+
+    constructor(
+        systemApiService: SystemApiService,
+        serviceDiscoveryManager: ServiceDiscoveryManager,
+    ) : this(systemApiService, serviceDiscoveryManager, StartupSnapshotStore(), NoOpBootstrapRuntimeCache())
     class ApiException(
         val code: Int,
         override val message: String,
@@ -100,6 +107,12 @@ class ConfigManager @Inject constructor(
     @Volatile
     private var localMode = false
 
+    @Volatile
+    private var startupBootstrapActive = false
+
+    @Volatile
+    private var processFreshBootstrapCompleted = false
+
     private val runtimeBootstrapState = AtomicReference(
         createUnavailableState(),
     )
@@ -110,8 +123,17 @@ class ConfigManager @Inject constructor(
 
     internal fun getEndpoints(): RuntimeEndpoints = runtimeBootstrapState.get().endpoints
     internal fun getGatewaySign(): RuntimeGatewaySign = runtimeBootstrapState.get().gatewaySign
-    internal fun captureRuntimeState(): RuntimeBootstrapState = runtimeBootstrapState.get()
+    internal fun captureRuntimeState(): RuntimeBootstrapState {
+        val current = runtimeBootstrapState.get()
+        if (current.endpoints.kgBaseUrl == UNAVAILABLE_MUSIC_BASE && !localMode && !startupBootstrapActive) {
+            restoreCachedRuntimeIfNeeded()
+            return runtimeBootstrapState.get()
+        }
+        return current
+    }
     internal fun getRuntimeBootstrapState(): RuntimeBootstrapState = captureRuntimeState()
+    fun isRuntimeAvailable(): Boolean = runtimeBootstrapState.get().endpoints.kgBaseUrl != UNAVAILABLE_MUSIC_BASE
+    fun hasFreshBootstrapInProcess(): Boolean = processFreshBootstrapCompleted
 
     internal fun kgSongTarget(): RuntimeUrlTarget = runtimeTarget(RuntimeEndpoints::kgSongUrl)
     internal fun wySongTarget(): RuntimeUrlTarget = runtimeTarget(RuntimeEndpoints::wySongUrl)
@@ -122,6 +144,9 @@ class ConfigManager @Inject constructor(
     fun beginOnlineStartup() = synchronized(runtimeStateLock) {
         runtimeGeneration++
         localMode = false
+        startupBootstrapActive = true
+        processFreshBootstrapCompleted = false
+        bootstrapRuntimeCache.setExplicitLocalMode(false)
         runtimeBootstrapState.set(createUnavailableState())
         startupSnapshotStore.clear()
     }
@@ -129,11 +154,49 @@ class ConfigManager @Inject constructor(
     fun enterLocalMode() = synchronized(runtimeStateLock) {
         runtimeGeneration++
         localMode = true
+        startupBootstrapActive = false
+        processFreshBootstrapCompleted = false
+        bootstrapRuntimeCache.setExplicitLocalMode(true)
         runtimeBootstrapState.set(createUnavailableState())
         startupSnapshotStore.clear()
     }
 
     fun isLocalMode(): Boolean = localMode
+
+    /**
+     * 进程跳过启动页恢复（如系统内存回收后重建 Activity / 唤醒 Service）时，
+     * 在非主动本地模式下 0ms 同步恢复上次已校验的 Bootstrap 运行时地址与签名配置。
+     */
+    fun restoreCachedRuntimeIfNeeded(): Boolean {
+        synchronized(runtimeStateLock) {
+            if (localMode || startupBootstrapActive) return false
+            if (isRuntimeAvailable()) return true
+            if (bootstrapRuntimeCache.readExplicitLocalMode()) {
+                localMode = true
+                runtimeBootstrapState.set(createUnavailableState())
+                return false
+            }
+            val cached = bootstrapRuntimeCache.readBootstrap() ?: return false
+            val state = runCatching { cached.toRuntimeBootstrapState() }.getOrNull() ?: return false
+            serviceDiscoveryManager.prepareCachedOriginSync()
+            runtimeBootstrapState.set(state)
+            return true
+        }
+    }
+
+    /**
+     * 若当前非本地模式且运行时地址仍为占位地址，先尝试缓存恢复，无缓存时串行拉取一次最新配置。
+     */
+    suspend fun ensureBootstrapReadyIfNeeded() {
+        if (localMode) return
+        if (isRuntimeAvailable()) return
+        if (restoreCachedRuntimeIfNeeded()) return
+        bootstrapMutex.withLock {
+            if (localMode) return
+            if (isRuntimeAvailable() || restoreCachedRuntimeIfNeeded()) return
+            refreshBootstrapConfigLocked()
+        }
+    }
 
     private suspend fun <T> systemCall(fallbackMessage: String, block: suspend () -> T): T {
         return try {
@@ -184,6 +247,10 @@ class ConfigManager @Inject constructor(
     }
 
     suspend fun refreshBootstrapConfig() = bootstrapMutex.withLock {
+        refreshBootstrapConfigLocked()
+    }
+
+    private suspend fun refreshBootstrapConfigLocked() {
         val attemptGeneration = synchronized(runtimeStateLock) {
             check(!localMode) { "本地模式禁止刷新在线配置" }
             runtimeGeneration
@@ -215,6 +282,44 @@ class ConfigManager @Inject constructor(
         bearerToken: String?,
         refreshDiscoveryInBackground: Boolean = true,
     ): AndroidStartupData = bootstrapMutex.withLock {
+        executeStartupBootstrapLocked(
+            request = request,
+            bearerToken = bearerToken,
+            refreshDiscoveryInBackground = refreshDiscoveryInBackground,
+            saveSnapshotForNotices = true,
+        )
+    }
+
+    /**
+     * 进程跳过启动页恢复（如后台回收后直接重建 Activity）时的静默校验：
+     * - 只在当前进程尚未完成新鲜校验、未处于主动本地模式且非启动页冷启动流程时执行；
+     * - 更新最新 bootstrap 缓存，并返回 [AndroidStartupData] 供调用方校验设备封禁与 `-233` 停服状态；
+     * - 不写入 [StartupSnapshotStore]，避免后台切回时重复弹出公告/更新引导。
+     */
+    suspend fun revalidateRestoredRuntimeIfNeeded(
+        request: AndroidStartupRequest,
+        bearerToken: String?,
+    ): AndroidStartupData? {
+        if (localMode || startupBootstrapActive || processFreshBootstrapCompleted) return null
+        return bootstrapMutex.withLock {
+            if (localMode || startupBootstrapActive || processFreshBootstrapCompleted) {
+                return@withLock null
+            }
+            executeStartupBootstrapLocked(
+                request = request,
+                bearerToken = bearerToken,
+                refreshDiscoveryInBackground = true,
+                saveSnapshotForNotices = false,
+            )
+        }
+    }
+
+    private suspend fun executeStartupBootstrapLocked(
+        request: AndroidStartupRequest,
+        bearerToken: String?,
+        refreshDiscoveryInBackground: Boolean,
+        saveSnapshotForNotices: Boolean,
+    ): AndroidStartupData {
         val attemptGeneration = synchronized(runtimeStateLock) {
             check(!localMode) { "本地模式禁止刷新在线配置" }
             runtimeGeneration
@@ -247,14 +352,16 @@ class ConfigManager @Inject constructor(
         }
 
         publishBootstrapData(usedSnapshot, attemptGeneration, response.data.bootstrap)
-        startupSnapshotStore.save(response.data)
+        if (saveSnapshotForNotices) {
+            startupSnapshotStore.save(response.data)
+        }
 
         if (hitCache && refreshDiscoveryInBackground) {
             backgroundScope.launch {
                 runCatching { serviceDiscoveryManager.refresh() }
             }
         }
-        response.data
+        return response.data
     }
 
     private suspend fun publishBootstrapData(
@@ -262,30 +369,36 @@ class ConfigManager @Inject constructor(
         attemptGeneration: Long,
         bootstrapData: BootstrapConfigData,
     ) {
-        val endpoints = bootstrapData.endpoints.toRuntimeEndpoints()
-        val gatewaySign = RuntimeGatewaySign(
-            secret = bootstrapData.gatewaySign.secret.ifBlank { DEFAULT_GATEWAY_SIGN.secret },
-            asValue = bootstrapData.gatewaySign.`as`.ifBlank { DEFAULT_GATEWAY_SIGN.asValue },
-        )
+        val nextState = bootstrapData.toRuntimeBootstrapState()
         var generationAccepted = false
         val discoveryAccepted = serviceDiscoveryManager.publishIfCurrent(discoverySnapshot) {
             synchronized(runtimeStateLock) {
                 if (!localMode && runtimeGeneration == attemptGeneration) {
-                    runtimeBootstrapState.set(
-                        RuntimeBootstrapState(
-                            endpoints = endpoints,
-                            gatewaySign = gatewaySign,
-                            gatewayEndpointPrefixes = endpoints.asUrlList()
-                                .map(String::trim)
-                                .filter(String::isNotEmpty)
-                                .toSet(),
-                        ),
-                    )
+                    runtimeBootstrapState.set(nextState)
+                    processFreshBootstrapCompleted = true
+                    startupBootstrapActive = false
+                    bootstrapRuntimeCache.saveBootstrap(bootstrapData)
                     generationAccepted = true
                 }
             }
         }
         check(discoveryAccepted && generationAccepted) { "启动状态已更新，拒绝应用过期配置" }
+    }
+
+    private fun BootstrapConfigData.toRuntimeBootstrapState(): RuntimeBootstrapState {
+        val endpoints = endpoints.toRuntimeEndpoints()
+        val sign = RuntimeGatewaySign(
+            secret = gatewaySign.secret.ifBlank { DEFAULT_GATEWAY_SIGN.secret },
+            asValue = gatewaySign.`as`.ifBlank { DEFAULT_GATEWAY_SIGN.asValue },
+        )
+        return RuntimeBootstrapState(
+            endpoints = endpoints,
+            gatewaySign = sign,
+            gatewayEndpointPrefixes = endpoints.asUrlList()
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .toSet(),
+        )
     }
 
     suspend fun getUpdateInfo(): UpdateInfo {

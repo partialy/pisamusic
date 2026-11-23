@@ -79,6 +79,38 @@ class ServiceDiscoveryManager(
     fun currentRealtimeBaseUrl(): String = current.get().origin.realtimeBaseUrl
 
     /**
+     * 非阻塞同步预热：仅在进程刚恢复、尚无并发刷新锁竞争时，快速激活本地缓存或内置首节点。
+     */
+    fun prepareCachedOriginSync(): ServiceDiscoverySnapshot? {
+        if (!refreshMutex.tryLock()) return null
+        try {
+            if (isDevMode) {
+                val selectedSnapshot = ServiceDiscoverySnapshot(ServiceDiscoverySource.EMBEDDED, embeddedDocument)
+                val origin = ServiceDiscoveryRules.orderedOrigins(selectedSnapshot.document).first()
+                current.set(ResolvedDiscovery(snapshot = selectedSnapshot, origin = origin))
+                return selectedSnapshot
+            }
+            val previous = current.get()
+            if (previous.snapshot.source != ServiceDiscoverySource.EMBEDDED) {
+                return previous.snapshot
+            }
+            val currentVersion = previous.snapshot.document.configVersion
+            val cached = runCatching { cache.read() }.getOrNull() ?: return null
+            val cachedDocument = ServiceDiscoveryRules.parseAndValidate(cached.rawJson)
+                ?.takeIf { it.configVersion == cached.configVersion }
+                ?: return null
+            if (cachedDocument.configVersion < currentVersion) return null
+
+            val selectedSnapshot = ServiceDiscoverySnapshot(ServiceDiscoverySource.CACHE, cachedDocument)
+            val origin = ServiceDiscoveryRules.orderedOrigins(cachedDocument).first()
+            current.set(ResolvedDiscovery(snapshot = selectedSnapshot, origin = origin))
+            return selectedSnapshot
+        } finally {
+            refreshMutex.unlock()
+        }
+    }
+
+    /**
      * SWR 启动缓存优先：
      * - Debug 模式直接激活内置开发地址（0 网络阻塞）；
      * - Release 模式若本地缓存有效且版本不低于当前内置版本，立即发布缓存首节点并跳过同步探活；

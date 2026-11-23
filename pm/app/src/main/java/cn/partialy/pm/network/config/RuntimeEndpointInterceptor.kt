@@ -1,10 +1,12 @@
 package cn.partialy.pm.network.config
 
 import javax.inject.Inject
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.Response
-import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
  * 把 Retrofit 的占位地址替换为配置下发后的实时地址。
@@ -16,29 +18,51 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 class RuntimeEndpointInterceptor internal constructor(
     private val endpointProvider: () -> ConfigManager.RuntimeEndpoints,
     private val runtimeStateProvider: (() -> ConfigManager.RuntimeBootstrapState)? = null,
+    private val ensureReadyIfUnavailable: (() -> Boolean)? = null,
 ) : Interceptor {
+    internal constructor(
+        endpointProvider: () -> ConfigManager.RuntimeEndpoints,
+        runtimeStateProvider: (() -> ConfigManager.RuntimeBootstrapState)? = null,
+    ) : this(endpointProvider, runtimeStateProvider, null)
+
     @Inject
     constructor(configManager: ConfigManager) : this(
         endpointProvider = configManager::getEndpoints,
         runtimeStateProvider = configManager::getRuntimeBootstrapState,
+        ensureReadyIfUnavailable = { recoverRuntime(configManager) },
     )
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
-        val runtimeState = originalRequest.tag(ConfigManager.RuntimeBootstrapState::class.java)
+        val endpoint = RuntimeEndpointKind.fromPlaceholder(originalRequest.url)
+        var runtimeState = originalRequest.tag(ConfigManager.RuntimeBootstrapState::class.java)
             ?: runtimeStateProvider?.invoke()
+        var endpoints = runtimeState?.endpoints ?: endpointProvider()
+
+        if ((endpoint != null && endpoints.isUnavailableHost(endpoint)) ||
+            originalRequest.url.host == UNAVAILABLE_HOST
+        ) {
+            if (ensureReadyIfUnavailable?.invoke() == true) {
+                runtimeState = runtimeStateProvider?.invoke()
+                endpoints = runtimeState?.endpoints ?: endpointProvider()
+            }
+        }
+
         val taggedRequest = originalRequest.newBuilder()
             .apply {
                 runtimeState?.let { tag(ConfigManager.RuntimeBootstrapState::class.java, it) }
             }
             .build()
-        val endpoint = RuntimeEndpointKind.fromPlaceholder(originalRequest.url)
-            ?: return chain.proceed(taggedRequest)
-        val endpoints = runtimeState?.endpoints ?: endpointProvider()
+        if (endpoint == null) {
+            return chain.proceed(taggedRequest)
+        }
         val targetBaseUrl = endpoint.resolve(endpoints).toHttpUrl()
         val rewrittenUrl = targetBaseUrl.mergeRelativeRequest(originalRequest.url)
         return chain.proceed(taggedRequest.newBuilder().url(rewrittenUrl).build())
     }
+
+    private fun ConfigManager.RuntimeEndpoints.isUnavailableHost(kind: RuntimeEndpointKind): Boolean =
+        kind.resolve(this).contains(UNAVAILABLE_HOST)
 
     private fun HttpUrl.mergeRelativeRequest(placeholderUrl: HttpUrl): HttpUrl {
         val basePath = encodedPath.ensureTrailingSlash()
@@ -51,6 +75,26 @@ class RuntimeEndpointInterceptor internal constructor(
     }
 
     private fun String.ensureTrailingSlash(): String = if (endsWith('/')) this else "$this/"
+
+    private companion object {
+        const val UNAVAILABLE_HOST = "music-runtime.invalid"
+        const val RECOVERY_TIMEOUT_MS = 8_000L
+
+        private fun recoverRuntime(configManager: ConfigManager): Boolean {
+            if (configManager.isLocalMode()) return false
+            if (configManager.restoreCachedRuntimeIfNeeded()) return true
+            return try {
+                runBlocking {
+                    withTimeoutOrNull(RECOVERY_TIMEOUT_MS) {
+                        configManager.ensureBootstrapReadyIfNeeded()
+                    }
+                }
+                configManager.isRuntimeAvailable()
+            } catch (_: Throwable) {
+                false
+            }
+        }
+    }
 }
 
 internal enum class RuntimeEndpointKind(

@@ -7,14 +7,27 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.AppActivityTransitions
+import cn.partialy.pm.activity.ServiceInterceptActivity
+import cn.partialy.pm.model.AndroidStartupRequest
+import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.player.PlaybackUiEvent
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.isCurrentlyLocked
+import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.isServiceUnavailable
+import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.lockedMessage
+import cn.partialy.pm.ui.home.StartupAgreementPrefs
+import cn.partialy.pm.util.DeviceInfoCollector
+import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 open class BaseActivity : AppCompatActivity() {
@@ -25,9 +38,62 @@ open class BaseActivity : AppCompatActivity() {
     @Inject
     lateinit var musicController: MusicController
 
+    @Inject
+    lateinit var runtimeConfigManager: ConfigManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         observePlaybackUiEvents()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        revalidateRestoredRuntimeIfNeeded()
+    }
+
+    private fun revalidateRestoredRuntimeIfNeeded() {
+        if (this is ServiceInterceptActivity) return
+        if (runtimeConfigManager.isLocalMode() || runtimeConfigManager.hasFreshBootstrapInProcess()) return
+        lifecycleScope.launch {
+            val startupData = try {
+                withContext(Dispatchers.IO) {
+                    val session = AccountSessionStore.read(this@BaseActivity)
+                    val request = AndroidStartupRequest(
+                        device = DeviceInfoCollector.build(this@BaseActivity),
+                        agreementVersion = StartupAgreementPrefs.readAcceptedVersion(this@BaseActivity),
+                    )
+                    runtimeConfigManager.revalidateRestoredRuntimeIfNeeded(
+                        request = request,
+                        bearerToken = session.token.takeIf { session.loggedIn },
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (error.isServiceUnavailable() && !isFinishing && !isDestroyed) {
+                    val apiError = error as? ConfigManager.ApiException
+                    ServiceInterceptActivity.startForServiceUnavailable(
+                        activity = this@BaseActivity,
+                        message = error.message ?: getString(R.string.startup_unavailable_title),
+                        code = apiError?.code ?: -233,
+                    )
+                }
+                null
+            } ?: return@launch
+
+            ServerDevicePrefs.saveReportIdentity(
+                this@BaseActivity,
+                startupData.device.id,
+                startupData.device.messageToken,
+            )
+            if (startupData.device.isCurrentlyLocked() && !isFinishing && !isDestroyed) {
+                ServiceInterceptActivity.startForDeviceLocked(
+                    activity = this@BaseActivity,
+                    report = startupData.device,
+                    message = startupData.device.lockedMessage(this@BaseActivity),
+                )
+            }
+        }
     }
 
     private fun observePlaybackUiEvents() {

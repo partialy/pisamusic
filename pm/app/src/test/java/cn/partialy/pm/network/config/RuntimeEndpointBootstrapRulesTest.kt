@@ -101,6 +101,100 @@ class RuntimeEndpointBootstrapRulesTest {
         assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
     }
 
+    @Test
+    fun `cached bootstrap restores runtime state immediately when skipping online startup`() {
+        val cache = FakeBootstrapRuntimeCache()
+        cache.saveBootstrap(bootstrapResponse().data)
+        val manager = discoveryManager { documentJson(version = 2, bootstrapPath = "/api/bootstrap-v2") }
+        val configManager = ConfigManager(
+            systemApiService = systemApiService { error("unexpected network call") },
+            serviceDiscoveryManager = manager,
+            startupSnapshotStore = StartupSnapshotStore(),
+            bootstrapRuntimeCache = cache,
+        )
+
+        assertTrue(configManager.restoreCachedRuntimeIfNeeded())
+        assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
+        assertEquals("bootstrap-secret", configManager.getGatewaySign().secret)
+    }
+
+    @Test
+    fun `explicit local mode prevents cached bootstrap restoration on recreated ConfigManager`() {
+        val cache = FakeBootstrapRuntimeCache()
+        cache.saveBootstrap(bootstrapResponse().data)
+        cache.setExplicitLocalMode(true)
+        val manager = discoveryManager { documentJson(version = 2, bootstrapPath = "/api/bootstrap-v2") }
+        val configManager = ConfigManager(
+            systemApiService = systemApiService { error("unexpected network call") },
+            serviceDiscoveryManager = manager,
+            startupSnapshotStore = StartupSnapshotStore(),
+            bootstrapRuntimeCache = cache,
+        )
+
+        val restored = configManager.restoreCachedRuntimeIfNeeded()
+
+        assertTrue(!restored)
+        assertTrue(configManager.isLocalMode())
+        assertEquals("https://music-runtime.invalid/", configManager.getEndpoints().kgBaseUrl)
+    }
+
+    @Test
+    fun `beginOnlineStartup clears persisted explicit local mode and allows fresh bootstrap`() = runBlocking {
+        val cache = FakeBootstrapRuntimeCache()
+        cache.saveBootstrap(bootstrapResponse().data)
+        cache.setExplicitLocalMode(true)
+        val manager = discoveryManager { documentJson(version = 2, bootstrapPath = "/api/bootstrap-v2") }
+        val configManager = ConfigManager(
+            systemApiService = systemApiService { bootstrapResponse() },
+            serviceDiscoveryManager = manager,
+            startupSnapshotStore = StartupSnapshotStore(),
+            bootstrapRuntimeCache = cache,
+        )
+        assertTrue(!configManager.restoreCachedRuntimeIfNeeded())
+
+        configManager.beginOnlineStartup()
+        assertTrue(!cache.readExplicitLocalMode())
+        configManager.refreshBootstrapConfig()
+        assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
+    }
+
+    @Test
+    fun `ensureBootstrapReadyIfNeeded fetches once when cache is absent`() = runBlocking {
+        var apiCalls = 0
+        val cache = FakeBootstrapRuntimeCache()
+        val manager = discoveryManager { documentJson(version = 2, bootstrapPath = "/api/bootstrap-v2") }
+        val configManager = ConfigManager(
+            systemApiService = systemApiService {
+                apiCalls++
+                bootstrapResponse()
+            },
+            serviceDiscoveryManager = manager,
+            startupSnapshotStore = StartupSnapshotStore(),
+            bootstrapRuntimeCache = cache,
+        )
+
+        configManager.ensureBootstrapReadyIfNeeded()
+        configManager.ensureBootstrapReadyIfNeeded()
+
+        assertEquals(1, apiCalls)
+        assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
+        assertEquals("https://kg.example.com", cache.readBootstrap()?.endpoints?.kgBaseUrl)
+    }
+
+    private class FakeBootstrapRuntimeCache : BootstrapRuntimeCache {
+        private var bootstrap: BootstrapConfigData? = null
+        private var explicitLocal = false
+
+        override fun readBootstrap(): BootstrapConfigData? = bootstrap
+        override fun saveBootstrap(data: BootstrapConfigData) {
+            bootstrap = data
+        }
+        override fun readExplicitLocalMode(): Boolean = explicitLocal
+        override fun setExplicitLocalMode(enabled: Boolean) {
+            explicitLocal = enabled
+        }
+    }
+
     private fun discoveryManager(document: () -> String): ServiceDiscoveryManager = ServiceDiscoveryManager(
         embeddedBaseUrl = "https://embedded.example.com/",
         cache = object : ServiceDiscoveryCache {

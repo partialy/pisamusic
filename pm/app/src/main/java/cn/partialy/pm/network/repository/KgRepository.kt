@@ -32,6 +32,8 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Singleton
 class KgRepository @Inject constructor(
@@ -48,14 +50,23 @@ class KgRepository @Inject constructor(
     )
 
     private val cache = Cache(timeout = 60 * 2000) // 2分钟缓存
+    private val dfidMutex = Mutex()
 
-    private suspend fun ensureKgDfid() {
-        val existing = dfidHolder.dfid
-        if (!existing.isNullOrBlank()) return
-        val resp = api.registerDev()
-        val d = resp.data?.dfid?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("register/dev: missing dfid")
-        dfidHolder.dfid = d
+    private suspend fun ensureKgDfid(diagnostic: PlaybackDiagnosticRequest? = null) {
+        if (!dfidHolder.dfid.isNullOrBlank()) return
+        dfidMutex.withLock {
+            if (!dfidHolder.dfid.isNullOrBlank()) return
+            if (!configManager.isRuntimeAvailable()) {
+                configManager.ensureBootstrapReadyIfNeeded()
+            }
+            val resp = api.registerDev(
+                playbackTraceId = diagnostic?.traceId,
+                playbackMethodName = diagnostic?.methodName,
+            )
+            val d = resp.data?.dfid?.takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("register/dev: missing dfid")
+            dfidHolder.dfid = d
+        }
     }
 
     suspend fun getRecommendSongs(): Result<RecommendSongResponse> {
@@ -380,7 +391,10 @@ class KgRepository @Inject constructor(
         diagnostic: PlaybackDiagnosticRequest? = null,
     ): Result<KgSongUrlResponse> {
         return try {
-            ensureKgDfid()
+            if (!configManager.isRuntimeAvailable()) {
+                configManager.ensureBootstrapReadyIfNeeded()
+            }
+            ensureKgDfid(diagnostic)
             val target = configManager.kgSongTarget()
             val response = urlProxyApi.getSongUrl(
                 url = target.url,
@@ -391,6 +405,8 @@ class KgRepository @Inject constructor(
                 playbackMethodName = diagnostic?.methodName,
             )
             Result.success(response)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -5,6 +5,8 @@ import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.listen.ListenTogetherConfigApiService
 import cn.partialy.pm.network.api.KgApiService
 import cn.partialy.pm.network.api.SystemApiService
+import cn.partialy.pm.network.config.BootstrapRuntimeCache
+import cn.partialy.pm.network.config.BootstrapRuntimePrefs
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.config.RuntimeEndpointInterceptor
 import cn.partialy.pm.network.config.RuntimeEndpointKind
@@ -44,6 +46,12 @@ object NetworkModule {
         context = context,
         embeddedBaseUrl = BuildConfig.SYSTEM_SERVICE_BASE_URL,
     )
+
+    @Provides
+    @Singleton
+    fun provideBootstrapRuntimeCache(
+        @ApplicationContext context: Context,
+    ): BootstrapRuntimeCache = BootstrapRuntimePrefs(context)
 
     @Provides
     @Singleton
