@@ -30,6 +30,7 @@ import type {
 } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
 import { buildMusicShareWebLink } from "../../utils/shareLink";
+import { resolveSongCoverUrl } from "../../utils/songCover";
 
 const { Text } = Typography;
 
@@ -107,14 +108,15 @@ export default function ShareManagementTab({
       width: 76,
       align: "center",
       render: (_, record) => {
-        if (!record.coverUrl) {
+        const coverSrc = resolveSongCoverUrl(record.coverUrl, 240);
+        if (!coverSrc) {
           return (
             <Avatar shape="square" size={44} icon={<PictureOutlined />} className="bg-slate-100 text-slate-400 rounded-lg" />
           );
         }
         return (
           <Image
-            src={record.coverUrl}
+            src={coverSrc}
             width={44}
             height={44}
             className="rounded-lg object-cover border border-slate-200 shadow-2xs"
