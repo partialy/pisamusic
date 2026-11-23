@@ -13,18 +13,10 @@ import javax.inject.Singleton
 class PlaybackFaultStore @Inject constructor(
     @ApplicationContext context: Context,
 ) {
-    private val helper = LocalMusicDbOpenHelper(context)
+    private val helper = LocalMusicDbOpenHelper.shared(context)
 
     fun insert(log: PlaybackFaultLog) {
-        val db = helper.writableDatabase
-        db.beginTransaction()
-        try {
-            db.insertWithOnConflict(TABLE_LOGS, null, log.toValues(), SQLiteDatabase.CONFLICT_IGNORE)
-            trimToLimit(db)
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
+        insertWithHelper(helper, log)
     }
 
     fun stats(now: Long = System.currentTimeMillis()): PlaybackFaultStats {
@@ -88,46 +80,6 @@ class PlaybackFaultStore @Inject constructor(
         }
     }
 
-    private fun trimToLimit(db: SQLiteDatabase) {
-        val count = db.rawQuery("SELECT COUNT(*) FROM $TABLE_LOGS", null).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getInt(0) else 0
-        }
-        var overflow = count - MAX_LOGS
-        if (overflow <= 0) return
-        val uploadedIds = oldestIds(db, "is_upload = 1", overflow)
-        deleteIds(db, uploadedIds)
-        overflow -= uploadedIds.size
-        if (overflow > 0) deleteIds(db, oldestIds(db, null, overflow))
-    }
-
-    private fun oldestIds(db: SQLiteDatabase, selection: String?, limit: Int): List<String> = db.query(
-        TABLE_LOGS,
-        arrayOf("id"),
-        selection,
-        null,
-        null,
-        null,
-        "occurred_at ASC, id ASC",
-        limit.toString(),
-    ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
-
-    private fun deleteIds(db: SQLiteDatabase, ids: List<String>) {
-        if (ids.isEmpty()) return
-        val placeholders = ids.joinToString(",") { "?" }
-        db.delete(TABLE_LOGS, "id IN ($placeholders)", ids.toTypedArray())
-    }
-
-    private fun PlaybackFaultLog.toValues() = ContentValues().apply {
-        put("id", id); put("scene", scene); put("failure_type", failureType); put("occurred_at", occurredAt)
-        put("method_name", methodName); put("request_method", requestMethod); put("request_url", requestUrl)
-        put("request_params_json", requestParamsJson); put("nonce_id", nonceId)
-        if (responseCode == null) putNull("response_code") else put("response_code", responseCode)
-        put("response_body", responseBody); put("resolved_url", resolvedUrl); put("error_type", errorType)
-        put("error_message", errorMessage); put("stack_trace", stackTrace); put("song_source", songSource)
-        put("song_id", songId); put("quality", quality); put("is_upload", if (isUpload) 1 else 0)
-        if (uploadedAt == null) putNull("uploaded_at") else put("uploaded_at", uploadedAt)
-    }
-
     private fun Cursor.toLog() = PlaybackFaultLog(
         id = getString(getColumnIndexOrThrow("id")), scene = getString(getColumnIndexOrThrow("scene")),
         failureType = getString(getColumnIndexOrThrow("failure_type")), occurredAt = getLong(getColumnIndexOrThrow("occurred_at")),
@@ -156,5 +108,62 @@ class PlaybackFaultStore @Inject constructor(
         private const val TABLE_STATE = "playback_fault_state"
         private const val MAX_LOGS = 300
         private const val SEVEN_DAYS_MS = 7L * 24 * 60 * 60 * 1000
+
+        /** 供未接入 Hilt 的全局崩溃捕获器同步写入数据库。 */
+        fun insertSync(context: Context, log: PlaybackFaultLog) {
+            insertWithHelper(LocalMusicDbOpenHelper.shared(context.applicationContext), log)
+        }
+
+        private fun insertWithHelper(helper: LocalMusicDbOpenHelper, log: PlaybackFaultLog) {
+            val db = helper.writableDatabase
+            db.beginTransaction()
+            try {
+                db.insertWithOnConflict(TABLE_LOGS, null, log.toValues(), SQLiteDatabase.CONFLICT_IGNORE)
+                trimToLimit(db)
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
+        }
+
+        private fun trimToLimit(db: SQLiteDatabase) {
+            val count = db.rawQuery("SELECT COUNT(*) FROM $TABLE_LOGS", null).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getInt(0) else 0
+            }
+            var overflow = count - MAX_LOGS
+            if (overflow <= 0) return
+            val uploadedIds = oldestIds(db, "is_upload = 1", overflow)
+            deleteIds(db, uploadedIds)
+            overflow -= uploadedIds.size
+            if (overflow > 0) deleteIds(db, oldestIds(db, null, overflow))
+        }
+
+        private fun oldestIds(db: SQLiteDatabase, selection: String?, limit: Int): List<String> = db.query(
+            TABLE_LOGS,
+            arrayOf("id"),
+            selection,
+            null,
+            null,
+            null,
+            "occurred_at ASC, id ASC",
+            limit.toString(),
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+
+        private fun deleteIds(db: SQLiteDatabase, ids: List<String>) {
+            if (ids.isEmpty()) return
+            val placeholders = ids.joinToString(",") { "?" }
+            db.delete(TABLE_LOGS, "id IN ($placeholders)", ids.toTypedArray())
+        }
+
+        private fun PlaybackFaultLog.toValues() = ContentValues().apply {
+            put("id", id); put("scene", scene); put("failure_type", failureType); put("occurred_at", occurredAt)
+            put("method_name", methodName); put("request_method", requestMethod); put("request_url", requestUrl)
+            put("request_params_json", requestParamsJson); put("nonce_id", nonceId)
+            if (responseCode == null) putNull("response_code") else put("response_code", responseCode)
+            put("response_body", responseBody); put("resolved_url", resolvedUrl); put("error_type", errorType)
+            put("error_message", errorMessage); put("stack_trace", stackTrace); put("song_source", songSource)
+            put("song_id", songId); put("quality", quality); put("is_upload", if (isUpload) 1 else 0)
+            if (uploadedAt == null) putNull("uploaded_at") else put("uploaded_at", uploadedAt)
+        }
     }
 }

@@ -9,6 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 
 @Singleton
 class FaultReportRepository @Inject constructor(
@@ -23,19 +24,87 @@ class FaultReportRepository @Inject constructor(
         require(logs.isNotEmpty()) { "暂无待上报的故障信息" }
         val session = AccountSessionStore.read(context)
         val authorization = session.token.takeIf { session.loggedIn }?.let { "Bearer $it" }
-        val response = systemApiService.submitFaultReport(
-            authorization = authorization,
-            body = FaultReportRequest(
-                reportId = UUID.randomUUID().toString(),
-                environment = FaultReportEnvironmentCollector.collect(context),
-                logs = logs.map(PlaybackFaultLog::toPayload),
-            ),
-        )
-        if (!response.success || response.data == null) {
-            error(response.msg?.takeIf { it.isNotBlank() } ?: "故障信息上报失败")
+        val environment = FaultReportEnvironmentCollector.collect(context)
+
+        var lastReportId: String? = null
+        var acceptedCount = 0
+        var duplicateCount = 0
+        var receivedCount = 0
+        var latestCreatedAt = 0L
+
+        for ((scene, batch) in logs.groupBy { it.scene.ifBlank { PlaybackFaultRecorder.SCENE_PLAY_URL } }) {
+            val result = submitSceneBatchWithCompat(
+                scene = scene,
+                batch = batch,
+                authorization = authorization,
+                environment = environment,
+            )
+            val uploadedAt = System.currentTimeMillis()
+            withContext(Dispatchers.IO) { store.markUploaded(batch.map { it.id }, uploadedAt) }
+            lastReportId = result.reportId ?: lastReportId
+            acceptedCount += result.acceptedCount
+            duplicateCount += result.duplicateCount
+            receivedCount += result.receivedCount
+            latestCreatedAt = maxOf(latestCreatedAt, result.createdAt)
         }
-        val uploadedAt = System.currentTimeMillis()
-        withContext(Dispatchers.IO) { store.markUploaded(logs.map { it.id }, uploadedAt) }
+
+        return FaultReportSubmitData(
+            reportId = lastReportId,
+            acceptedCount = acceptedCount,
+            duplicateCount = duplicateCount,
+            receivedCount = receivedCount,
+            createdAt = latestCreatedAt,
+        )
+    }
+
+    private suspend fun submitSceneBatchWithCompat(
+        scene: String,
+        batch: List<PlaybackFaultLog>,
+        authorization: String?,
+        environment: FaultReportEnvironment,
+    ): FaultReportSubmitData {
+        return try {
+            submitSceneBatch(scene, batch, authorization, environment)
+        } catch (error: SceneRejectedException) {
+            if (scene != PlaybackFaultRecorder.SCENE_APP_CRASH) throw error
+            // 兼容尚未支持 app_crash 场景的旧服务端：保留 failureType/堆栈，按 play_url 场景降级重发。
+            submitSceneBatch(PlaybackFaultRecorder.SCENE_PLAY_URL, batch, authorization, environment)
+        }
+    }
+
+    private suspend fun submitSceneBatch(
+        scene: String,
+        batch: List<PlaybackFaultLog>,
+        authorization: String?,
+        environment: FaultReportEnvironment,
+    ): FaultReportSubmitData {
+        val payloads = batch.map { it.toPayload().copy(scene = scene) }
+        val response = try {
+            systemApiService.submitFaultReport(
+                authorization = authorization,
+                body = FaultReportRequest(
+                    reportId = UUID.randomUUID().toString(),
+                    scene = scene,
+                    environment = environment,
+                    logs = payloads,
+                ),
+            )
+        } catch (httpError: HttpException) {
+            val errorBody = runCatching { httpError.response()?.errorBody()?.string().orEmpty() }.getOrDefault("")
+            if (httpError.code() == 400 && errorBody.contains("scene", ignoreCase = true)) {
+                throw SceneRejectedException(errorBody.ifBlank { "scene无效" })
+            }
+            throw httpError
+        }
+        if (!response.success || response.data == null) {
+            val msg = response.msg?.takeIf { it.isNotBlank() } ?: "故障信息上报失败"
+            if (msg.contains("scene", ignoreCase = true)) {
+                throw SceneRejectedException(msg)
+            }
+            error(msg)
+        }
         return response.data
     }
+
+    private class SceneRejectedException(message: String) : IllegalStateException(message)
 }

@@ -13,10 +13,16 @@ import android.util.Log
 import android.view.Gravity
 import android.widget.Toast
 import cn.partialy.pm.R
+import cn.partialy.pm.fault.PlaybackFaultLog
+import cn.partialy.pm.fault.PlaybackFaultRecorder
+import cn.partialy.pm.fault.PlaybackFaultSanitizer
+import cn.partialy.pm.fault.PlaybackFaultStore
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import org.json.JSONObject
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.lang.ref.WeakReference
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
@@ -79,6 +85,14 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
     private fun report(thread: Thread, throwable: Throwable, isMainThread: Boolean) {
         val stack = throwable.stackTraceString()
         Log.e(TAG, "Uncaught exception in thread ${thread.name}, main=$isMainThread", throwable)
+        persistCrashLog(
+            failureType = if (isMainThread) "uncaught_main_crash" else "uncaught_bg_crash",
+            methodName = resolveCrashMethodName(throwable, thread.name),
+            threadName = thread.name,
+            isMainThread = isMainThread,
+            throwable = throwable,
+        )
+        if (!::appContext.isInitialized) return
         showExceptionDialog(
             title = appContext.getString(
                 if (isMainThread) R.string.debug_main_thread_exception else R.string.debug_background_exception,
@@ -96,6 +110,76 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
                 append(stack)
             },
         )
+    }
+
+    /** 记录关键业务流程中兜底捕获的异常，使其同样可在“故障上报”中提交排查。 */
+    fun recordHandledException(methodName: String, throwable: Throwable) {
+        val currentThread = Thread.currentThread()
+        val isMainThread = currentThread == Looper.getMainLooper().thread
+        Log.e(TAG, "Handled exception in $methodName", throwable)
+        persistCrashLog(
+            failureType = "handled_exception",
+            methodName = PlaybackFaultSanitizer.limit(methodName, 128),
+            threadName = currentThread.name,
+            isMainThread = isMainThread,
+            throwable = throwable,
+        )
+    }
+
+    private fun persistCrashLog(
+        failureType: String,
+        methodName: String,
+        threadName: String,
+        isMainThread: Boolean,
+        throwable: Throwable,
+    ) {
+        if (!::appContext.isInitialized) return
+        runCatching {
+            val contextJson = JSONObject()
+                .put("thread", threadName)
+                .put("isMainThread", isMainThread)
+                .toString()
+            val message = throwable.localizedMessage?.takeIf { it.isNotBlank() }
+                ?: throwable.message?.takeIf { it.isNotBlank() }
+                ?: throwable.javaClass.simpleName
+            PlaybackFaultStore.insertSync(
+                appContext,
+                PlaybackFaultLog(
+                    id = UUID.randomUUID().toString(),
+                    scene = PlaybackFaultRecorder.SCENE_APP_CRASH,
+                    failureType = failureType,
+                    occurredAt = System.currentTimeMillis(),
+                    methodName = methodName,
+                    requestMethod = "",
+                    requestUrl = "",
+                    requestParamsJson = PlaybackFaultSanitizer.limit(contextJson, PlaybackFaultSanitizer.MAX_PARAMS_LENGTH),
+                    nonceId = "",
+                    responseCode = null,
+                    responseBody = "",
+                    resolvedUrl = "",
+                    errorType = PlaybackFaultSanitizer.limit(throwable.javaClass.name, 256),
+                    errorMessage = PlaybackFaultSanitizer.errorMessage(message),
+                    stackTrace = PlaybackFaultSanitizer.stackTrace(throwable),
+                    songSource = "",
+                    songId = "",
+                    quality = "",
+                ),
+            )
+        }.onFailure { error ->
+            Log.e(TAG, "Persist crash log failed", error)
+        }
+    }
+
+    private fun resolveCrashMethodName(throwable: Throwable, threadName: String): String {
+        val frames = throwable.stackTrace
+        val appFrame = frames.firstOrNull { it.className.startsWith("cn.partialy.pm") } ?: frames.firstOrNull()
+        val raw = if (appFrame != null) {
+            val simpleClass = appFrame.className.substringAfterLast('.')
+            "$simpleClass.${appFrame.methodName}:${appFrame.lineNumber}"
+        } else {
+            "Thread:$threadName"
+        }
+        return PlaybackFaultSanitizer.limit(raw, 128)
     }
 
     private fun showExceptionDialog(title: String, message: String) {

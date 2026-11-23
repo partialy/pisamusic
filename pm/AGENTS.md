@@ -239,7 +239,8 @@
 
 ## 播放故障上报
 
-- `fault/` 模块负责播放取链诊断、敏感字段脱敏、SQLite 持久化和故障批次上报；`playback_fault_logs` 位于 `pm_local_music.db`，只记录 KG / WY / KW 取链失败、空/非法 URL 和在线歌曲 ExoPlayer 播放失败，最多保留 300 条。
+- `fault/` 模块负责播放取链诊断、应用崩溃留存、敏感字段脱敏、SQLite 持久化和故障批次上报；`playback_fault_logs` 位于 `pm_local_music.db`，记录 KG / WY / KW 取链失败、空/非法 URL、在线歌曲 ExoPlayer 播放失败，以及 `GlobalExceptionHandler` 同步落盘的未捕获崩溃/关键异常堆栈（`scene="app_crash"`，向旧服务端上报若遇 scene 拒绝则自动降级 `play_url` 保留堆栈），最多保留 300 条。
+- `PlaylistCollectionManager.addNetworkPlaylist` 与 `FavoritePlaylistsDbStore` 将网络收藏与三方歌单导入统一按规范源类型（`KG` / `WY`）判重、落库与删除，并兼容历史 `IMPORT_KG` / `IMPORT_WY` 记录，避免类型不匹配触发 `NoSuchElementException`。
 - 播放请求通过 `PlaybackTraceInterceptor` 在 Gateway 签名后采集真实请求地址、参数、`n` nonce 和限长响应；内部追踪头发出请求前必须移除。下载请求不启用追踪，成功取链的追踪信息随 URL 缓存以关联后续播放器错误。
 - 设置页“播放设置”进入 `PlaybackSettingsActivity`，其中“播放切换”继续沿用原自动切换列表行为；“更多设置”当前只提示暂未开放；Debug 构建中的“开发者调试”位于“反馈”之前；故障上报已合并到 `DataManagementActivity` 的“导入与导出”页，展示当前总数、最近 7 天、待上报数、最近错误和上次上报时间。
 - 故障上传走 `SystemApiService` 的 AES-GCM `POST /api/fault-reports`。未登录可匿名上报，登录时只携带 Bearer token 供服务端绑定用户 ID；成功后只能按本次提交的日志 UUID 更新 `is_upload=1`，不能全表无条件更新。

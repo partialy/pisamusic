@@ -106,5 +106,6 @@ class PlaybackFaultRecorder @Inject constructor(
 
     companion object {
         const val SCENE_PLAY_URL = "play_url"
+        const val SCENE_APP_CRASH = "app_crash"
     }
 }
