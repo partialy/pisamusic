@@ -107,7 +107,7 @@
         @select="handleToggleMode">
         <n-button quaternary circle>
           <template #icon>
-            <n-icon :size="26" :component="playModeIcon"></n-icon>
+            <n-icon :size="24" :component="playModeIcon"></n-icon>
           </template>
         </n-button>
       </PlayModePicker>
@@ -116,14 +116,14 @@
           <n-icon
             :component="LyricIcon"
             :color="desktop ? 'var(--color-primary)' : 'var(--color-text-secondary)'"
-            size="24px"></n-icon>
+            :size="24"></n-icon>
         </template>
       </n-button>
       <!-- 音量 -->
       <n-popover trigger="hover" style="padding: 0; border-radius: var(--radius-control)" arrow-point-to-center @wheel="handleWheel">
         <template #trigger>
           <n-button quaternary circle @click="toggleMuted" @wheel="handleWheel">
-            <n-icon size="26" :component="volumeIcon" class="icon"></n-icon>
+            <n-icon :size="24" :component="volumeIcon" class="icon"></n-icon>
           </n-button>
         </template>
         <div style="width: 60px; height: 200px">
@@ -133,7 +133,7 @@
       <!-- 播放列表 -->
       <n-button quaternary circle @click="showSequence = true">
         <template #icon>
-          <n-icon :component="PlayListIcon" size="24px"></n-icon>
+          <n-icon :component="PlayListIcon" :size="24"></n-icon>
         </template>
       </n-button>
       <n-drawer
