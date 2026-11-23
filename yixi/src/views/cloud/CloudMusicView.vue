@@ -82,6 +82,8 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+
+defineOptions({ name: "CloudMusicView" });
 import { NButton, NEmpty, NIcon, NInput } from "naive-ui";
 import { Play, RotateCw, Search } from "lucide-vue-next";
 import CloudOverviewCard from "@/components/cloud/CloudOverviewCard.vue";

@@ -98,6 +98,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, useTemplateRef, watch } from "vue";
+
+defineOptions({ name: "RecommendSongPage" });
 import { useRoute } from "vue-router";
 import { NButton, NEmpty, NIcon, NSkeleton } from "naive-ui";
 import { Play } from "lucide-vue-next";

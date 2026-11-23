@@ -1,5 +1,5 @@
 <template>
-  <div class="setting-con">
+  <div ref="settingScrollRef" class="setting-con">
     <n-tabs
       v-model:value="activeName"
       type="line"
@@ -45,7 +45,10 @@ import {
 } from "@/components/setting";
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useKeepAliveScroll } from "@/composables/useKeepAliveScroll";
 import { useThemeStore } from "@/store/theme";
+
+defineOptions({ name: "SettingView" });
 
 type SettingTab = "basic" | "local" | "sync" | "lyric" | "shortcut" | "advance" | "about" | "announcements";
 
@@ -63,6 +66,8 @@ const SETTING_TABS = new Set<SettingTab>([
 const route = useRoute();
 const router = useRouter();
 const themeStore = useThemeStore();
+const settingScrollRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(settingScrollRef);
 const activeName = ref<SettingTab>(resolveSettingTab(route.query.tab));
 
 watch(

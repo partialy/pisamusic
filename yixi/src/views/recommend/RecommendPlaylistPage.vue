@@ -43,6 +43,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+
+defineOptions({ name: "RecommendPlaylistPage" });
 import { useRoute, useRouter } from "vue-router";
 import { NButton, NEmpty, NIcon } from "naive-ui";
 import { Play } from "lucide-vue-next";

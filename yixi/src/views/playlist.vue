@@ -109,6 +109,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Component } from "vue";
+
+defineOptions({ name: "PlaylistSquare" });
 import {
   NBackTop,
   NButton,
@@ -136,6 +138,7 @@ import {
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import type { CommonPlaylist } from "@/types/song";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
+import { useKeepAliveScroll } from "@/composables/useKeepAliveScroll";
 import { getPlaylistTags, getTopPlaylists } from "@/utils/api/musicAPI";
 import { debounce } from "@/utils/common";
 import { convertor } from "@/utils/convertor";
@@ -176,6 +179,7 @@ const pagination = ref({
   pageSize: PAGE_SIZE,
 });
 const contentRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(contentRef);
 const endLineRef = ref<HTMLElement | null>(null);
 const tagsRef = ref<HTMLElement | null>(null);
 let observerEndLine: IntersectionObserver | null = null;

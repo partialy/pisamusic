@@ -23,7 +23,7 @@
           @update-value="handleChangeType" />
       </div>
     </div>
-    <div class="result-list" >
+    <div ref="resultListRef" class="result-list">
       <SongList v-show="change" v-if="searchType == 'song'"
         :loading="searchLoading"
         :songs="songList || []"
@@ -46,6 +46,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import { useKeepAliveScroll } from "@/composables/useKeepAliveScroll";
+
+defineOptions({ name: "SearchView" });
+const resultListRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(resultListRef);
 import { NSelect, NRadio, NRadioGroup, NSpace } from "naive-ui";
 import type { CommonPlaylist, Song } from "../types/song";
 import { convertor } from "../utils/convertor";

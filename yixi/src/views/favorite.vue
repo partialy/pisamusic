@@ -1,5 +1,5 @@
 <template>
-  <div class="favorite-page">
+  <div ref="favoriteScrollRef" class="favorite-page">
     <div class="favorite-header" :class="{ collapsed: isHeaderCollapsed }">
       <h1>我的收藏</h1>
       <div class="favorite-tabs">
@@ -73,6 +73,8 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+
+defineOptions({ name: "FavoriteView" });
 import { NDropdown, NEmpty } from "naive-ui";
 import { SquarePen, Play, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
@@ -86,6 +88,10 @@ import AppConfirmDialog from "@/components/common/AppConfirmDialog.vue";
 import { useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
+import { useKeepAliveScroll } from "@/composables/useKeepAliveScroll";
+
+const favoriteScrollRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(favoriteScrollRef);
 import type { CommonPlaylist } from "@/types/song";
 import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import { runBatchAction } from "@/batch/BatchActionCoordinator";

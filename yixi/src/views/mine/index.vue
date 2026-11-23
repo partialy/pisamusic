@@ -65,6 +65,8 @@ import { useMineLibraryStore } from "@/store";
 import { useThemeStore } from "@/store/theme";
 import { getPageTransitionMeta } from "@/theme/pageTransitionOptions";
 
+defineOptions({ name: "MineView" });
+
 type MineTab = "local" | "playlist" | "download" | "cloud" | "account";
 
 const VALID_TABS = new Set<MineTab>([

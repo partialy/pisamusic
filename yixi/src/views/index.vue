@@ -62,6 +62,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+
+defineOptions({ name: "HomeIndex" });
 import { useRouter } from "vue-router";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import WelcomeCard from "@/components/home/WelcomeCard.vue";
