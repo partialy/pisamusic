@@ -970,6 +970,9 @@
     <string name="settings_download_directory_summary">设置音乐文件的保存目录</string>
     <string name="settings_file_naming_title">文件名命名规则</string>
     <string name="settings_file_naming_summary">设置下载歌曲的文件名格式</string>
+    <string name="settings_default_download_quality">默认下载音质</string>
+    <string name="settings_download_quality_picker_title">默认下载音质（%1$s）</string>
+    <string name="settings_download_quality_ask">每次询问</string>
     <string name="settings_download_lyrics">下载歌词</string>
     <string name="settings_download_lyrics_summary">将歌词文件保存到音乐同目录</string>
     <string name="settings_download_lyrics_off">关闭</string>
@@ -987,6 +990,10 @@
     <string name="settings_lyrics_title">歌词设置</string>
     <string name="settings_lyrics_color_summary">设置常规歌词和当前歌词的颜色预设</string>
     <string name="settings_playback_title">播放设置</string>
+    <string name="settings_default_playback_quality">默认播放音质</string>
+    <string name="settings_playback_quality_picker_title">默认播放音质（%1$s）</string>
+    <string name="settings_quality_restricted_value">%1$s（%2$s）</string>
+    <string name="download_default_quality_restricted_fallback">默认下载音质当前账号不可用，请重新选择</string>
     <string name="settings_playback_switch">播放切换</string>
     <string name="settings_audio_coexistence">与其他应用同时播放</string>
     <string name="settings_dynamic_lyric_background">动态歌词背景</string>

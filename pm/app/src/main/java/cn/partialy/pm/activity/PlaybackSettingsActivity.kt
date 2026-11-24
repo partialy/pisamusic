@@ -4,10 +4,19 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.model.MusicQualityAccessPolicy
+import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.ui.player.background.DynamicBackgroundSettingsSheet
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.SleepTimerPresetSettingsBottomSheet
+import cn.partialy.pm.ui.dialog.effectivePlaybackQualityChoice
+import cn.partialy.pm.ui.dialog.formatQualityOptionLabel
+import cn.partialy.pm.ui.dialog.openQualityRestrictionAction
+import cn.partialy.pm.ui.dialog.qualitySourceDisplayName
+import cn.partialy.pm.ui.dialog.readMusicQualityAccessState
+import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.player.SleepTimerManager
 import cn.partialy.pm.ui.settings.SubSettingsItem
@@ -28,6 +37,18 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
         SubSettingsSection(
             id = "playback",
             items = listOf(
+                SubSettingsItem.Option(
+                    id = ITEM_PLAYBACK_QUALITY_KG,
+                    title = getString(R.string.settings_default_playback_quality),
+                    value = playbackQualitySummary(SongType.KG),
+                    sourceTag = SongType.KG,
+                ),
+                SubSettingsItem.Option(
+                    id = ITEM_PLAYBACK_QUALITY_WY,
+                    title = getString(R.string.settings_default_playback_quality),
+                    value = playbackQualitySummary(SongType.WY),
+                    sourceTag = SongType.WY,
+                ),
                 SubSettingsItem.Option(
                     id = ITEM_AUTO_SWITCH_LIST,
                     title = getString(R.string.settings_playback_switch),
@@ -64,6 +85,8 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
 
     override fun onSettingsItemClick(item: SubSettingsItem) {
         when (item.id) {
+            ITEM_PLAYBACK_QUALITY_KG -> showDefaultPlaybackQualityPicker(SongType.KG)
+            ITEM_PLAYBACK_QUALITY_WY -> showDefaultPlaybackQualityPicker(SongType.WY)
             ITEM_DYNAMIC_BACKGROUND_SETTINGS -> DynamicBackgroundSettingsSheet.show(
                 activity = this,
                 song = musicController.currentSong.value,
@@ -76,6 +99,34 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
                 sleepTimerManager = sleepTimerManager,
                 onSaved = ::refreshSettings,
             )
+        }
+    }
+
+    private fun playbackQualitySummary(type: SongType): String =
+        formatQualityOptionLabel(this, type, effectivePlaybackQualityChoice(this, type))
+
+    private fun showDefaultPlaybackQualityPicker(type: SongType) {
+        lifecycleScope.launch {
+            val access = readMusicQualityAccessState()
+            val options = MusicQualityAccessPolicy.optionsFor(type, access)
+            val currentChoice = effectivePlaybackQualityChoice(this@PlaybackSettingsActivity, type, access)
+            val selected = showDownloadQualityPicker(
+                context = this@PlaybackSettingsActivity,
+                songSubtitle = "",
+                options = options,
+                title = getString(
+                    R.string.settings_playback_quality_picker_title,
+                    qualitySourceDisplayName(this@PlaybackSettingsActivity, type),
+                ),
+                selectedQualityKey = currentChoice?.toPlaybackQualityKey(),
+                onRestrictedOptionClick = { openQualityRestrictionAction(access) },
+            ) ?: return@launch
+            SettingsPrefs.setPlaybackQualityKey(
+                this@PlaybackSettingsActivity,
+                type,
+                selected.choice.toPlaybackQualityKey(),
+            )
+            refreshSettings()
         }
     }
 
@@ -183,6 +234,8 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
     }
 
     companion object {
+        private const val ITEM_PLAYBACK_QUALITY_KG = "playback_quality_kg"
+        private const val ITEM_PLAYBACK_QUALITY_WY = "playback_quality_wy"
         private const val ITEM_AUTO_SWITCH_LIST = "auto_switch_list"
         private const val ITEM_AUDIO_COEXISTENCE = "audio_coexistence"
         private const val ITEM_DYNAMIC_LYRIC_BACKGROUND = "dynamic_lyric_background"

@@ -15,7 +15,17 @@ import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.model.DownloadQualityResolution
+import cn.partialy.pm.model.MusicQualityAccessPolicy
+import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toPlaybackQualityKey
+import cn.partialy.pm.ui.dialog.DefaultDownloadQualitySelection
 import cn.partialy.pm.ui.dialog.SettingsOption
+import cn.partialy.pm.ui.dialog.formatQualityOptionLabel
+import cn.partialy.pm.ui.dialog.openQualityRestrictionAction
+import cn.partialy.pm.ui.dialog.qualitySourceDisplayName
+import cn.partialy.pm.ui.dialog.readMusicQualityAccessState
+import cn.partialy.pm.ui.dialog.showDefaultDownloadQualityPicker
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.ui.settings.SubSettingsItem
 import cn.partialy.pm.ui.settings.SubSettingsSection
@@ -67,6 +77,18 @@ class DownloadSettingsActivity : SubSettingsActivity() {
                     summary = getString(R.string.settings_file_naming_summary),
                 ),
                 SubSettingsItem.Option(
+                    id = ITEM_DOWNLOAD_QUALITY_KG,
+                    title = getString(R.string.settings_default_download_quality),
+                    value = downloadQualitySummary(SongType.KG),
+                    sourceTag = SongType.KG,
+                ),
+                SubSettingsItem.Option(
+                    id = ITEM_DOWNLOAD_QUALITY_WY,
+                    title = getString(R.string.settings_default_download_quality),
+                    value = downloadQualitySummary(SongType.WY),
+                    sourceTag = SongType.WY,
+                ),
+                SubSettingsItem.Option(
                     id = ITEM_DOWNLOAD_LYRICS,
                     title = getString(R.string.settings_download_lyrics),
                     value = downloadLyricModeSummary(SettingsPrefs.getDownloadLyricMode(this)),
@@ -98,7 +120,70 @@ class DownloadSettingsActivity : SubSettingsActivity() {
         when (item.id) {
             ITEM_DOWNLOAD_LOCATION -> checkStoragePermission()
             ITEM_FILE_NAMING_RULE -> showFileNamingRulePicker()
+            ITEM_DOWNLOAD_QUALITY_KG -> showDefaultDownloadQualityPickerDialog(SongType.KG)
+            ITEM_DOWNLOAD_QUALITY_WY -> showDefaultDownloadQualityPickerDialog(SongType.WY)
             ITEM_DOWNLOAD_LYRICS -> showDownloadLyricModePicker()
+        }
+    }
+
+    private fun downloadQualitySummary(type: SongType): String {
+        val access = readMusicQualityAccessState()
+        return when (val resolution = MusicQualityAccessPolicy.resolveDownloadDefaultChoice(
+            type = type,
+            savedKey = SettingsPrefs.getDownloadQualityKey(this, type),
+            access = access,
+        )) {
+            DownloadQualityResolution.AskEveryTime -> getString(R.string.settings_download_quality_ask)
+            is DownloadQualityResolution.Allowed -> formatQualityOptionLabel(this, type, resolution.choice)
+            is DownloadQualityResolution.Restricted -> {
+                val label = formatQualityOptionLabel(this, type, resolution.choice)
+                val badge = getString(
+                    if (access.loggedIn) R.string.quality_badge_unlock_required
+                    else R.string.quality_badge_login_required,
+                )
+                getString(R.string.settings_quality_restricted_value, label, badge)
+            }
+        }
+    }
+
+    private fun showDefaultDownloadQualityPickerDialog(type: SongType) {
+        lifecycleScope.launch {
+            val access = readMusicQualityAccessState()
+            val options = MusicQualityAccessPolicy.optionsFor(type, access)
+            val resolution = MusicQualityAccessPolicy.resolveDownloadDefaultChoice(
+                type = type,
+                savedKey = SettingsPrefs.getDownloadQualityKey(this@DownloadSettingsActivity, type),
+                access = access,
+            )
+            val selectedKey = when (resolution) {
+                is DownloadQualityResolution.Allowed -> resolution.choice.toPlaybackQualityKey()
+                DownloadQualityResolution.AskEveryTime,
+                is DownloadQualityResolution.Restricted,
+                -> null
+            }
+            val picked = showDefaultDownloadQualityPicker(
+                context = this@DownloadSettingsActivity,
+                title = getString(
+                    R.string.settings_download_quality_picker_title,
+                    qualitySourceDisplayName(this@DownloadSettingsActivity, type),
+                ),
+                askLabel = getString(R.string.settings_download_quality_ask),
+                options = options,
+                selectedQualityKey = selectedKey,
+                onRestrictedOptionClick = { openQualityRestrictionAction(access) },
+            ) ?: return@launch
+
+            when (picked) {
+                DefaultDownloadQualitySelection.AskEveryTime ->
+                    SettingsPrefs.setDownloadQualityKey(this@DownloadSettingsActivity, type, null)
+                is DefaultDownloadQualitySelection.Choice ->
+                    SettingsPrefs.setDownloadQualityKey(
+                        this@DownloadSettingsActivity,
+                        type,
+                        picked.option.choice.toPlaybackQualityKey(),
+                    )
+            }
+            refreshSettings()
         }
     }
 
@@ -257,6 +342,8 @@ class DownloadSettingsActivity : SubSettingsActivity() {
     companion object {
         private const val ITEM_DOWNLOAD_LOCATION = "download_location"
         private const val ITEM_FILE_NAMING_RULE = "file_naming_rule"
+        private const val ITEM_DOWNLOAD_QUALITY_KG = "download_quality_kg"
+        private const val ITEM_DOWNLOAD_QUALITY_WY = "download_quality_wy"
         private const val ITEM_DOWNLOAD_LYRICS = "download_lyrics"
         private const val ITEM_WRITE_COVER = "write_cover"
         private const val ITEM_WRITE_TAGS = "write_tags"

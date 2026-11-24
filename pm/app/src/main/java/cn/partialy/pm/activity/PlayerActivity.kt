@@ -59,6 +59,7 @@ import cn.partialy.pm.model.MusicQualityAccessPolicy
 import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.player.songIdentityKey
 import cn.partialy.pm.ui.dialog.ListenTogetherMemberActionMenu
@@ -66,6 +67,9 @@ import cn.partialy.pm.ui.dialog.ListenTogetherQrDialog
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.dialog.effectivePlaybackQualityChoice
+import cn.partialy.pm.ui.dialog.openQualityRestrictionAction
+import cn.partialy.pm.ui.dialog.readMusicQualityAccessState
 import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
 import cn.partialy.pm.ui.player.PlayerPagesController
 import cn.partialy.pm.ui.player.LyricRow
@@ -376,38 +380,34 @@ class PlayerActivity : BaseDownloadActivity() {
         }
 
         lifecycleScope.launch {
-            val session = AccountSessionStore.read(this@PlayerActivity)
-            val options = MusicQualityAccessPolicy.optionsFor(
-                song.type,
-                MusicQualityAccessState(session.loggedIn, session.vipActive),
-            )
+            val access = readMusicQualityAccessState()
+            val options = MusicQualityAccessPolicy.optionsFor(song.type, access)
             if (options.isEmpty()) {
                 PmMessage.warning(this@PlayerActivity, R.string.toast_playback_quality_no_options)
                 return@launch
             }
+            val currentQualityKey = effectivePlaybackQualityChoice(
+                context = this@PlayerActivity,
+                type = song.type,
+                access = access,
+            )?.toPlaybackQualityKey()
             val selected = showDownloadQualityPicker(
                 context = this@PlayerActivity,
                 songSubtitle = getString(R.string.common_song_subtitle, song.artist, song.name),
                 options = options,
-                selectedQualityKey = SettingsPrefs.getPlaybackQualityKey(this@PlayerActivity, song.type),
+                selectedQualityKey = currentQualityKey,
                 song = song,
-                onRestrictedOptionClick = {
-                    if (session.loggedIn) {
-                        FeedbackActivity.startForQualityUnlock(this@PlayerActivity)
-                    } else {
-                        LoginActivity.start(this@PlayerActivity)
-                    }
-                },
+                onRestrictedOptionClick = { openQualityRestrictionAction(access) },
             ) ?: return@launch
 
             val current = musicController.currentSong.value
             if (current == null || current.id != song.id || current.type != song.type) return@launch
 
-            val latestSession = AccountSessionStore.read(this@PlayerActivity)
+            val latestAccess = readMusicQualityAccessState()
             val stillAllowed = MusicQualityAccessPolicy.isChoiceAllowed(
                 song.type,
                 selected.choice,
-                MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive),
+                latestAccess,
             )
             if (!stillAllowed) {
                 PmMessage.warning(this@PlayerActivity, getString(R.string.download_quality_unavailable_reselect))

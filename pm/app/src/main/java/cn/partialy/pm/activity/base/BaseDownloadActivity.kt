@@ -4,25 +4,26 @@ import cn.partialy.pm.ui.message.PmMessage
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.FeedbackActivity
-import cn.partialy.pm.activity.LoginActivity
 import cn.partialy.pm.download.task.DownloadEnqueueSummary
 import cn.partialy.pm.download.task.DownloadQueueCoordinator
+import cn.partialy.pm.model.DownloadQualityChoice
+import cn.partialy.pm.model.DownloadQualityResolution
 import cn.partialy.pm.model.MusicQualityAccessPolicy
-import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
-import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
 import cn.partialy.pm.network.kw.KwRepository
 import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
+import cn.partialy.pm.ui.dialog.openQualityRestrictionAction
+import cn.partialy.pm.ui.dialog.readMusicQualityAccessState
 import cn.partialy.pm.ui.dialog.showDownloadQualityConfirmDialog
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SongDownloadQuotaDialog
 import cn.partialy.pm.ui.message.MessageType
 import cn.partialy.pm.ui.mine.planPlaylistBatchDownload
 import cn.partialy.pm.ui.mine.playlistSongKey
+import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -75,31 +76,22 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 if (plan.validCount > 100 && !confirmPlaylistBatchSize(plan.validCount)) return@launch
                 for (group in plan.groups) {
                     val first = group.first()
-                    val session = AccountSessionStore.read(this@BaseDownloadActivity)
-                    val options = MusicQualityAccessPolicy.optionsFor(
-                        first.type, MusicQualityAccessState(session.loggedIn, session.vipActive),
+                    val selectedChoice = resolveDownloadQualityChoice(
+                        songs = group,
+                        subtitle = getString(R.string.download_queue_selection_count, group.size),
+                        anchorSong = first,
                     )
-                    if (options.isEmpty()) {
-                        failed += group.size
-                        processed += group.size
-                        continue
-                    }
-                    val selected = showDownloadQualityConfirmDialog(
-                        this@BaseDownloadActivity,
-                        getString(R.string.download_queue_selection_count, group.size),
-                        options,
-                        song = first,
-                        onRestrictedOptionClick = {
-                            if (session.loggedIn) FeedbackActivity.startForQualityUnlock(this@BaseDownloadActivity)
-                            else LoginActivity.start(this@BaseDownloadActivity)
-                        },
-                    )
-                    if (selected == null) {
+                    if (selectedChoice == null) {
+                        if (group.isNotEmpty() && !hasDownloadOptionsFor(first.type)) {
+                            failed += group.size
+                            processed += group.size
+                            continue
+                        }
                         stoppedByUser = true
                         break
                     }
                     try {
-                        val summary = downloadQueueCoordinator.enqueue(group, selected.choice)
+                        val summary = downloadQueueCoordinator.enqueue(group, selectedChoice)
                         if (summary.quotaExceeded != null) {
                             if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && !isDestroyed && !isFinishing) {
                                 SongDownloadQuotaDialog.show(this@BaseDownloadActivity, summary.quotaExceeded)
@@ -187,21 +179,17 @@ abstract class BaseDownloadActivity : BaseActivity() {
                     PmMessage.warning(this@BaseDownloadActivity, R.string.cloud_music_disabled_download)
                     return@launch
                 }
-                val session = AccountSessionStore.read(this@BaseDownloadActivity)
-                val options = MusicQualityAccessPolicy.optionsFor(song.type, MusicQualityAccessState(session.loggedIn, session.vipActive))
-                if (options.isEmpty()) return@launch
-                val selected = showDownloadQualityConfirmDialog(
-                    this@BaseDownloadActivity,
-                    if (songs.size == 1) getString(R.string.common_song_subtitle, song.artist, song.name)
-                    else getString(R.string.download_queue_selection_count, songs.size),
-                    options,
-                    song = song,
-                    onRestrictedOptionClick = {
-                        if (session.loggedIn) FeedbackActivity.startForQualityUnlock(this@BaseDownloadActivity)
-                        else LoginActivity.start(this@BaseDownloadActivity)
-                    },
+                val subtitle = if (songs.size == 1) {
+                    getString(R.string.common_song_subtitle, song.artist, song.name)
+                } else {
+                    getString(R.string.download_queue_selection_count, songs.size)
+                }
+                val selectedChoice = resolveDownloadQualityChoice(
+                    songs = songs,
+                    subtitle = subtitle,
+                    anchorSong = song,
                 ) ?: return@launch
-                val summary = downloadQueueCoordinator.enqueue(songs, selected.choice)
+                val summary = downloadQueueCoordinator.enqueue(songs, selectedChoice)
                 if (summary.quotaExceeded != null) {
                     if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && !isDestroyed && !isFinishing) {
                         SongDownloadQuotaDialog.show(this@BaseDownloadActivity, summary.quotaExceeded)
@@ -237,5 +225,38 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 onFinished()
             }
         }
+    }
+
+    private fun hasDownloadOptionsFor(type: SongType): Boolean =
+        MusicQualityAccessPolicy.optionsFor(type, readMusicQualityAccessState()).isNotEmpty()
+
+    private suspend fun resolveDownloadQualityChoice(
+        songs: List<SongInfo>,
+        subtitle: String,
+        anchorSong: SongInfo,
+    ): DownloadQualityChoice? {
+        if (songs.isEmpty()) return null
+        val access = readMusicQualityAccessState()
+        val options = MusicQualityAccessPolicy.optionsFor(anchorSong.type, access)
+        if (options.isEmpty()) return null
+        if (anchorSong.type == SongType.KG || anchorSong.type == SongType.WY) {
+            when (val resolution = MusicQualityAccessPolicy.resolveDownloadDefaultChoice(
+                type = anchorSong.type,
+                savedKey = SettingsPrefs.getDownloadQualityKey(this, anchorSong.type),
+                access = access,
+            )) {
+                is DownloadQualityResolution.Allowed -> return resolution.choice
+                is DownloadQualityResolution.Restricted ->
+                    PmMessage.warning(this, R.string.download_default_quality_restricted_fallback)
+                DownloadQualityResolution.AskEveryTime -> Unit
+            }
+        }
+        return showDownloadQualityConfirmDialog(
+            context = this,
+            songSubtitle = subtitle,
+            options = options,
+            song = anchorSong,
+            onRestrictedOptionClick = { openQualityRestrictionAction(access) },
+        )?.choice
     }
 }
