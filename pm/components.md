@@ -242,6 +242,7 @@
 
 - `DrawerQuickActions` / `item_drawer_quick_action.xml`：在同一功能卡中依次提供主题外观、意见反馈、系统公告和检查更新，复用提供的侧栏图标、主题选项 Sheet、既有页面；右侧显示模式图标或当前版本，再显示设置页同款箭头。
 - 功能卡可垂直滚动，账号头固定；链接导入与定时关闭也保留同款箭头。MainActivity 创建/刷新/销毁快捷入口控制器，控制器等待侧栏关闭后执行操作。
+- `DrawerDynamicMenusController` / `item_drawer_dynamic_row.xml` / `item_drawer_grid_entry.xml` / `bg_sidebar_red_dot.xml`：在 `drawerFixedActionsContainer` 下方拼接动态横栏分段，并在功能卡上方或下方渲染一行三列九宫格卡片；`SidebarIconBinder` 支持远程图片、内联 SVG 与 `SidebarPresetIconRegistry` 预置图标；`FullscreenWebContentActivity` / `activity_fullscreen_web_content.xml` 提供无顶栏全屏 WebView 及安全区 CSS 注入。
 
 ## 反馈记录列表与详情 Sheet（2026-11-24）
 

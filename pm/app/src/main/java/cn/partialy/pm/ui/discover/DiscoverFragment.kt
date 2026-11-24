@@ -23,13 +23,16 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentDiscoverBinding
 import cn.partialy.pm.network.repository.SystemRepository
+import cn.partialy.pm.ui.drawer.SidebarMenuRepository
 import cn.partialy.pm.ui.web.LocalGenericErrorWebViewController
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +45,9 @@ class DiscoverFragment : Fragment() {
 
     @Inject
     lateinit var systemRepository: SystemRepository
+
+    @Inject
+    lateinit var sidebarMenuRepository: SidebarMenuRepository
 
     private var _binding: FragmentDiscoverBinding? = null
     private val binding get() = _binding!!
@@ -61,8 +67,20 @@ class DiscoverFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupInsets(view)
         setupHeaderActions()
+        observeSidebarMenuRedDot()
         setupWebView()
         loadDiscover()
+    }
+
+    private fun observeSidebarMenuRedDot() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sidebarMenuRepository.state.collect { state ->
+                    _binding?.discoverMenuRedDot?.visibility =
+                        if (state.hasUnreadOnceRedDot) View.VISIBLE else View.GONE
+                }
+            }
+        }
     }
 
     override fun onResume() {

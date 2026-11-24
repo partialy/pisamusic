@@ -32,6 +32,7 @@ import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.listening.orEmpty
 import cn.partialy.pm.listening.formatListeningDuration
 import cn.partialy.pm.ui.collapsing.CollapsingHeaderPolicy
+import cn.partialy.pm.ui.drawer.SidebarMenuRepository
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.android.material.appbar.AppBarLayout
@@ -49,6 +50,7 @@ class MineFragment : Fragment() {
 
     @Inject lateinit var configManager: ConfigManager
     @Inject lateinit var listeningManager: ListeningManager
+    @Inject lateinit var sidebarMenuRepository: SidebarMenuRepository
 
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
@@ -118,6 +120,14 @@ class MineFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 listeningManager.summary.collect { applyListeningSummary() }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sidebarMenuRepository.state.collect { state ->
+                    _binding?.mineMenuRedDot?.visibility =
+                        if (state.hasUnreadOnceRedDot) View.VISIBLE else View.GONE
+                }
             }
         }
 

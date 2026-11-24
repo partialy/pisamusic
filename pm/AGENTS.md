@@ -426,4 +426,11 @@
 
 - `FeedbackActivity` 右上角提供「反馈记录」入口进入 `FeedbackHistoryActivity`，并在提交反馈时附带可选账号 JWT 与设备 `x-pm-device-token`（仍兼容匿名）。
 - `FeedbackHistoryRepository` 通过加密接口 `GET /api/feedback` 按当前登录账号与设备凭证联合分页拉取记录（遇到 401 自动刷新设备/账号凭证并重试一次），不支持删除。
+
+## 侧栏动态菜单与网页容器（2026-11-24）
+
+- `SidebarMenuRepository` 通过 `POST /api/config/startup` 聚合字段 `sidebarMenu` 及兜底接口 `GET /api/config/sidebar-menu` 同步配置，快照与已消除一次性红点（`"$id:$badgeVersion"`）持久化于 `AppConfigStore`（namespace `sidebar_menu`）；主动进入本地模式时隐藏所有动态区域与红点。
+- `DrawerDynamicMenusController`（`ui/drawer/`）在 `main_drawer_content.xml` 中承载两类独立区域：1）现有列表底部 `drawerDynamicListSectionContainer` 分段（分割线 + 可选小字标题 + 横栏入口）；2）独立于列表的 `drawerGridTopCard` / `drawerGridBottomCard` 九宫格入口（一行三列）。`SidebarIconBinder` 接入 `coil-svg` 支持 `none`/`image`/`svg`（替换 `currentColor` 适配主题色）/`preset`（`SidebarPresetIconRegistry`）。
+- 首页（`MainActivity`）、发现页（`DiscoverFragment`）、我的页（`MineFragment`）左上角三条杠按钮外层叠加红点，仅当存在未消除的 `dot_once` 入口且非本地模式时显示。
+- `WebContentActivity` 通过 `WebChromeClient.onReceivedTitle` 与 `AndroidWebHost.setTitle` / `close` 同步网页标题并支持关闭；新增 `FullscreenWebContentActivity`（无顶栏全屏 Edge-to-Edge WebView，注入 `--status-bar-height` / `--navigation-bar-height` 及其 `--android-*` 兼容 CSS 变量，挂载 `AndroidWebHost.navigateBack` / `close` / `getSafeAreaInsets`，返回键优先探测 `window.onAndroidBackPressed()`）。
 - 列表行采用类歌曲列表排布（`item_feedback_history.xml`）：左侧 40dp 缩略图（无图时使用反馈类型图标居中 + 浅色圆角底占位）、中间上类型下描述、右侧上时间（今日 `HH:mm`，非今日 `yyyy-MM-dd`）下线条药丸状态（未处理橙色 / 已处理绿色）。点击单条打开 `FeedbackDetailBottomSheet` 展示类型、状态、反馈时间、处理时间（已处理时）、联系方式（空显示「未填写」）、描述与图片附件（点击复用 `dialog_image_preview.xml` 全屏放大预览）。

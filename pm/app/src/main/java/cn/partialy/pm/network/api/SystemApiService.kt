@@ -9,6 +9,7 @@ import cn.partialy.pm.model.BootstrapConfigResponse
 import cn.partialy.pm.model.CheckUpdateResponse
 import cn.partialy.pm.model.DiscoverResponse
 import cn.partialy.pm.model.DynamicConfigResponse
+import cn.partialy.pm.model.SidebarMenuResponse
 import cn.partialy.pm.model.AgreementResponse
 import cn.partialy.pm.model.AboutResponse
 import cn.partialy.pm.model.AnnouncementResponse
@@ -107,6 +108,9 @@ interface SystemApiService {
 
     @GET("api/config/discover")
     suspend fun getDiscover(): DiscoverResponse
+
+    @GET("api/config/sidebar-menu")
+    suspend fun getSidebarMenu(): SidebarMenuResponse
 
     @GET("api/config/agreement")
     suspend fun getAgreement(): AgreementResponse

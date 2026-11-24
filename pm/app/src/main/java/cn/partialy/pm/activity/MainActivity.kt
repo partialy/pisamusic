@@ -30,7 +30,9 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityMainBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
+import cn.partialy.pm.ui.drawer.DrawerDynamicMenusController
 import cn.partialy.pm.ui.drawer.DrawerQuickActions
+import cn.partialy.pm.ui.drawer.SidebarMenuRepository
 import cn.partialy.pm.ui.home.MainDrawerOverlayLayout
 import cn.partialy.pm.ui.home.MainStartupCoordinator
 import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
@@ -118,6 +120,9 @@ class MainActivity : BaseDownloadActivity() {
     @Inject
     lateinit var sleepTimerManager: SleepTimerManager
 
+    @Inject
+    lateinit var sidebarMenuRepository: SidebarMenuRepository
+
     private lateinit var viewPager: ViewPager2
     private lateinit var homeAdapter: HomeFragmentStateAdapter
     private val baseBottomNavPadding by lazy { (resources.displayMetrics.density * 8).toInt() }
@@ -134,6 +139,7 @@ class MainActivity : BaseDownloadActivity() {
 
     private var drawerContentBinding: MainDrawerContentBinding? = null
     private var drawerQuickActions: DrawerQuickActions? = null
+    private var drawerDynamicMenusController: DrawerDynamicMenusController? = null
 
     private var localModeReason: String? = null
     private var currentTopLevelDestination = MainTopLevelDestination.HOME
@@ -178,6 +184,7 @@ class MainActivity : BaseDownloadActivity() {
         setupMainDrawer()
         observeSleepTimer()
         observeThirdPartyAccounts()
+        observeSidebarMenu()
         applyInsets()
         applyLocalModeFromIntent(intent)
         if (isLocalMode()) {
@@ -394,6 +401,8 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     override fun onDestroy() {
+        drawerDynamicMenusController?.destroy()
+        drawerDynamicMenusController = null
         drawerQuickActions?.destroy()
         drawerQuickActions = null
         startupCoordinator?.onDestroy()
@@ -464,7 +473,15 @@ class MainActivity : BaseDownloadActivity() {
             SleepTimerBottomSheet.show(this, sleepTimerManager)
         }
         drawerQuickActions = DrawerQuickActions(this, ::closeMainDrawer).apply {
-            bind(inflated.drawerFeatureCard.getChildAt(0) as LinearLayout)
+            bind(inflated.drawerFixedActionsContainer)
+        }
+        drawerDynamicMenusController = DrawerDynamicMenusController(
+            activity = this,
+            binding = inflated,
+            repository = sidebarMenuRepository,
+            closeDrawer = ::closeMainDrawer,
+        ).apply {
+            render(sidebarMenuRepository.state.value)
         }
         drawerContentBinding = inflated
         bindDrawerAccountUi()
@@ -557,6 +574,22 @@ class MainActivity : BaseDownloadActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 sleepTimerManager.state.collect(::bindDrawerSleepTimer)
+            }
+        }
+    }
+
+    private fun observeSidebarMenu() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sidebarMenuRepository.state.collect { state ->
+                    binding.menuRedDot.visibility = if (state.hasUnreadOnceRedDot) View.VISIBLE else View.GONE
+                    drawerDynamicMenusController?.render(state)
+                }
+            }
+        }
+        if (!isLocalMode() && !configManager.hasFreshBootstrapInProcess()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching { configManager.refreshSidebarMenu() }
             }
         }
     }

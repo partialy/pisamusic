@@ -36,6 +36,8 @@ import cn.partialy.pm.listening.ListeningSummary
 import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
 import cn.partialy.pm.network.discovery.ServiceDiscoverySnapshot
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
+import cn.partialy.pm.ui.drawer.NoOpSidebarMenuCache
+import cn.partialy.pm.ui.drawer.SidebarMenuRepository
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -56,17 +58,30 @@ class ConfigManager @Inject constructor(
     private val serviceDiscoveryManager: ServiceDiscoveryManager,
     private val startupSnapshotStore: StartupSnapshotStore,
     private val bootstrapRuntimeCache: BootstrapRuntimeCache,
+    private val sidebarMenuRepository: SidebarMenuRepository,
 ) {
     constructor(
         systemApiService: SystemApiService,
         serviceDiscoveryManager: ServiceDiscoveryManager,
         startupSnapshotStore: StartupSnapshotStore = StartupSnapshotStore(),
-    ) : this(systemApiService, serviceDiscoveryManager, startupSnapshotStore, NoOpBootstrapRuntimeCache())
+    ) : this(
+        systemApiService,
+        serviceDiscoveryManager,
+        startupSnapshotStore,
+        NoOpBootstrapRuntimeCache(),
+        SidebarMenuRepository(NoOpSidebarMenuCache()),
+    )
 
     constructor(
         systemApiService: SystemApiService,
         serviceDiscoveryManager: ServiceDiscoveryManager,
-    ) : this(systemApiService, serviceDiscoveryManager, StartupSnapshotStore(), NoOpBootstrapRuntimeCache())
+    ) : this(
+        systemApiService,
+        serviceDiscoveryManager,
+        StartupSnapshotStore(),
+        NoOpBootstrapRuntimeCache(),
+        SidebarMenuRepository(NoOpSidebarMenuCache()),
+    )
     class ApiException(
         val code: Int,
         override val message: String,
@@ -149,6 +164,7 @@ class ConfigManager @Inject constructor(
         bootstrapRuntimeCache.setExplicitLocalMode(false)
         runtimeBootstrapState.set(createUnavailableState())
         startupSnapshotStore.clear()
+        sidebarMenuRepository.setLocalMode(false)
     }
 
     fun enterLocalMode() = synchronized(runtimeStateLock) {
@@ -159,6 +175,7 @@ class ConfigManager @Inject constructor(
         bootstrapRuntimeCache.setExplicitLocalMode(true)
         runtimeBootstrapState.set(createUnavailableState())
         startupSnapshotStore.clear()
+        sidebarMenuRepository.setLocalMode(true)
     }
 
     fun isLocalMode(): Boolean = localMode
@@ -352,6 +369,7 @@ class ConfigManager @Inject constructor(
         }
 
         publishBootstrapData(usedSnapshot, attemptGeneration, response.data.bootstrap)
+        sidebarMenuRepository.updateFromServer(response.data.sidebarMenu)
         if (saveSnapshotForNotices) {
             startupSnapshotStore.save(response.data)
         }
@@ -362,6 +380,17 @@ class ConfigManager @Inject constructor(
             }
         }
         return response.data
+    }
+
+    suspend fun refreshSidebarMenu() {
+        if (localMode) return
+        val response = systemCall("侧栏菜单读取失败") {
+            systemApiService.getSidebarMenu()
+        }
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "侧栏菜单读取失败" })
+        }
+        sidebarMenuRepository.updateFromServer(response.data)
     }
 
     private suspend fun publishBootstrapData(

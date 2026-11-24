@@ -35,4 +35,5 @@ data class AndroidStartupData(
     val announcements: List<AnnouncementItem> = emptyList(),
     val account: StartupAccountPayload = StartupAccountPayload(),
     val unreadMessages: DirectMessageUnreadPage = DirectMessageUnreadPage(),
+    val sidebarMenu: SidebarMenuConfigDto? = null,
 )
