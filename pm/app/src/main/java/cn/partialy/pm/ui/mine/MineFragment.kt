@@ -23,8 +23,6 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.AccountProfileActivity
 import cn.partialy.pm.activity.LoginActivity
 import cn.partialy.pm.activity.MainActivity
-import cn.partialy.pm.activity.PlaylistManagementActivity
-import cn.partialy.pm.activity.ThirdPartyPlaylistImportActivity
 import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentMineBinding
 import cn.partialy.pm.model.AccountUser
@@ -113,9 +111,6 @@ class MineFragment : Fragment() {
         binding.mineSearchButton.setOnClickListener {
             SearchActivity.start(requireActivity())
         }
-
-        binding.managePlaylistsButton.setOnClickListener { PlaylistManagementActivity.start(requireActivity()) }
-        binding.importPlaylistsButton.setOnClickListener { ThirdPartyPlaylistImportActivity.start(requireActivity()) }
 
         binding.avatarImageView.setOnClickListener { openAccountEntry() }
 
@@ -306,7 +301,6 @@ class MineFragment : Fragment() {
             tv.alpha = 1f
             tv.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
         }
-        binding.playlistTabActions.isVisible = selectedIndex == 1
         styleTab(binding.tabMineText, selectedIndex == 0)
         styleTab(binding.tabPlaylistsText, selectedIndex == 1)
     }
