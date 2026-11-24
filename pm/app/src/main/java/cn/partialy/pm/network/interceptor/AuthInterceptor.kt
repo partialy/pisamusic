@@ -7,14 +7,15 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
-class AuthInterceptor : Interceptor {
+class AuthInterceptor(private val attachAccountToken: Boolean = false) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         return makeRequest(chain, originalRequest)
     }
     
     private fun makeRequest(chain: Interceptor.Chain, originalRequest: Request): Response {
-        val token = TokenManager.getToken()
+        // 第三方音乐链路只补设备信息，系统账号凭证必须由自有后端 client 显式开启。
+        val token = if (attachAccountToken) TokenManager.getToken() else null
         val hasExplicitAuthorization = originalRequest.headers.names()
             .any { it.equals("Authorization", ignoreCase = true) }
         // 专属消息的设备身份是捕获时的快照。访客快照不得在异步回执时混入之后登录的账号。
@@ -25,7 +26,8 @@ class AuthInterceptor : Interceptor {
             }
             header("Device-Model", encodeDeviceModel())
             header("Device-Info", encodeDeviceInfo())
-            header("Content-Type", "application/json")
+            header("Content-Type", originalRequest.body?.contentType()?.toString()
+                ?: originalRequest.header("Content-Type") ?: "application/json")
         }.build()
         
         return chain.proceed(newRequest)

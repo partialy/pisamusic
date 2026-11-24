@@ -6,7 +6,7 @@
 - **请求路径**：`/api/feedback`
 - **请求类型**：`multipart/form-data`
 - **需要鉴权**：否（支持匿名或客户端携带联系方式）
-- **加密模式**：明文白名单路径
+- **加密模式**：默认明文白名单；若管理员从白名单移除此路径，客户端需携带 `x-pm-random`（128 字符随机 hex）和 `x-pm-enc-ver: 1`，字段和图片仍按 multipart 上传，不包装 JSON 加密信封；响应使用系统 AES-GCM 信封，客户端需兼容明文及加密响应。
 
 ---
 
@@ -17,7 +17,7 @@
 | 表单字段名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
 | `description` | `string` | 是 | 反馈问题描述（1-500 字） |
-| `feedback_type` | `string` | 是 | 反馈类型，可选值：<br>• `bug`：功能异常<br>• `playback`：播放失败<br>• `ui`：界面展示问题<br>• `feature`：功能建议<br>• `other`：其他问题 |
+| `feedback_type` | `string` | 是 | 反馈类型，可选值：<br>• `bug`：功能异常<br>• `suggestion`：功能建议<br>• `account`：账号问题<br>• `other`：其他问题 |
 | `contact` | `string` | 否 | 联系方式（QQ / 微信 / 邮箱） |
 | `device` | `string` | 否 | 设备软硬件环境 JSON 字符串（品牌、型号、系统版本、应用版本等） |
 | `images` | `File[]` | 否 | 截图文件数组（最多 3 张，支持 jpg / png / webp，单张 ≤ 5MB） |

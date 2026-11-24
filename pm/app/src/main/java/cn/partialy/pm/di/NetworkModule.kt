@@ -38,6 +38,12 @@ import retrofit2.converter.gson.GsonConverterFactory
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+    private fun createHttpLogger() = HttpLoggingInterceptor().apply {
+        listOf("Authorization", "x-pm-device-token", "x-pm-random", "Cookie", "Set-Cookie")
+            .forEach { redactHeader(it) }
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
+    }
+
     @Provides
     @Singleton
     fun provideServiceDiscoveryManager(
@@ -66,12 +72,10 @@ object NetworkModule {
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(runtimeEndpointInterceptor)
-            .addInterceptor(AuthInterceptor())
+            .addInterceptor(AuthInterceptor(attachAccountToken = false))
             .addInterceptor(gatewaySignInterceptor)
             .addInterceptor(playbackTraceInterceptor)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(createHttpLogger())
             .build()
     }
 
@@ -92,11 +96,8 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(systemServiceEndpointInterceptor)
             .addInterceptor(encryptionInterceptor)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                redactHeader("Authorization")
-                level = HttpLoggingInterceptor.Level.BODY
-            })
-            .addInterceptor(AuthInterceptor())
+            .addInterceptor(createHttpLogger())
+            .addInterceptor(AuthInterceptor(attachAccountToken = true))
             .build()
     }
 
@@ -124,13 +125,11 @@ object NetworkModule {
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(runtimeEndpointInterceptor)
-            .addInterceptor(AuthInterceptor())
+            .addInterceptor(AuthInterceptor(attachAccountToken = false))
             .addInterceptor(DfidInterceptor(dfidHolder))
             .addInterceptor(gatewaySignInterceptor)
             .addInterceptor(playbackTraceInterceptor)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(createHttpLogger())
             .build()
     }
 
@@ -154,10 +153,7 @@ object NetworkModule {
     ): ListenTogetherConfigApiService {
         val plainClient = OkHttpClient.Builder()
             .addInterceptor(systemServiceEndpointInterceptor)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                redactHeader("Authorization")
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(createHttpLogger())
             .build()
         return Retrofit.Builder()
             .baseUrl(SystemServiceEndpointInterceptor.PLACEHOLDER_BASE_URL)

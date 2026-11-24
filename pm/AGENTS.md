@@ -187,6 +187,7 @@
 
 - `SystemEncryptionInterceptor` 只用于 App 自有后端请求（`SystemApiService` 与原生反馈上传），不得用于第三方音乐接口或文件资源直传。
 - 系统服务端请求会写入 `x-pm-random` / `x-pm-enc-ver`，把 JSON body 加密为 `{isEnc, encData}`，并解密加密响应。
+- `NetworkModule` 的所有 HTTP 日志统一由 `createHttpLogger` 创建：Release 为 NONE，Debug 仅用于调试且必须隐藏 Authorization、x-pm-device-token、x-pm-random、Cookie、Set-Cookie，禁止在日志中同时输出系统密文及其解密随机头。
 - 服务端 AES-GCM、明文路径、时间戳校验和 nonce 防重放逻辑位于 `../server/src/middleware/encryption.ts`。
 - `GatewaySignInterceptor` 只签名匹配 `GatewaySignRuntime` 的第三方网关请求。
 - KG / WY / KW 第三方源 API 不使用系统 AES-GCM 客户端，但可能使用网关签名。
@@ -230,7 +231,7 @@
 ## 同步设置页补充
 
 - 同步设置入口位于 `DataSettingsActivity` 的“收藏与同步”，只展示账号同步摘要并进入 `FavoritesSyncSettingsActivity`；独立同步页展示登录状态、最近同步时间和错误状态，未登录时跳转 `LoginActivity`，已登录时执行 `SyncManager.syncNow()` 立即同步，不再提供同步码输入、同步码复制、同步码生成或解绑设备入口。
-- `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
+- `AuthInterceptor` 默认不自动注入系统账号 token；仅 `system_okhttp` 显式启用 `attachAccountToken = true`，普通音乐与播放代理 client 只补设备头，不向 KG/WY/KW 网关发送 PisaMusic 登录凭证。保留请求已有 `Authorization`，Content-Type 优先跟随 RequestBody 或显式请求头，避免误导应用层拦截器与日志。
 - 听歌时长由 `listening/ListeningManager` 统一观察 Media3 播放快照，片段先写入 `pm_local_music.db` 的 `listening_active_checkpoint` / `listening_pending_fragments`，按 15 分钟批次经 `/api/listening/fragments/batch` 上报，并在 `MainActivity` 启动及账号登录成功后各尝试补传一次。V1 请求固定 `schemaVersion=1`、`platform=android`、必填 `x-pm-device-id`；只上报 `source + songId` 及歌曲标题/歌手/专辑等非路径元数据，不能上传本地文件路径或播放 URL。我的页面在 VIP 到期标签下显示服务端动态推导的 `Lv N  累计听歌 X 分钟/小时`，1000 分钟起按小时显示。
 - 自有账号入口同时位于“我的”页头像区域和主界面侧拉栏账号头；两处都只读取 `AccountSessionStore`，未登录进入 `LoginActivity`，已登录进入 `AccountProfileActivity`。侧拉栏未登录标题固定为“立即登录”并保留右箭头，不展示邮箱或 VIP 信息。
 - “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接，自定义头像的 `avatarUrl` 为七牛公开图片空间直链。仅 `session.vipActive=true` 且存在未来 `vipExpiresAt` 时，在邮箱下显示金色标签，画面只渲染设备本地时区的 `yyyy-M-d HH:mm:ss` 到期时间，不添加 VIP、等级或到期前缀。
