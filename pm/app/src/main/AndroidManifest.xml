@@ -181,6 +181,12 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".activity.FullscreenWebContentActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.ServiceInterceptActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm"

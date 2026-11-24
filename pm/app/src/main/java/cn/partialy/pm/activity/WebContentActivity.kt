@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -33,6 +34,7 @@ import java.lang.ref.WeakReference
 class WebContentActivity : BaseActivity() {
 
     private lateinit var binding: ActivityWebContentBinding
+    private var jsCustomTitleLocked = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,8 +88,26 @@ class WebContentActivity : BaseActivity() {
             domStorageEnabled = true
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
-        wv.webChromeClient = WebChromeClient()
+        wv.webChromeClient = object : WebChromeClient() {
+            override fun onReceivedTitle(view: WebView?, title: String?) {
+                super.onReceivedTitle(view, title)
+                val clean = title?.trim().orEmpty()
+                if (!jsCustomTitleLocked &&
+                    clean.isNotEmpty() &&
+                    clean != "about:blank" &&
+                    !clean.startsWith("http://", ignoreCase = true) &&
+                    !clean.startsWith("https://", ignoreCase = true)
+                ) {
+                    supportActionBar?.title = clean
+                }
+            }
+        }
         wv.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                jsCustomTitleLocked = false
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val u = request.url
                 if (u.scheme == "http" || u.scheme == "https") return false
@@ -96,6 +116,13 @@ class WebContentActivity : BaseActivity() {
         }
         wv.addJavascriptInterface(WebContentJsBridge(this), JS_INTERFACE_NAME)
         wv.loadUrl(uri.toString())
+    }
+
+    internal fun setPageTitleFromJs(title: String?) {
+        val clean = title?.trim().orEmpty()
+        if (clean.isEmpty()) return
+        jsCustomTitleLocked = true
+        supportActionBar?.title = clean
     }
 
     internal fun navigateBackOrFinish() {
@@ -165,6 +192,24 @@ private class WebContentJsBridge(activity: WebContentActivity) {
     @JavascriptInterface
     fun navigateBack() {
         val a = ref.get() ?: return
-        a.runOnUiThread { a.navigateBackOrFinish() }
+        a.runOnUiThread {
+            if (!a.isFinishing && !a.isDestroyed) a.navigateBackOrFinish()
+        }
+    }
+
+    @JavascriptInterface
+    fun close() {
+        val a = ref.get() ?: return
+        a.runOnUiThread {
+            if (!a.isFinishing && !a.isDestroyed) a.finish()
+        }
+    }
+
+    @JavascriptInterface
+    fun setTitle(title: String?) {
+        val a = ref.get() ?: return
+        a.runOnUiThread {
+            if (!a.isFinishing && !a.isDestroyed) a.setPageTitleFromJs(title)
+        }
     }
 }
