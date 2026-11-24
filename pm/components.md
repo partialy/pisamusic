@@ -234,6 +234,7 @@
 ## 三方账号管理（2026-11-24）
 
 - `ThirdPartyAccountsActivity`、`ui/thirdparty/`：单区域两条账号行、品牌/圆形头像、昵称尾随音源标签、有效/过期状态、单账号 Sheet 与顶部批量菜单；刷新暂未开放，清除复用危险色二次确认，底部固定药丸进入三方歌单导入。
+- 品牌占位图加载时通过 `InsetDrawable` 移出两张 nodpi PNG 自带的 6px 透明边，再由头像控件统一圆形裁剪；列表与账号 Sheet 的默认、加载中及失败占位均走同一方法，避免透明边与圆形裁剪叠出多边形轮廓。
 - `ThirdPartyAccountsRepository` 共享校验状态；失败保留原状态并经 `PmMessage.error` 提示固定文案。`MusicCookieManager` 的快照守卫保护校验、清除与候选缓存，结果按会话指纹持久化至 `AppConfigStore`。
 
 ## 侧栏常用入口（2026-11-24）

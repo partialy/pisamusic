@@ -3,6 +3,7 @@ package cn.partialy.pm.activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.drawable.InsetDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
@@ -221,10 +222,12 @@ class ThirdPartyAccountsActivity : BaseActivity() {
 
     private fun loadAvatar(view: ImageView, url: String?, brand: Int) {
         avatarRequests.remove(view)?.dispose()
-        avatarRequests[view] = view.load(url?.takeIf { it.startsWith("https://") || it.startsWith("http://") } ?: brand) {
-            placeholder(brand)
-            error(brand)
-            fallback(brand)
+        // 两张 nodpi 品牌 PNG 均有 6px 透明边，先移出显示边界再由头像控件裁成圆形。
+        val brandAvatar = InsetDrawable(requireNotNull(ContextCompat.getDrawable(this, brand)), -6)
+        avatarRequests[view] = view.load(url?.takeIf { it.startsWith("https://") || it.startsWith("http://") } ?: brandAvatar) {
+            placeholder(brandAvatar)
+            error(brandAvatar)
+            fallback(brandAvatar)
         }
     }
 
