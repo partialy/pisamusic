@@ -8,7 +8,7 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 
-/** 统一承载收藏歌单的单个与本地歌单批量删除确认。 */
+/** 统一承载收藏歌单的单个与批量删除确认。 */
 object PlaylistDeleteConfirmation {
 
     fun showSingle(
@@ -47,28 +47,40 @@ object PlaylistDeleteConfirmation {
             onFinished(0, 0)
             return
         }
-        PmMinimalDialog.show(
+        showBatch(activity, localPlaylists) {
+            var deleted = 0
+            var failed = 0
+            localPlaylists.forEach { playlist ->
+                if (manager.removePlaylist(playlist.type, playlist.id)) {
+                    deleted++
+                } else {
+                    failed++
+                }
+            }
+            onFinished(deleted, failed)
+        }
+    }
+
+    /** 只承载确认 UI，实际删除由调用方的业务层执行。 */
+    fun showBatch(
+        activity: FragmentActivity,
+        playlists: List<CollectedPlaylist>,
+        onConfirm: () -> Unit,
+    ): android.app.Dialog? {
+        if (playlists.isEmpty()) return null
+        val messageRes = if (playlists.all { it.type == CollectedPlaylistType.LOCAL }) {
+            R.string.mine_playlist_batch_delete_confirm_message
+        } else {
+            R.string.playlist_management_delete_confirm
+        }
+        return PmMinimalDialog.show(
             context = activity,
             title = activity.getString(R.string.mine_playlist_delete_confirm_title),
-            message = activity.getString(
-                R.string.mine_playlist_batch_delete_confirm_message,
-                localPlaylists.size,
-            ),
+            message = activity.getString(messageRes, playlists.size),
             cancelText = activity.getString(R.string.cancel),
             confirmText = activity.getString(R.string.dialog_ok),
             confirmColor = ContextCompat.getColor(activity, R.color.pm_dialog_danger),
-            onConfirm = {
-                var deleted = 0
-                var failed = 0
-                localPlaylists.forEach { playlist ->
-                    if (manager.removePlaylist(playlist.type, playlist.id)) {
-                        deleted++
-                    } else {
-                        failed++
-                    }
-                }
-                onFinished(deleted, failed)
-            },
+            onConfirm = onConfirm,
         )
     }
 }

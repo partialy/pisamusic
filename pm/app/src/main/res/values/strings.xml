@@ -1302,4 +1302,8 @@
     <string name="dynamic_background_save">保存</string>
     <string name="dynamic_background_section_motion">动态效果</string>
     <string name="dynamic_background_section_color">色彩</string>
+    <string name="playlist_management_title">管理歌单</string>
+    <string name="playlist_management_empty">暂无歌单</string>
+    <string name="playlist_management_delete_confirm">确定删除已选择的 %1$d 个歌单？将从 App 收藏中移除，不会删除第三方平台歌单。</string>
+    <string name="playlist_management_delete_result">已删除 %1$d 个歌单，失败 %2$d 个</string>
 </resources>

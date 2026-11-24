@@ -8,6 +8,9 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import cn.partialy.pm.activity.PlaylistManagementActivity
+import cn.partialy.pm.model.toCanonicalSource
+import cn.partialy.pm.ui.playlistdetail.BatchLongPressGuard
 import cn.partialy.pm.databinding.FragmentMinePlaylistsTabBinding
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.toCanonicalPlaylist
@@ -27,6 +30,7 @@ class MinePlaylistsTabFragment : Fragment() {
     private var _binding: FragmentMinePlaylistsTabBinding? = null
     private val binding get() = _binding!!
 
+    private val longPressGuard = BatchLongPressGuard()
     private val adapter = MinePlaylistsAdapter(
         onMoreClick = { playlist ->
             PlaylistActionBottomSheet.show(
@@ -35,6 +39,11 @@ class MinePlaylistsTabFragment : Fragment() {
                 deleteTarget = playlist,
                 manager = playlistCollectionManager,
             )
+        },
+        onLongClick = { playlist ->
+            if (longPressGuard.acquire()) {
+                PlaylistManagementActivity.start(requireActivity(), playlist.type.toCanonicalSource(), playlist.id)
+            }
         },
     )
 

@@ -4,13 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
-import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.PopupWindow
-import android.widget.TextView
 import androidx.activity.addCallback
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
@@ -22,7 +16,6 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityThirdPartyPlaylistImportBinding
-import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.ThirdPartyCandidateSnapshot
 import cn.partialy.pm.network.cookie.ThirdPartyPlaylistCandidate
@@ -33,8 +26,8 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.ui.mine.ThirdPartyPlaylistImportAdapter
 import cn.partialy.pm.ui.mine.ThirdPartyPlaylistImportRules
+import cn.partialy.pm.ui.mine.PlaylistSourceFilterPopup
 import cn.partialy.pm.ui.mine.ThirdPartySourceFilter
-import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
@@ -373,69 +366,20 @@ class ThirdPartyPlaylistImportActivity : BaseActivity() {
 
     private fun showSourceFilterPopup() {
         sourcePopup?.dismiss()
-        val content = LayoutInflater.from(this).inflate(R.layout.layout_search_source_dropdown, null, false)
-        val container = content.findViewById<LinearLayout>(R.id.searchSourceOptionsContainer)
-        val totalCount = candidateItems.size
-        val kgCount = candidateItems.count { it.source == MusicCookieManager.SOURCE_KG }
-        val wyCount = candidateItems.count { it.source == MusicCookieManager.SOURCE_WY }
-        val options = listOf(
-            Triple(ThirdPartySourceFilter.ALL, getString(R.string.third_party_import_source_all), totalCount),
-            Triple(ThirdPartySourceFilter.KG, getString(R.string.third_party_import_source_kg), kgCount),
-            Triple(ThirdPartySourceFilter.WY, getString(R.string.third_party_import_source_wy), wyCount),
-        )
-        options.forEach { (filter, label, count) ->
-            val row = LayoutInflater.from(this).inflate(R.layout.item_third_party_source_option, container, false)
-            val tagView = row.findViewById<TextView>(R.id.sourceOptionTag)
-            val textView = row.findViewById<TextView>(R.id.sourceOptionText)
-            val checkView = row.findViewById<ImageView>(R.id.sourceOptionCheck)
-            when (filter) {
-                ThirdPartySourceFilter.ALL -> tagView.visibility = View.GONE
-                ThirdPartySourceFilter.KG -> SongSourceTagBinder.bind(tagView, SongType.KG)
-                ThirdPartySourceFilter.WY -> SongSourceTagBinder.bind(tagView, SongType.WY)
-            }
-            textView.text = getString(R.string.third_party_import_source_option_format, label, count)
-            checkView.visibility = if (filter == activeSourceFilter) View.VISIBLE else View.INVISIBLE
-            row.setOnClickListener {
-                sourcePopup?.dismiss()
-                if (activeSourceFilter != filter) {
-                    activeSourceFilter = filter
-                    updateSourcePillLabel()
-                    filteredItems = ThirdPartyPlaylistImportRules.filterCandidates(
-                        items = candidateItems,
-                        sourceFilter = activeSourceFilter,
-                        query = binding.searchInput.text?.toString().orEmpty(),
-                    )
-                    render()
-                }
-            }
-            container.addView(row)
+        val counts = ThirdPartySourceFilter.values().associateWith { filter ->
+            candidateItems.count { filter.sourceKey == null || it.source == filter.sourceKey }
         }
-        val minWidthPx = (resources.displayMetrics.density * 132).toInt()
-        val width = binding.sourceFilterCard.width.coerceAtLeast(minWidthPx)
-        sourcePopup = PopupWindow(
-            content,
-            width,
-            RecyclerView.LayoutParams.WRAP_CONTENT,
-            true,
-        ).apply {
-            isOutsideTouchable = true
-            elevation = resources.displayMetrics.density * 8f
+        sourcePopup = PlaylistSourceFilterPopup.show(binding.sourceFilterCard, activeSourceFilter, counts) { filter ->
+            if (activeSourceFilter != filter) {
+                activeSourceFilter = filter
+                updateSourcePillLabel()
+                scheduleFilter()
+            }
         }
-        sourcePopup?.showAsDropDown(
-            binding.sourceFilterCard,
-            0,
-            (resources.displayMetrics.density * 6).toInt(),
-            Gravity.END,
-        )
     }
 
     private fun updateSourcePillLabel() {
-        val labelRes = when (activeSourceFilter) {
-            ThirdPartySourceFilter.ALL -> R.string.third_party_import_source_all
-            ThirdPartySourceFilter.KG -> R.string.third_party_import_source_kg
-            ThirdPartySourceFilter.WY -> R.string.third_party_import_source_wy
-        }
-        binding.sourceFilterLabel.setText(labelRes)
+        binding.sourceFilterLabel.setText(PlaylistSourceFilterPopup.labelRes(activeSourceFilter))
     }
 
     private fun render() {

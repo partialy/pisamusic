@@ -18,6 +18,7 @@ import coil.load
 
 class MinePlaylistsAdapter(
     private val onMoreClick: (CollectedPlaylist) -> Unit,
+    private val onLongClick: ((CollectedPlaylist) -> Unit)? = null,
 ) : ListAdapter<CollectedPlaylist, MinePlaylistsAdapter.Vh>(Diff) {
 
     init {
@@ -33,7 +34,7 @@ class MinePlaylistsAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
         val binding = ItemMinePlaylistRowBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return Vh(binding, onMoreClick)
+        return Vh(binding, onMoreClick, onLongClick)
     }
 
     override fun onBindViewHolder(holder: Vh, position: Int) {
@@ -43,6 +44,7 @@ class MinePlaylistsAdapter(
     class Vh(
         private val binding: ItemMinePlaylistRowBinding,
         private val onMoreClick: (CollectedPlaylist) -> Unit,
+        private val onLongClick: ((CollectedPlaylist) -> Unit)?,
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: CollectedPlaylist) {
@@ -92,6 +94,10 @@ class MinePlaylistsAdapter(
                 }
             }
 
+            binding.root.setOnLongClickListener(if (onLongClick == null) null else android.view.View.OnLongClickListener {
+                onLongClick.invoke(item)
+                true
+            })
             binding.moreButton.setOnClickListener { onMoreClick(item) }
         }
 

@@ -99,39 +99,83 @@
 
         </com.google.android.material.appbar.CollapsingToolbarLayout>
 
-        <LinearLayout
+        <FrameLayout
             android:id="@+id/mineTabsSheet"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_mine_playlist_sheet"
             android:gravity="center"
-            android:orientation="horizontal"
             android:paddingTop="16dp"
             android:paddingBottom="10dp">
 
-            <TextView
-                android:id="@+id/tabMineText"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="4dp"
-                android:text="@string/mine_tab_mine"
-                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                android:textColor="@color/colorOnBgNormal"
-                tools:alpha="1" />
+                android:layout_gravity="center"
+                android:layout_marginHorizontal="78dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/tabMineText"
+                    android:layout_width="wrap_content"
+                    android:maxWidth="80dp"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="4dp"
+                    android:text="@string/mine_tab_mine"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="@color/colorOnBgNormal"
+                    tools:alpha="1" />
 
-            <TextView
-                android:id="@+id/tabPlaylistsText"
+                <TextView
+                    android:id="@+id/tabPlaylistsText"
+                    android:layout_width="wrap_content"
+                    android:maxWidth="80dp"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="4dp"
+                    android:text="@string/mine_tab_playlists"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="@color/colorOnBgNormal"
+                    tools:alpha="0.8" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/playlistTabActions"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="4dp"
-                android:text="@string/mine_tab_playlists"
-                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                android:textColor="@color/colorOnBgNormal"
-                tools:alpha="0.8" />
-        </LinearLayout>
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="6dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+                <ImageButton
+                    android:id="@+id/managePlaylistsButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/playlist_management_title"
+                    android:tooltipText="@string/playlist_management_title"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_list_check_24"
+                    app:tint="@color/primary" />
+                <ImageButton
+                    android:id="@+id/importPlaylistsButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/third_party_import_title"
+                    android:tooltipText="@string/third_party_import_title"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_download_24"
+                    app:tint="@color/primary" />
+            </LinearLayout>
+        </FrameLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.viewpager2.widget.ViewPager2
