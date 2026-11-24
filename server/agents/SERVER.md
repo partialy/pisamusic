@@ -73,6 +73,7 @@
 - 数据库访问层为 `src/db/core/` 的异步 DbClient；Store/Service/Route 必须 await 结果，事务必须绑定同一连接；不再在模块 import 阶段调用未初始化的数据库。
 - `DB_TYPE` 唯一选择运行库；不依赖本机迁移记录、旧 `activatedMysql` 或连接串指纹，也不禁止切回 SQLite。另一引擎仅在复制时需要配置。
 - MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v7，已有 v1 库先补 v2 安装元数据，再依次进行 v2→v3 官网域名统计、v3→v4 同步日志保留下限、v4→v5 歌单封面资源、v5→v6 歌曲下载统计与配额、v6→v7 反馈归属字段（`feedback.user_id` / `device_kind` / `device_id` 与历史 `serverDeviceId` 回填，`feedbackMigration.ts`）增量升级。DDL 意图逐步记账，失败阻断业务启动，同任务可幂等续迁；全部结构校验通过才标记 applied。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
+- SQLite 启动升级必须在执行 `CREATE_SQL` 前为已存在的 `feedback` 补齐新索引依赖的列（包含历史 status/processed_at 及 v7 归属字段）；空库由基线建表，索引创建与历史设备回填留在后置迁移，重复启动保持幂等。定向回归见 `src/db/schema/sqlite/feedbackStartup.spec.ts`，不得通过重建旧表或删除数据规避缺列错误。
 - 安装标记为库内 `app_installation`，与Schema账本分离；首管、默认配置和标记事务提交。已有管理员库兼容补标记，无管理员走安装令牌保护的向导；接口为 `/api/setup/status`、`/api/setup/complete`，参见[安装文档](../apidoc/system/setup.md)。
 - 未安装/复制未完成的库禁止业务HTTP和Socket，不开放重新接管失败目标。管理员及用户JWT绑定安装身份，旧token需重新登录；完整副本保留源身份。
 - Admin「系统设置 → 数据迁移」调用 `/api/admin/database-migration/*`；`src/operations/` 支持SQLite↔MySQL全量覆盖。先排空源写入、备份源与目标，再事务替换及逐表摘要校验；目标须停止其他服务写入。不复制Schema账本或文件资产，未知非空数据禁止静默丢弃。

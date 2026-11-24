@@ -140,8 +140,10 @@ function migrateUsers(db: DatabaseSync) {
   }
 }
 
-function migrateFeedback(db: DatabaseSync) {
+/** 旧表必须先补列，CREATE_SQL 中的新索引才能安全执行；空库交由基线建表。 */
+function prepareFeedbackColumns(db: DatabaseSync) {
   const cols = getColumnNames(db, "feedback");
+  if (cols.size === 0) return;
   if (!cols.has("status")) {
     db.exec(`ALTER TABLE feedback ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'`);
   }
@@ -157,6 +159,10 @@ function migrateFeedback(db: DatabaseSync) {
   if (!cols.has("device_id")) {
     db.exec(`ALTER TABLE feedback ADD COLUMN device_id TEXT`);
   }
+}
+
+function migrateFeedback(db: DatabaseSync) {
+  prepareFeedbackColumns(db);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at ON feedback (status, created_at DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_user_created ON feedback (user_id, created_at DESC)`);
@@ -360,6 +366,7 @@ function migrateWebsiteDomains(db: DatabaseSync) {
 export function runPreSchemaMigrations(db: DatabaseSync): void {
   migrateListenTogether(db);
   migrateWebsiteDomains(db);
+  prepareFeedbackColumns(db);
 }
 
 export function runPostSchemaMigrations(db: DatabaseSync): void {
