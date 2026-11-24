@@ -28,6 +28,7 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import cn.partialy.pm.utils.ServerDevicePrefs
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
 import cn.partialy.pm.network.crypto.SystemEncryptionInterceptor
 import coil.load
@@ -106,6 +107,9 @@ class FeedbackActivity : BaseActivity() {
         )
 
         binding.feedbackBackButton.setOnClickListener { finish() }
+        binding.feedbackHistoryButton.setOnClickListener {
+            FeedbackHistoryActivity.start(this)
+        }
         selectedType = intent.getStringExtra(EXTRA_INITIAL_TYPE)
             ?.takeIf { it in FEEDBACK_TYPES }
             ?: TYPE_BUG
@@ -326,7 +330,16 @@ class FeedbackActivity : BaseActivity() {
                 bytes.toRequestBody(mime.toMediaTypeOrNull()),
             )
         }
-        val request = Request.Builder().url(url).post(builder.build()).build()
+        val session = AccountSessionStore.read(this)
+        val deviceToken = ServerDevicePrefs.getMessageToken(this)
+        val requestBuilder = Request.Builder().url(url).post(builder.build())
+        if (session.loggedIn && session.token.isNotBlank()) {
+            requestBuilder.header("Authorization", "Bearer ${session.token}")
+        }
+        if (deviceToken.isNotBlank()) {
+            requestBuilder.header("x-pm-device-token", deviceToken)
+        }
+        val request = requestBuilder.build()
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (body.isBlank()) {

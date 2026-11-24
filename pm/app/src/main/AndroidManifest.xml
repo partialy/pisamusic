@@ -229,6 +229,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".activity.FeedbackHistoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.DataManagementActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm" />

@@ -158,6 +158,21 @@ interface SystemApiService {
         @Body body: FaultReportRequest,
     ): FaultReportSubmitResponse
 
+    @GET("api/feedback")
+    suspend fun getMyFeedbackHistory(
+        @Header("Authorization") authorization: String?,
+        @Header("x-pm-device-token") deviceToken: String?,
+        @Query("offset") offset: Int = 0,
+        @Query("limit") limit: Int = 20,
+    ): cn.partialy.pm.feedback.FeedbackHistoryResponse
+
+    @GET("api/feedback/{id}")
+    suspend fun getMyFeedbackDetail(
+        @Path("id") id: String,
+        @Header("Authorization") authorization: String?,
+        @Header("x-pm-device-token") deviceToken: String?,
+    ): cn.partialy.pm.feedback.FeedbackDetailResponse
+
     @POST("api/auth/email-code")
     suspend fun sendAccountEmailCode(@Body body: AccountEmailCodeRequest): AccountEmailCodeResponse
 
