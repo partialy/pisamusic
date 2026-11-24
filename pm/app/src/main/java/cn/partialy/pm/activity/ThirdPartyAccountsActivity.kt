@@ -27,6 +27,7 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.ThirdPartyAccountState
 import cn.partialy.pm.network.cookie.ThirdPartyLoginValidity
+import cn.partialy.pm.network.cookie.ThirdPartyRefreshState
 import cn.partialy.pm.ui.dialog.ActionMenuBottomSheet
 import cn.partialy.pm.ui.dialog.ActionMenuItem
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
@@ -43,6 +44,9 @@ import com.google.android.material.imageview.ShapeableImageView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @AndroidEntryPoint
 class ThirdPartyAccountsActivity : BaseActivity() {
@@ -53,6 +57,7 @@ class ThirdPartyAccountsActivity : BaseActivity() {
     private var menu: PopupWindow? = null
     private var accountMenu: BottomSheetDialog? = null
     private var confirmation: android.app.Dialog? = null
+    private var renderingRefreshSettings = false
     private val avatarRequests = mutableMapOf<ImageView, Disposable>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,11 +74,15 @@ class ThirdPartyAccountsActivity : BaseActivity() {
         binding.backButton.setOnClickListener { finish() }
         binding.moreButton.setOnClickListener { showMenu() }
         binding.importButton.setOnClickListener { ThirdPartyPlaylistImportActivity.start(this) }
+        binding.autoRefreshSwitch.setOnCheckedChangeListener { _, enabled ->
+            if (!renderingRefreshSettings) model.setAutoRefresh(enabled)
+        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    combine(model.states, model.clearing) { accounts, clearing -> accounts to clearing }
-                        .collect { (accounts, clearing) -> render(accounts, clearing) }
+                    combine(model.states, model.clearing, model.refreshState) { accounts, clearing, refresh ->
+                        Triple(accounts, clearing, refresh)
+                    }.collect { (accounts, clearing, refresh) -> render(accounts, clearing, refresh) }
                 }
                 launch {
                     model.events.collect { event ->
@@ -81,6 +90,14 @@ class ThirdPartyAccountsActivity : BaseActivity() {
                             ThirdPartyAccountsEvent.NETWORK_ERROR -> PmMessage.error(this@ThirdPartyAccountsActivity, R.string.third_party_accounts_network_error)
                             ThirdPartyAccountsEvent.CLEAR_FAILED -> PmMessage.error(this@ThirdPartyAccountsActivity, R.string.third_party_accounts_clear_failed)
                             ThirdPartyAccountsEvent.CLEARED -> PmMessage.success(this@ThirdPartyAccountsActivity, R.string.drawer_clear_third_party_login_done)
+                            is ThirdPartyAccountsEvent.RefreshFailed -> PmMessage.error(this@ThirdPartyAccountsActivity,
+                                getString(R.string.third_party_accounts_refresh_failed,
+                                    event.sources.map { it.uppercase(Locale.ROOT) }.distinct().joinToString("、")))
+                            ThirdPartyAccountsEvent.REFRESHED -> PmMessage.success(this@ThirdPartyAccountsActivity, R.string.third_party_accounts_refreshed)
+                            ThirdPartyAccountsEvent.SETTINGS_FAILED -> {
+                                render(model.states.value, model.clearing.value, model.refreshState.value)
+                                PmMessage.error(this@ThirdPartyAccountsActivity, R.string.third_party_accounts_settings_failed)
+                            }
                         }
                     }
                 }
@@ -94,11 +111,31 @@ class ThirdPartyAccountsActivity : BaseActivity() {
         firstResume = false
     }
 
-    private fun render(accounts: List<ThirdPartyAccountState>, clearing: Boolean) {
-        bindAccount(binding.kgAccount, accounts.firstOrNull { it.source == MusicCookieManager.SOURCE_KG }, true, clearing)
-        bindAccount(binding.wyAccount, accounts.firstOrNull { it.source == MusicCookieManager.SOURCE_WY }, false, clearing)
-        binding.importButton.isEnabled = accounts.any { it.loggedIn } && !clearing
-        binding.moreButton.isEnabled = !clearing
+    private fun render(accounts: List<ThirdPartyAccountState>, clearing: Boolean, refresh: ThirdPartyRefreshState) {
+        val busy = clearing || refresh.refreshing
+        bindAccount(binding.kgAccount, accounts.firstOrNull { it.source == MusicCookieManager.SOURCE_KG }, true, busy)
+        bindAccount(binding.wyAccount, accounts.firstOrNull { it.source == MusicCookieManager.SOURCE_WY }, false, busy)
+        binding.importButton.isEnabled = accounts.any { it.loggedIn } && !busy
+        binding.moreButton.isEnabled = !busy
+        renderingRefreshSettings = true
+        binding.autoRefreshSwitch.isChecked = refresh.autoRefresh
+        renderingRefreshSettings = false
+        binding.autoRefreshSwitch.isEnabled = !busy
+        val lastRefresh = if (refresh.lastAttemptAt > 0) {
+            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(refresh.lastAttemptAt))
+        } else getString(R.string.third_party_accounts_refresh_none)
+        binding.lastRefreshTextView.text = getString(R.string.third_party_accounts_last_refresh, lastRefresh)
+        val result = when {
+            refresh.refreshing -> R.string.third_party_accounts_refreshing
+            refresh.lastSucceeded == true -> R.string.third_party_accounts_refresh_success
+            refresh.lastSucceeded == false -> R.string.third_party_accounts_refresh_failure
+            else -> R.string.third_party_accounts_refresh_none
+        }
+        binding.lastRefreshResultTextView.text = getString(R.string.third_party_accounts_last_refresh_result, getString(result))
+        if (busy) {
+            menu?.dismiss()
+            accountMenu?.dismiss()
+        }
     }
 
     private fun bindAccount(row: ItemThirdPartyAccountBinding, account: ThirdPartyAccountState?, kg: Boolean, clearing: Boolean) {
@@ -146,7 +183,7 @@ class ThirdPartyAccountsActivity : BaseActivity() {
             elevation = dp(8).toFloat()
         }
         val actions = listOf(
-            Triple(R.drawable.ic_refresh_24, R.string.third_party_accounts_batch_refresh, { showRefreshPlaceholder() }),
+            Triple(R.drawable.ic_refresh_24, R.string.third_party_accounts_batch_refresh, { model.refreshAll() }),
             Triple(R.drawable.ic_delete_24, R.string.third_party_accounts_clear_all, { confirmClearAll() }),
         )
         actions.forEachIndexed { index, (icon, title, action) ->
@@ -159,9 +196,9 @@ class ThirdPartyAccountsActivity : BaseActivity() {
                 val danger = ContextCompat.getColor(this, R.color.pm_dialog_danger)
                 image.setColorFilter(danger)
                 text.setTextColor(danger)
-                row.isEnabled = model.states.value.any { it.loggedIn }
-                row.alpha = if (row.isEnabled) 1f else 0.45f
             }
+            row.isEnabled = model.states.value.any { it.loggedIn }
+            row.alpha = if (row.isEnabled) 1f else 0.45f
             row.setOnClickListener { window.dismiss(); action() }
             container.addView(row)
         }
@@ -178,7 +215,7 @@ class ThirdPartyAccountsActivity : BaseActivity() {
             ?: account.profile?.username?.takeIf { it.isNotBlank() }
             ?: getString(if (kg) R.string.third_party_accounts_kg else R.string.third_party_accounts_wy)
         accountMenu = ActionMenuBottomSheet.show(this, listOf(
-            ActionMenuItem(R.drawable.ic_refresh_24, getString(R.string.third_party_accounts_refresh)) { showRefreshPlaceholder() },
+            ActionMenuItem(R.drawable.ic_refresh_24, getString(R.string.third_party_accounts_refresh)) { model.refresh(account) },
             ActionMenuItem(R.drawable.ic_delete_24, getString(R.string.third_party_accounts_clear), R.color.pm_dialog_danger) { confirmClear(account) },
         ), bindHeader = { root ->
             root.findViewById<TextView>(R.id.songInfoTitleView).text = name
@@ -194,7 +231,7 @@ class ThirdPartyAccountsActivity : BaseActivity() {
     }
 
     private fun confirmClear(account: ThirdPartyAccountState) {
-        if (confirmation?.isShowing == true || model.clearing.value) return
+        if (confirmation?.isShowing == true || model.clearing.value || model.refreshState.value.refreshing) return
         val platform = getString(if (account.source == MusicCookieManager.SOURCE_KG) R.string.third_party_accounts_kg else R.string.third_party_accounts_wy)
         confirmation = PmMinimalDialog.show(this,
             title = getString(R.string.drawer_clear_third_party_login_confirm_title),
@@ -206,7 +243,7 @@ class ThirdPartyAccountsActivity : BaseActivity() {
     }
 
     private fun confirmClearAll() {
-        if (confirmation?.isShowing == true || model.clearing.value) return
+        if (confirmation?.isShowing == true || model.clearing.value || model.refreshState.value.refreshing) return
         val expected = model.states.value.toList()
         if (expected.none { it.loggedIn }) return
         confirmation = PmMinimalDialog.show(this,
@@ -217,8 +254,6 @@ class ThirdPartyAccountsActivity : BaseActivity() {
             onConfirm = { model.clearAll(expected) },
         )
     }
-
-    private fun showRefreshPlaceholder() = PmMessage.info(this, R.string.third_party_accounts_refresh_unavailable)
 
     private fun loadAvatar(view: ImageView, url: String?, brand: Int) {
         avatarRequests.remove(view)?.dispose()

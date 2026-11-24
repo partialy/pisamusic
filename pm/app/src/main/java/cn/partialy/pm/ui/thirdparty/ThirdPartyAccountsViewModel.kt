@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.partialy.pm.network.cookie.ThirdPartyAccountState
 import cn.partialy.pm.network.cookie.ThirdPartyAccountsRepository
+import cn.partialy.pm.network.cookie.ThirdPartyRefreshResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -14,24 +15,33 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class ThirdPartyAccountsEvent { NETWORK_ERROR, CLEAR_FAILED, CLEARED }
+sealed interface ThirdPartyAccountsEvent {
+    data object NETWORK_ERROR : ThirdPartyAccountsEvent
+    data object CLEAR_FAILED : ThirdPartyAccountsEvent
+    data object CLEARED : ThirdPartyAccountsEvent
+    data class RefreshFailed(val sources: List<String>) : ThirdPartyAccountsEvent
+    data object REFRESHED : ThirdPartyAccountsEvent
+    data object SETTINGS_FAILED : ThirdPartyAccountsEvent
+}
 
 @HiltViewModel
 class ThirdPartyAccountsViewModel @Inject constructor(
     private val repository: ThirdPartyAccountsRepository,
 ) : ViewModel() {
     val states = repository.states
+    val refreshState = repository.refreshState
     private val mutableClearing = MutableStateFlow(false)
     val clearing = mutableClearing.asStateFlow()
     private val eventChannel = Channel<ThirdPartyAccountsEvent>(Channel.BUFFERED)
     val events = eventChannel.receiveAsFlow()
     private var validationJob: Job? = null
+    private var refreshJob: Job? = null
     private var validationRequested = false
     private var validationPending = false
     private var lastValidationSessions: List<String>? = null
 
     fun validateOnResume(recreated: Boolean) {
-        if ((recreated && validationRequested && repository.sessionKeys() == lastValidationSessions) || clearing.value) return
+        if ((recreated && validationRequested && repository.sessionKeys() == lastValidationSessions) || clearing.value || refreshState.value.refreshing) return
         if (validationJob?.isActive == true) {
             // 登录返回可能早于旧会话查询结束，串行补一轮以校验新会话。
             validationPending = true
@@ -43,13 +53,58 @@ class ThirdPartyAccountsViewModel @Inject constructor(
                 validationPending = false
                 lastValidationSessions = repository.sessionKeys()
                 try {
-                    if (!repository.validateAll()) eventChannel.send(ThirdPartyAccountsEvent.NETWORK_ERROR)
+                    val refreshResult = try {
+                        repository.refresh(states.value, onlyIfDue = true)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        ThirdPartyRefreshResult.Failed(states.value.filter { it.loggedIn }.map { it.source })
+                    }
+                    when (refreshResult) {
+                        is ThirdPartyRefreshResult.Failed -> eventChannel.send(ThirdPartyAccountsEvent.RefreshFailed(refreshResult.sources))
+                        ThirdPartyRefreshResult.SKIPPED -> if (!repository.validateAll()) eventChannel.send(ThirdPartyAccountsEvent.NETWORK_ERROR)
+                        ThirdPartyRefreshResult.SUCCESS -> Unit
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
                     eventChannel.send(ThirdPartyAccountsEvent.NETWORK_ERROR)
                 }
             } while (validationPending)
+            lastValidationSessions = repository.sessionKeys()
+        }
+    }
+
+    fun setAutoRefresh(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                repository.setAutoRefresh(enabled)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                eventChannel.send(ThirdPartyAccountsEvent.SETTINGS_FAILED)
+            }
+        }
+    }
+
+    fun refresh(account: ThirdPartyAccountState) = refreshAccounts(listOf(account))
+
+    fun refreshAll() = refreshAccounts(states.value.toList())
+
+    private fun refreshAccounts(expected: List<ThirdPartyAccountState>) {
+        if (clearing.value || refreshState.value.refreshing || refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            try {
+                when (val result = repository.refresh(expected)) {
+                    ThirdPartyRefreshResult.SUCCESS -> eventChannel.send(ThirdPartyAccountsEvent.REFRESHED)
+                    is ThirdPartyRefreshResult.Failed -> eventChannel.send(ThirdPartyAccountsEvent.RefreshFailed(result.sources))
+                    ThirdPartyRefreshResult.SKIPPED -> Unit
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                eventChannel.send(ThirdPartyAccountsEvent.RefreshFailed(expected.filter { it.loggedIn }.map { it.source }))
+            }
         }
     }
 
@@ -62,7 +117,7 @@ class ThirdPartyAccountsViewModel @Inject constructor(
     }
 
     private fun clearSession(action: suspend () -> Boolean) {
-        if (clearing.value) return
+        if (clearing.value || refreshState.value.refreshing || refreshJob?.isActive == true) return
         mutableClearing.value = true
         viewModelScope.launch {
             try {
