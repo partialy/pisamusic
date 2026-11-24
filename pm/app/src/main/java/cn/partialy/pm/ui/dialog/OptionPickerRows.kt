@@ -116,6 +116,7 @@ internal class OptionPickerRows private constructor(
             container: LinearLayout,
             options: List<SettingsOption>,
             selectedIndex: Int,
+            onDisabledOptionClick: ((SettingsOption) -> Unit)? = null,
         ): OptionPickerRows = bindRows(
             context = context,
             container = container,
@@ -128,6 +129,9 @@ internal class OptionPickerRows private constructor(
                 )
             },
             selectedIndex = selectedIndex,
+            onDisabledOptionClick = onDisabledOptionClick?.let { callback ->
+                { index -> callback(options[index]) }
+            },
         )
 
         private fun bindRows(

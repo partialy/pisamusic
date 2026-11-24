@@ -9,11 +9,27 @@ data class MusicQualityAccessState(
 )
 
 /**
+ * 下载默认音质配置的解析结果。
+ */
+sealed interface DownloadQualityResolution {
+    /** 未设置或设为“每次询问”，下载前弹窗选择音质。 */
+    object AskEveryTime : DownloadQualityResolution
+
+    /** 已设固定音质且当前系统账号有权使用，可直接跳过弹窗入队。 */
+    data class Allowed(val choice: DownloadQualityChoice) : DownloadQualityResolution
+
+    /** 已设固定音质但当前系统账号无权使用（如退出登录或 VIP 到期）。 */
+    data class Restricted(val choice: DownloadQualityChoice) : DownloadQualityResolution
+}
+
+/**
  * KG/WY/KW 共用的音质可见性、可用性与已保存音质回退规则。
  *
  * 该策略只依赖业务模型；调用方负责把当前系统账号 Session 转换为 [MusicQualityAccessState]。
  */
 object MusicQualityAccessPolicy {
+    const val DOWNLOAD_QUALITY_ASK = "ask"
+
     private val guestEnabledKgChoices = setOf(
         DownloadQualityChoice.Kugou("128"),
     )
@@ -75,22 +91,49 @@ object MusicQualityAccessPolicy {
         optionsFor(type, access).any { option -> option.choice == choice && option.enabled }
 
     /**
-     * 校验已保存的播放音质。KG/WY 非有效 VIP 即使没有保存值，也必须回退到
-     * 安全档位，避免播放器的自动选档链继续尝试高阶音质；有效 VIP、KW 与 LOCAL
-     * 没有保存值时继续沿用原有自动策略。保存值越权或音源不匹配时同样安全回退。
+     * 各音源默认播放音质：KG / WY 对所有账号统一默认第一档（KG 128 kbps、WY [码率] 128 kbps），
+     * CLOUD 为默认档，KW 维持空值沿用自动选档。
+     */
+    fun defaultChoice(type: SongType): DownloadQualityChoice? = when (type) {
+        SongType.KG -> DownloadQualityChoice.Kugou("128")
+        SongType.WY -> DownloadQualityChoice.NeteaseBr(128_000)
+        SongType.CLOUD -> DownloadQualityChoice.CloudDefault
+        SongType.KW, SongType.LOCAL -> null
+    }
+
+    /**
+     * 校验已保存的播放音质。KG/WY 未配置时对所有账号（含 VIP）统一默认返回第一档；
+     * 保存值越权或音源不匹配时同样回退到安全第一档。KW 未配置时仍沿用自动选档策略。
      */
     fun allowedChoiceOrFallback(
         type: SongType,
         choice: DownloadQualityChoice?,
         access: MusicQualityAccessState,
     ): DownloadQualityChoice? {
-        if (choice == null) {
-            val requiresSafeDefault =
-                ((type == SongType.KG || type == SongType.WY) && !hasVipAccess(access)) || type == SongType.CLOUD
-            return if (requiresSafeDefault) fallbackChoice(type) else null
-        }
+        if (choice == null) return defaultChoice(type)
         if (isChoiceAllowed(type, choice, access)) return choice
         return fallbackChoice(type)
+    }
+
+    /**
+     * 解析指定音源的“默认下载音质”配置在当前账号权限下的有效状态。
+     */
+    fun resolveDownloadDefaultChoice(
+        type: SongType,
+        savedKey: String?,
+        access: MusicQualityAccessState,
+    ): DownloadQualityResolution {
+        if (savedKey.isNullOrBlank() || savedKey == DOWNLOAD_QUALITY_ASK) {
+            return DownloadQualityResolution.AskEveryTime
+        }
+        val parsed = playbackQualityChoiceFromKey(savedKey)
+            ?.takeIf { it.matchesSongType(type) }
+            ?: return DownloadQualityResolution.AskEveryTime
+        return if (isChoiceAllowed(type, parsed, access)) {
+            DownloadQualityResolution.Allowed(parsed)
+        } else {
+            DownloadQualityResolution.Restricted(parsed)
+        }
     }
 
     private fun hasVipAccess(access: MusicQualityAccessState): Boolean =
@@ -98,7 +141,7 @@ object MusicQualityAccessPolicy {
 
     private fun fallbackChoice(type: SongType): DownloadQualityChoice? = when (type) {
         SongType.KG -> DownloadQualityChoice.Kugou("128")
-        SongType.WY -> DownloadQualityChoice.NeteaseLevel("standard")
+        SongType.WY -> DownloadQualityChoice.NeteaseBr(128_000)
         SongType.KW -> DownloadQualityChoice.Kuwo("standard")
         SongType.CLOUD -> DownloadQualityChoice.CloudDefault
         SongType.LOCAL -> null

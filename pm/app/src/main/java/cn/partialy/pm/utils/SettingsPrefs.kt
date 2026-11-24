@@ -28,6 +28,8 @@ object SettingsPrefs {
     private const val KEY_PLAYBACK_QUALITY_WY = "playback_quality_wy"
     private const val KEY_PLAYBACK_QUALITY_KW = "playback_quality_kw"
     private const val KEY_PLAYBACK_QUALITY_CLOUD = "playback_quality_cloud"
+    private const val KEY_DOWNLOAD_QUALITY_KG = "download_quality_kg"
+    private const val KEY_DOWNLOAD_QUALITY_WY = "download_quality_wy"
 
     private const val DEFAULT_AUDIO_CACHE_MAX_MB = 2048L
     private const val MIN_AUDIO_CACHE_MAX_MB = 100L
@@ -167,6 +169,34 @@ object SettingsPrefs {
         SongType.KW -> KEY_PLAYBACK_QUALITY_KW
         SongType.CLOUD -> KEY_PLAYBACK_QUALITY_CLOUD
         SongType.LOCAL -> null
+    }
+
+    /** 读取指定音源的默认下载音质键；未配置或为「每次询问」时返回 null。 */
+    fun getDownloadQualityKey(context: Context, type: SongType): String? {
+        val key = downloadQualityPrefKey(type) ?: return null
+        val saved = prefs(context).getString(key, null)?.trim()
+        return saved?.takeIf {
+            it.isNotEmpty() && it != cn.partialy.pm.model.MusicQualityAccessPolicy.DOWNLOAD_QUALITY_ASK
+        }
+    }
+
+    /** 保存指定音源的默认下载音质；传入 null / 空白 / ask 表示恢复「每次询问」。 */
+    fun setDownloadQualityKey(context: Context, type: SongType, qualityKey: String?) {
+        val key = downloadQualityPrefKey(type) ?: return
+        val normalized = qualityKey?.trim()
+        if (normalized.isNullOrEmpty() ||
+            normalized == cn.partialy.pm.model.MusicQualityAccessPolicy.DOWNLOAD_QUALITY_ASK
+        ) {
+            prefs(context).edit().remove(key).apply()
+        } else {
+            prefs(context).edit().putString(key, normalized).apply()
+        }
+    }
+
+    private fun downloadQualityPrefKey(type: SongType): String? = when (type) {
+        SongType.KG -> KEY_DOWNLOAD_QUALITY_KG
+        SongType.WY -> KEY_DOWNLOAD_QUALITY_WY
+        SongType.KW, SongType.CLOUD, SongType.LOCAL -> null
     }
 
     fun getAudioCacheMaxMb(context: Context): Long {

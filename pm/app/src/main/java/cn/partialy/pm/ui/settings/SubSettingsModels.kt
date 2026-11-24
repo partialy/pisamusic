@@ -1,5 +1,7 @@
 package cn.partialy.pm.ui.settings
 
+import cn.partialy.pm.model.SongType
+
 data class SubSettingsSection(
     val id: String,
     val title: CharSequence? = null,
@@ -18,6 +20,7 @@ sealed interface SubSettingsItem {
         val value: CharSequence? = null,
         override val summary: CharSequence? = null,
         override val enabled: Boolean = true,
+        val sourceTag: SongType? = null,
     ) : SubSettingsItem
 
     data class Navigation(

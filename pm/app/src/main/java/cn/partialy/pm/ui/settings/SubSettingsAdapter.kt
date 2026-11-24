@@ -11,6 +11,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemSubSettingsOptionBinding
 import cn.partialy.pm.databinding.ItemSubSettingsSectionBinding
 import cn.partialy.pm.databinding.ItemSubSettingsSwitchBinding
+import cn.partialy.pm.ui.widget.SongSourceTagBinder
 
 class SubSettingsAdapter(
     private val onItemClick: (SubSettingsItem) -> Unit,
@@ -72,6 +73,12 @@ class SubSettingsAdapter(
                 false,
             )
             row.titleTextView.text = item.title
+            val sourceTag = (item as? SubSettingsItem.Option)?.sourceTag
+            if (sourceTag != null) {
+                SongSourceTagBinder.bind(row.sourceTagView, sourceTag)
+            } else {
+                SongSourceTagBinder.hide(row.sourceTagView)
+            }
             bindOptionalText(row.summaryTextView, item.summary)
             bindOptionalText(row.valueTextView, value)
             row.chevronImageView.visibility = if (showChevron) View.VISIBLE else View.GONE
