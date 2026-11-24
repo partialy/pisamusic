@@ -230,3 +230,8 @@
 
 - `FavoritePlaylistsActivity` 只在本页将共享顶栏搜索按钮替换成 `ic_more_vert_24`（48dp 热区、12dp 内边距）；`FavoritePlaylistMenu` 复用下载管理的 `layout_search_source_dropdown` 与 `item_compact_action_menu_row`。
 - 依次为搜索（搜索图标）、多选（列表勾选图标）、导入（加号）；分别打开原搜索页、歌单管理页、三方导入页。先关闭菜单再跳转，销毁页面时释放菜单。
+
+## 反馈记录列表与详情 Sheet（2026-11-24）
+
+- `FeedbackHistoryActivity` / `FeedbackHistoryAdapter`（`activity_feedback_history.xml`、`item_feedback_history.xml`）：入口位于 `FeedbackActivity` 顶栏右上角；复用类歌曲列表排布与 `item_playlist_detail_status.xml` 分页底栏，左图/反馈类型图标圆角底占位（`bg_feedback_history_placeholder`）、中上类型下描述、右上时间下线条药丸状态（`bg_feedback_status_pill_pending` / `bg_feedback_status_pill_processed`）。
+- `FeedbackDetailBottomSheet`（`bottom_sheet_feedback_detail.xml`）：复用 `ThemeOverlay_Pm_BottomSheetDialog` 与 `bg_bottom_radius_sheet` 展示类型、状态、反馈时间、处理时间、联系方式、描述与附件缩略图，点击附件复用 `dialog_image_preview.xml` 全屏预览。

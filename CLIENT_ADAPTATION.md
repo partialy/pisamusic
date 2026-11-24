@@ -69,3 +69,25 @@
       - 本地缓存与清理：`pm/app/src/main/java/cn/partialy/pm/utils/localdata/LocalMusicDbOpenHelper.kt`（v19 `third_party_playlist_candidates` / `third_party_playlist_cache_meta`）、`pm/app/src/main/java/cn/partialy/pm/network/cookie/ThirdPartyPlaylistCandidateStore.kt`、`pm/app/src/main/java/cn/partialy/pm/network/cookie/MusicCookieManager.kt`
       - 拉取与增量入库：`pm/app/src/main/java/cn/partialy/pm/network/cookie/ThirdPartyPlaylistImportRepository.kt`、`pm/app/src/main/java/cn/partialy/pm/utils/playlistUtil/FavoritePlaylistsDbStore.kt`、`pm/app/src/main/java/cn/partialy/pm/utils/playlistUtil/PlaylistCollectionManager.kt`（`addNetworkPlaylists`）
       - 入口与可选导入页：`pm/app/src/main/java/cn/partialy/pm/activity/MainActivity.kt`（侧栏点击打开导入页）、`pm/app/src/main/java/cn/partialy/pm/activity/ThirdPartyPlaylistImportActivity.kt`、`pm/app/src/main/java/cn/partialy/pm/ui/mine/ThirdPartyPlaylistImportAdapter.kt`、`pm/app/src/main/java/cn/partialy/pm/ui/mine/ThirdPartyPlaylistImportRules.kt`（搜索 + 药丸来源筛选 + 全选/反选/导入 + 已导入标记与跳过；已导入歌单移除继续沿用 `MinePlaylistsTabFragment` → `PlaylistActionBottomSheet`）
+
+---
+
+### 3. 设置 - 意见反馈「反馈记录」页面与身份归属同步
+
+- **状态**：`[ ] 待适配`（`server/` 与 `pm/` 已完成，`yixi/` 待适配）
+- **背景与原因**：服务端 Schema v7 已为 `feedback` 表新增 `user_id`、`device_kind`、`device_id` 归属字段与查询索引（兼容回填历史 `device_json.serverDeviceId`），并新增客户端查询接口 `GET /api/feedback` 与 `GET /api/feedback/:id`（支持账号 JWT 与设备凭证 `x-pm-device-token` 单独或联合查询，不可删除）。`pm` Android 端已在「设置 → 意见反馈」右上角新增「反馈记录」入口及独立记录页、详情 Sheet 与大图预览，提交反馈时同步附带可选账号与设备凭证。
+- **服务端接口**：
+  - 提交反馈（增强归属）：`POST /api/feedback`（支持可选 `Authorization` 与 `x-pm-device-token` 请求头，文档见 [submitFeedback.md](server/apidoc/feedback/submitFeedback.md)）
+  - 分页查询我的反馈记录：`GET /api/feedback?offset=&limit=`（统一分页 `{ list, total, offset, limit, hasMore }`，文档见 [listFeedback.md](server/apidoc/feedback/listFeedback.md)）
+  - 查看单条反馈详情：`GET /api/feedback/:id`（文档见 [getFeedbackDetail.md](server/apidoc/feedback/getFeedbackDetail.md)）
+- **涉及客户端与模块路径**：
+  - **`pm/`（Android / Kotlin）**
+    - `[x]` 已完成：
+      - 入口与提交鉴权：`pm/app/src/main/java/cn/partialy/pm/activity/FeedbackActivity.kt`、`pm/app/src/main/res/layout/activity_feedback.xml`
+      - 历史列表与详情 Sheet：`pm/app/src/main/java/cn/partialy/pm/activity/FeedbackHistoryActivity.kt`、`pm/app/src/main/java/cn/partialy/pm/ui/feedback/FeedbackHistoryAdapter.kt`、`pm/app/src/main/java/cn/partialy/pm/ui/feedback/FeedbackDetailBottomSheet.kt`
+      - 网络与数据层：`pm/app/src/main/java/cn/partialy/pm/network/api/SystemApiService.kt`、`pm/app/src/main/java/cn/partialy/pm/feedback/FeedbackHistoryRepository.kt`
+  - **`yixi/`（PC Electron / Vue）**
+    - `[ ]` 意见反馈记录与身份归属待适配：
+      - 主进程客户端：`yixi/electron/system/systemClient.ts`（`submitFeedback` 补充附带可选账号 `Authorization` 与桌面端设备 `x-pm-device-token`；新增 `getMyFeedbackHistory` / `getMyFeedbackDetail` 请求方法）
+      - 预加载与类型：`yixi/electron/preload.ts`、`yixi/electron/ipc/systemIpc.ts`、`yixi/src/types/electron.d.ts`
+      - 设置页与弹窗/记录视图：`yixi/src/components/setting/about/AboutSetting.vue`、`yixi/src/components/about/AboutFeedbackDialog.vue`（增加「反馈记录」入口、记录列表展示处理状态/时间、详情查看、图片放大预览，不支持删除）
