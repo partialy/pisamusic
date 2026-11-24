@@ -7,6 +7,7 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 
 fun ComponentActivity.enableEdgeToEdgeSystemBars(
     lightStatusBarIcons: Boolean = true,
@@ -19,10 +20,17 @@ fun ComponentActivity.enableEdgeToEdgeSystemBars(
 }
 
 fun ViewGroup.applySystemBarsInsets(
+    protectIme: Boolean = false,
     onInsetsChanged: (Insets) -> Unit,
 ) {
+    val initialBottomPadding = paddingBottom
     ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
         val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+        if (protectIme) {
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            // 导航栏仍由页面处理，根容器只补足键盘超过导航栏的遮挡高度。
+            updatePadding(bottom = initialBottomPadding + (ime.bottom - bars.bottom).coerceAtLeast(0))
+        }
         onInsetsChanged(bars)
         insets
     }

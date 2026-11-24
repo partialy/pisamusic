@@ -45,7 +45,7 @@ class PlaylistManagementActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = !night, lightNavigationBarIcons = !night)
-        binding.root.applySystemBarsInsets { bars ->
+        binding.root.applySystemBarsInsets(protectIme = true) { bars ->
             binding.statusBarSpacer.layoutParams = binding.statusBarSpacer.layoutParams.apply { height = bars.top }
             binding.actionSurface.setPadding(0, binding.actionSurface.paddingTop, 0, bars.bottom)
         }

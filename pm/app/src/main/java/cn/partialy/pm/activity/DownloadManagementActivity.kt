@@ -79,7 +79,7 @@ class DownloadManagementActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         val night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = !night, lightNavigationBarIcons = !night)
-        binding.downloadManagementRoot.applySystemBarsInsets { insets ->
+        binding.downloadManagementRoot.applySystemBarsInsets(protectIme = true) { insets ->
             binding.downloadManagementStatusBarSpacer.layoutParams = binding.downloadManagementStatusBarSpacer.layoutParams.apply { height = insets.top }
             binding.actionSurface.setPadding(0, 10.dp, 0, insets.bottom)
             binding.taskPager.setPadding(0, 0, 0, if (model.state.value.editing) 0 else insets.bottom)

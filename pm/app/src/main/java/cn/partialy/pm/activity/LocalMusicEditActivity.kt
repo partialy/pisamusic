@@ -88,7 +88,7 @@ class LocalMusicEditActivity : BaseActivity() {
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
         )
-        binding.localMusicEditRoot.applySystemBarsInsets { insets ->
+        binding.localMusicEditRoot.applySystemBarsInsets(protectIme = true) { insets ->
             binding.localMusicEditStatusBarSpacer.layoutParams = binding.localMusicEditStatusBarSpacer.layoutParams.apply {
                 height = insets.top
             }

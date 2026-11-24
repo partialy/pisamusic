@@ -111,7 +111,7 @@ class ThirdPartyPlaylistImportActivity : BaseActivity() {
     }
 
     private fun applyInsets() {
-        binding.root.applySystemBarsInsets { insets ->
+        binding.root.applySystemBarsInsets(protectIme = true) { insets ->
             binding.statusBarSpacer.layoutParams = binding.statusBarSpacer.layoutParams.apply {
                 height = insets.top
             }

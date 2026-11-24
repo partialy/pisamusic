@@ -354,7 +354,8 @@
         <activity
             android:name=".activity.LocalMusicEditActivity"
             android:exported="false"
-            android:theme="@style/Theme.Pm" />
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".activity.LocalMusicScanActivity"
@@ -364,7 +365,8 @@
         <activity
             android:name=".activity.PlaylistImportActivity"
             android:exported="false"
-            android:theme="@style/Theme.Pm" />
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".activity.WyPlaylistLoginActivity"

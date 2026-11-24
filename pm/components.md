@@ -215,3 +215,8 @@
 - `PlaylistManagementActivity` / `PlaylistManagementViewModel`：歌单 Tab 右侧管理入口及长按初选定位；新布局 `activity_playlist_management.xml` 参考导入页但无刷新，行复用 `item_third_party_playlist_import.xml`。
 - `PlaylistSourceFilterPopup`：三方导入和收藏管理共用来源弹层（全部/KG/WY 与数量）；管理底栏为全选、反选、红色图标及文字删除，确认复用 `PlaylistDeleteConfirmation.showBatch`。
 - 本地歌单管理原有删除图标和文字已使用 `pm_dialog_danger`，新管理页沿用同款。
+
+## 固定底部操作栏的键盘安全区（2026-11-24）
+
+- `SystemBarsExt.applySystemBarsInsets(protectIme = true)` 与 Manifest 的 `adjustResize` 配套；根容器保存初始 padding 并补足 IME / 导航栏差额，底栏保持原尺寸和导航栏 padding。覆盖歌单管理、三方导入、本地歌单及歌曲管理、收藏管理、在线歌单歌曲批量、本地音乐编辑、下载管理和酷狗登录导入。
+- 搜索时键盘上方保持全选、反选、删除/导入操作可见；重复分发 Insets 或下载编辑态切换不得累加底部空白。

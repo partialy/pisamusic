@@ -80,7 +80,7 @@ class PlaylistImportActivity : BaseActivity() {
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
         )
-        binding.playlistImportRoot.applySystemBarsInsets { insets ->
+        binding.playlistImportRoot.applySystemBarsInsets(protectIme = true) { insets ->
             val lp = binding.playlistImportStatusBarSpacer.layoutParams
             lp.height = insets.top
             binding.playlistImportStatusBarSpacer.layoutParams = lp
