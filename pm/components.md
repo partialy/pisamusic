@@ -58,7 +58,7 @@
 | --- | --- | --- | --- | --- |
 | 设置普通行 | 设置页入口、右侧摘要、箭头 | `pm/app/src/main/res/layout/item_settings_row.xml` | `SettingsActivity` | 新增设置入口优先复用。 |
 | 设置开关行 | 设置页开关项 | `pm/app/src/main/res/layout/item_settings_switch.xml` | `PmSwitch`、`Widget.Pm.SettingsSwitch` | 不要为设置开关另写一套样式。 |
-| 无图标二级设置页 | 播放、下载、歌词、数据等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Info / Switch；`Info` 是只读信息行，不显示箭头、不响应点击；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
+| 无图标二级设置页 | 播放、下载、歌词、数据等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`SongSourceTagBinder`、`PlaybackSettingsActivity`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Info / Switch；`Info` 是只读信息行，不显示箭头、不响应点击；`Option` 支持可选 `sourceTag` 在标题右侧复用 `SongSourceTagBinder` 展示 `K` / `Y` 标签；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
 | 缓存分类卡片 | 设置/工具页统计卡片 | `pm/app/src/main/res/layout/include_cache_category_card.xml` | `CacheManagementActivity` | 有标题、说明、大小、操作按钮。 |
 | 登录表单 | 账号/第三方导入登录表单 | `pm/app/src/main/res/layout/activity_login.xml`、`pm/app/src/main/res/layout/include_playlist_import_kg_login.xml` | `LoginActivity`、`WyPlaylistLoginActivity` | 输入框、验证码按钮、扫码占位可参考。 |
 | 本地歌单创建表单 | 新建歌单，仅输入名称并与初始歌曲事务保存 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `LocalPlaylistCreateDialog`、`PmSlotDialog`、`dialog_account_profile_edit_username.xml` | “我的”、单曲和批量添加共用，使用昵称弹窗同款 M3 单行输入；创建时不提供封面选择，支持失败重试与提交防重；封面编辑仍由 `PlaylistEditActivity` 承载。 |

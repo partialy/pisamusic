@@ -115,7 +115,8 @@
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。
 - `PlayUrlGetter` 负责 KG / WY / KW / LOCAL 播放地址解析和音质降级。
 - PisaMusic 系统账号 VIP 仅由外层 `server` 的公开 `vip` / `vipExpiresAt` 下发并由 `AccountSessionStore` 内部保存；它与 `MusicCookieManager` 管理的 KG / WY 第三方账号及其 VIP 完全分离。除“我的”页可在邮箱下为有效 VIP 显示金色纯到期时间标签外，Android 其他页面、侧拉栏、弹窗均不得展示系统 VIP 文案或标识。
-- KG / WY 的下载、手动切换播放音质及已保存播放音质必须统一经 `MusicQualityAccessPolicy`：音质选择器始终展示当前音源的完整原始档位；游客仅可使用原有普通档位，其余禁用并标记“需登录”，点击后关闭选择器并进入 PisaMusic `LoginActivity`；普通系统账号仍仅可使用 WY 四档与 KG 三档，其余高级音质禁用并标记“联系作者解锁”，点击后关闭选择器并进入已预选“账号相关”的 `FeedbackActivity`，提示用户填写需求并提交审核；有效系统 VIP 可使用完整原始档位，KW / LOCAL 维持原行为。退出登录、后台关闭或到期时，`MediaItemFactory` 必须将越权已保存音质回退到 KG 128、WY standard 或 KW 原默认；不得绕过策略直接取链。
+- KG / WY 的下载、手动切换播放音质及已保存播放音质必须统一经 `MusicQualityAccessPolicy`：音质选择器始终展示当前音源的完整原始档位；游客仅可使用原有普通档位，其余禁用并标记“需登录”，点击后关闭选择器并进入 PisaMusic `LoginActivity`；普通系统账号仍仅可使用 WY 四档与 KG 三档，其余高级音质禁用并标记“联系作者解锁”，点击后关闭选择器并进入已预选“账号相关”的 `FeedbackActivity`，提示用户填写需求并提交审核；有效系统 VIP 可使用完整原始档位，KW / LOCAL 维持原行为。未配置播放音质时 KG 默认 `kg:128`、WY 默认 `wy-br:128000`（第一档，VIP 亦不再走 `"auto"`），退出登录、后台关闭或到期时，`MediaItemFactory` 必须将越权已保存音质回退到第一档或 KW 原默认；不得绕过策略直接取链。
+- 播放设置页（`PlaybackSettingsActivity`）新增“默认播放音质”`[K]` / `[Y]`（标题旁复用 `SongSourceTagBinder`），与播放页切换音质共用 `SettingsPrefs.getPlaybackQualityKey / setPlaybackQualityKey` 并按 `MusicQualityAccessPolicy` 校验回退；下载设置页（`DownloadSettingsActivity`）新增“默认下载音质”`[K]` / `[Y]`（`SettingsPrefs.getDownloadQualityKey / setDownloadQualityKey`），选项首位额外提供“每次询问”且默认选中；设为固定音质且当前系统账号有权使用时，单曲与批量下载（`BaseDownloadActivity`）该音源直接按默认音质入队，权限不足时回退弹出音质确认弹窗并提示重新选择/登录解锁。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
 - Mini 播放器封面必须通过 `SongCoverUrl.getSongCoverData(...)` 加载，确保本地歌曲优先显示 `embeddedCoverArt`，不要只走远程封面 URL。
 - 搜索、收藏、本地/已下载、歌单详情、云盘和首页每日推荐的普通歌曲行统一使用 `item_song_list.xml`、`SongListItemBinder` 与 `SongListPlaybackStateObserver`；页面仅通过参数控制收藏/下载/更多按钮。当前歌曲按 `SongType + id` 识别，歌名和歌手使用 primary，封面显示三线频谱，播放时跳动、暂停时静止；按钮颜色不跟随当前态变化。本地/已下载行及其更多菜单均不展示下载、分享。
@@ -138,7 +139,7 @@
 - 明确 PLAY/PAUSE 必须幂等，toggle 只用于真正的 PLAY_PAUSE 动作，并依据 playWhenReady 而不是 isPlaying 判断用户意图。
 - 播放诊断事件保存在 pm_local_music.db 的 playback_diagnostic_events；只记录离散控制/状态、source+songId 和无敏感信息的设备状态，最多 300 条，不上传 URL、token、Cookie、歌词或本地路径。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
-- “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、下载歌词、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。下载歌词是独立同目录文件选项，固定为关闭、逐字歌词、逐行歌词、全部四态：逐字模式无逐字时回退逐行，全部模式保存所有可用版本；KG 使用 KRC/LRC、WY 使用 YRC/LRC、云盘保留服务端 LRC/TXT，KW 当前无歌词来源。歌词文件使用音频实际 basename，下载后的本地读取顺序为 KRC/YRC、LRC、TXT；原“写入歌词”仅控制音频标签内嵌，二者不得混用。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
+- “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、默认下载音质（KG / WY）、下载歌词、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。下载歌词是独立同目录文件选项，固定为关闭、逐字歌词、逐行歌词、全部四态：逐字模式无逐字时回退逐行，全部模式保存所有可用版本；KG 使用 KRC/LRC、WY 使用 YRC/LRC、云盘保留服务端 LRC/TXT，KW 当前无歌词来源。歌词文件使用音频实际 basename，下载后的本地读取顺序为 KRC/YRC、LRC、TXT；原“写入歌词”仅控制音频标签内嵌，二者不得混用。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
 - 歌曲下载统一先写入 `download/task/DownloadTaskRepository`，再由 `DownloadManager` / `JDownloadManager` 执行；任务状态覆盖准备、下载、文件处理、完成、失败与取消，音频目标路径和实际歌词 sidecar 路径必须随任务持久化。下载管理页只消费该仓库的 `StateFlow`，批量下载后续应复用同一任务入口，不得另建一套页面状态或下载实现。任务记录保存在独立 `pm_download_tasks.db`；进程重启后的未完成任务转为失败，避免永久卡在“下载中”。
 - 歌曲下载入队前由 `DownloadQueueCoordinator` 联合 `download/quota/SongDownloadQuotaRepository` 统一门禁：先按本地已存在/活跃队列预过滤，仅对实际需新建任务的曲目按批次调用加密接口 `POST /api/song-downloads/acquire` 校验与扣减配额；联网失败或配额不足时阻断入队，并由 `BaseDownloadActivity` 调用 `SongDownloadQuotaDialog`（复用 `PmMinimalDialog`）提示剩余配额。
 - “设置 - 歌词设置”由 `LyricSettingsActivity` 聚合状态栏歌词和歌词颜色预设；主设置页只保留无图标二级页入口，二级页继续导航到各自现有功能页面。
