@@ -1,6 +1,7 @@
 import { deletePlaylistCoverFile } from "./playlistCoverCleanup";
 import { readAppShareConfig } from "../db/appShareStore";
 import { deletingAppShareIcons } from "./appShareIconLifecycle";
+import { deletingSidebarMenuIcons } from "./sidebarMenuService";
 import { readCloudMusicByFileRecordId } from "../db/cloudMusicStore";
 import {
   completeUpdateHistoryDeletion,
@@ -46,6 +47,17 @@ export async function deleteManagedFileRecord(id: string): Promise<FileRecordInf
       if (file.status !== "deleted") await deleteQiniuObject(file.bucket, file.objectKey);
       return (await deleteFileRecordAndCleanupReferences(id));
     } finally { deletingAppShareIcons.delete(id); }
+  }
+  if (file.usageType === "sidebar-menu-icon") {
+    if (file.referencedBy.length > 0) throw new Error("侧栏菜单图标仍被菜单项引用，不能直接删除");
+    if (deletingSidebarMenuIcons.has(id)) throw new Error("图标正在删除，请稍后重试");
+    deletingSidebarMenuIcons.add(id);
+    try {
+      if (file.status !== "deleted" && file.provider === "qiniu") await deleteQiniuObject(file.bucket, file.objectKey);
+      return await deleteFileRecordAndCleanupReferences(id);
+    } finally {
+      deletingSidebarMenuIcons.delete(id);
+    }
   }
   if (file.usageType === "announcement-image" && file.referencedBy.length > 0) {
     throw new Error("公告图片仍被公告内容引用，不能直接删除");

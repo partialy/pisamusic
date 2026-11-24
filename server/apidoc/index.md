@@ -73,6 +73,7 @@
 | 安装包签名下载入口 | `GET` | `/api/config/release-files/:id/download` | 无 (明文重定向) | [./config/downloadReleaseFile.md](./config/downloadReleaseFile.md) |
 | 官网安装包下载重定向与统计 | `GET` | `/api/config/download/:platform` | 无 (明文重定向) | [./config/downloadPlatformRelease.md](./config/downloadPlatformRelease.md) |
 | 获取发现页配置 | `GET` | `/api/config/discover` | 无 (明文) | [./config/getDiscover.md](./config/getDiscover.md) |
+| 获取侧栏动态菜单配置 | `GET` | `/api/config/sidebar-menu` | 无 (加密) | [./config/getSidebarMenu.md](./config/getSidebarMenu.md) |
 | 获取单条动态配置 | `GET` | `/api/config/get` | 无 (明文) | [./config/getDynamicConfig.md](./config/getDynamicConfig.md) |
 | 获取用户服务协议 | `GET` | `/api/config/agreement` | 无 (明文) | [./config/getAgreement.md](./config/getAgreement.md) |
 | 获取隐私政策 | `GET` | `/api/config/privacy-policy` | 无 (明文) | [./config/getPrivacyPolicy.md](./config/getPrivacyPolicy.md) |
@@ -291,6 +292,7 @@
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 获取动态配置列表 | `GET` | `/api/admin/dynamic-configs` | [./admin/listDynamicConfigs.md](./admin/listDynamicConfigs.md) |
+| 获取/保存侧栏菜单与上传图标 | `GET/PUT/POST` | `/api/admin/sidebar-menu/*` | [./admin/sidebarMenu.md](./admin/sidebarMenu.md) |
 | 创建动态配置 | `POST` | `/api/admin/dynamic-configs` | [./admin/createDynamicConfig.md](./admin/createDynamicConfig.md) |
 | 更新动态配置 | `PUT` | `/api/admin/dynamic-configs/:id` | [./admin/updateDynamicConfig.md](./admin/updateDynamicConfig.md) |
 | 删除动态配置 | `DELETE` | `/api/admin/dynamic-configs/:id` | [./admin/deleteDynamicConfig.md](./admin/deleteDynamicConfig.md) |

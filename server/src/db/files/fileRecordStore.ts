@@ -48,7 +48,7 @@ export type ReleaseFileInfo = {
   desktopUpdateAsset?: DesktopUpdateAssetInfo;
 };
 
-export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon" | "playlist-cover";
+export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon" | "sidebar-menu-icon" | "playlist-cover";
 export type FileRecordStatus = ReleaseFileStatus | "pending";
 export type FileRecordOwnerType = "system" | "user";
 

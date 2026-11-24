@@ -88,6 +88,19 @@
     "unreadMessages": {
       "items": [],
       "hasMore": false
+    },
+    "sidebarMenu": {
+      "listSection": {
+        "enabled": true,
+        "title": "其他",
+        "items": []
+      },
+      "gridSection": {
+        "enabled": true,
+        "position": "top",
+        "items": []
+      },
+      "updatedAt": 1700000000000
     }
   },
   "success": true

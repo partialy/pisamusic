@@ -29,6 +29,7 @@ import {
   executeDesktopStartup,
   type ExecuteStartupInput,
 } from "../services/startupService";
+import { readPublicSidebarMenu } from "../services/sidebarMenuService";
 import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
@@ -235,6 +236,20 @@ configRouter.get("/discover", async (_req, res) => {
     res.json(ok(cfg.discover));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
+configRouter.get("/sidebar-menu", async (req, res) => {
+  try {
+    const { state } = await blockedResponse();
+    if (state.blocked) {
+      res.json(fail(state.reason, -233));
+      return;
+    }
+    res.json(ok(await readPublicSidebarMenu((url) => toAbsoluteUrl(url, req))));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取侧栏菜单配置失败";
     res.status(500).json(fail(message, 500));
   }
 });

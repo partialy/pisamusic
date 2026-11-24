@@ -115,3 +115,9 @@
 - 客户端路由 `/api/song-downloads/*`（`routes/songDownloads.ts` → `services/songDownloadService.ts` → `db/songDownloadStore.ts`）必须携带有效 `x-pm-device-token`（`401` 不降级）；已登录账号（`Authorization`）按 `user` 主体共享配额，未登录按 `device` 主体隔离。
 - `POST /api/song-downloads/acquire` 通过 `clientBatchId` 幂等防重，在同一事务内按北京时间（`utils/beijingTime.ts`）复位过期日/周（周一 0 点）/月（1 号 0 点）计数器、校验并扣减配额，然后写入批次与单曲明细；不足时只返回实时余量不扣费。
 - 默认配额由 `runtime_configs` 的 `songDownload.defaultDailyLimit` / `defaultWeeklyLimit` / `defaultMonthlyLimit` / `defaultTotalLimit` 维护（`-1` 表示不限制，初始默认日/周/月 `-1`、总数 `999999`）。管理端路由挂载 `/api/admin/song-downloads/*`（`routes/adminSongDownloads.ts` → `services/songDownloadAdminService.ts` → `db/songDownloadAdminStore.ts`）；删除用户或设备时同步清理对应 `song_download_quota_states` 覆盖记录，保留历史下载明细。
+
+## 侧栏动态菜单 (Schema v8)
+
+- Schema v8 新增 `sidebar_menu_config`（`id=1` 单行配置 JSON）与 `sidebar_menu_icon_uploads`（七牛上传会话）两张表（SQLite `sidebarMenuSchema.ts`、MySQL 5.7 `mysql/sidebarMenus.ts`、增量迁移 `sidebarMenuMigration.ts`），同步纳入 `runner.ts` 与 `migrationEngine.ts` 复制/恢复校验。
+- 存储与业务边界：`db/sidebarMenuStore.ts` → `services/sidebarMenuService.ts` → `routes/adminSidebarMenu.ts`（管理端 `/api/admin/sidebar-menu*`）与 `routes/config.ts`（客户端 `GET /api/config/sidebar-menu` + `services/startupService.ts` `executeAndroidStartup` 并行聚合返回 `sidebarMenu`）。
+- 图标支持 `none`（仅横栏）、`image`（七牛上传 `file_records.usage_type='sidebar-menu-icon'` 并维护 `referenced_by` 删除保护，或 HTTPS 直链）、`svg`（剥离脚本与外部引用的安全 `<svg>` 源码）与 `preset`（预置图标 key）；一次性红点通过 `badgeVersion` 控制重新触发语义。

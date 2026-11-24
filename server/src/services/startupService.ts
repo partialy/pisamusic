@@ -21,6 +21,10 @@ import {
   type DirectMessageUnreadPage,
 } from "./directMessageService";
 import {
+  readPublicSidebarMenu,
+  type PublicSidebarMenuConfig,
+} from "./sidebarMenuService";
+import {
   issueUserAuthToken,
   type UserAuthTokenResult,
 } from "./userTokenService";
@@ -51,6 +55,7 @@ export type AndroidStartupResult = {
   announcements: Announcement[];
   account: StartupAccountPayload;
   unreadMessages: DirectMessageUnreadPage;
+  sidebarMenu: PublicSidebarMenuConfig;
 };
 
 export type DesktopStartupResult = {
@@ -163,11 +168,14 @@ async function executeStartupCommon<TDevice extends DeviceReportResult>(params: 
 export async function executeAndroidStartup(
   input: ExecuteAndroidStartupInput,
 ): Promise<AndroidStartupResult> {
-  const common = await executeStartupCommon({
-    input,
-    deviceKind: "android",
-    reportDevice: reportAndroidDevice,
-  });
+  const [common, sidebarMenu] = await Promise.all([
+    executeStartupCommon({
+      input,
+      deviceKind: "android",
+      reportDevice: reportAndroidDevice,
+    }),
+    readPublicSidebarMenu(input.absolutizeUrl),
+  ]);
 
   const update: AppUpdate = {
     ...common.cfg.update,
@@ -182,6 +190,7 @@ export async function executeAndroidStartup(
     announcements: common.announcements,
     account: common.account,
     unreadMessages: common.unreadMessages,
+    sidebarMenu,
   };
 }
 
