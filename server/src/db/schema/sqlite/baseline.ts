@@ -259,8 +259,15 @@ CREATE TABLE IF NOT EXISTS feedback (
     contact        TEXT,
     device_json    TEXT    NOT NULL DEFAULT '{}',
     status         TEXT    NOT NULL DEFAULT 'pending',
-    processed_at   TEXT
+    processed_at   TEXT,
+    user_id        TEXT,
+    device_kind    TEXT,
+    device_id      TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at ON feedback (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_user_created ON feedback (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_device_created ON feedback (device_kind, device_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS feedback_images (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
