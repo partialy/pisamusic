@@ -87,6 +87,12 @@
             app:tint="@color/text_secondary" />
     </LinearLayout>
 
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="false">
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/drawerFeatureCard"
         android:layout_width="match_parent"
@@ -108,7 +114,9 @@
             <LinearLayout
                 android:id="@+id/drawerImportPlaylistsRow"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:paddingVertical="10dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:contentDescription="@string/drawer_import_playlists"
@@ -166,7 +174,9 @@
             <LinearLayout
                 android:id="@+id/drawerLinkImportRow"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:paddingVertical="10dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:contentDescription="@string/drawer_link_import"
@@ -184,12 +194,22 @@
                     app:tint="@color/colorOnBgNormal" />
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
                     android:text="@string/drawer_link_import"
                     android:textColor="@color/colorOnBgNormal"
                     android:textSize="14sp" />
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="6dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    app:srcCompat="@drawable/ic_chevron_right_24"
+                    app:tint="@color/text_secondary" />
             </LinearLayout>
 
             <View
@@ -201,7 +221,9 @@
             <LinearLayout
                 android:id="@+id/drawerSleepTimerRow"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:paddingVertical="10dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true"
@@ -237,12 +259,19 @@
                     android:visibility="gone"
                     tools:text="09:42"
                     tools:visibility="visible" />
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="6dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    app:srcCompat="@drawable/ic_chevron_right_24"
+                    app:tint="@color/text_secondary" />
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+    </androidx.core.widget.NestedScrollView>
 
-    <Space
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+
 </LinearLayout>

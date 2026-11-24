@@ -38,6 +38,9 @@ class ThirdPartyAccountsRepository @Inject constructor(
     })
     val states = mutableStates.asStateFlow()
 
+    /** 只暴露不含凭证的会话标识，供页面判断重建期间是否发生重新登录。 */
+    fun sessionKeys(): List<String> = MusicCookieManager.sources.map { manager.snapshot(it).sessionKey }
+
     init {
         scope.launch { manager.changes.collect { publish() } }
     }

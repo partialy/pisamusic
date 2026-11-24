@@ -15,6 +15,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
+import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
@@ -29,6 +30,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityMainBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
+import cn.partialy.pm.ui.drawer.DrawerQuickActions
 import cn.partialy.pm.ui.home.MainDrawerOverlayLayout
 import cn.partialy.pm.ui.home.MainStartupCoordinator
 import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
@@ -131,6 +133,7 @@ class MainActivity : BaseDownloadActivity() {
     private lateinit var drawerBackCallback: OnBackPressedCallback
 
     private var drawerContentBinding: MainDrawerContentBinding? = null
+    private var drawerQuickActions: DrawerQuickActions? = null
 
     private var localModeReason: String? = null
     private var currentTopLevelDestination = MainTopLevelDestination.HOME
@@ -387,9 +390,12 @@ class MainActivity : BaseDownloadActivity() {
     override fun onResume() {
         super.onResume()
         startupCoordinator?.onResume()
+        drawerQuickActions?.refresh()
     }
 
     override fun onDestroy() {
+        drawerQuickActions?.destroy()
+        drawerQuickActions = null
         startupCoordinator?.onDestroy()
         startupCoordinator = null
         homeMiniPlayerBinder?.onDestroy()
@@ -456,6 +462,9 @@ class MainActivity : BaseDownloadActivity() {
         inflated.drawerSleepTimerRow.setOnClickListener {
             closeMainDrawer()
             SleepTimerBottomSheet.show(this, sleepTimerManager)
+        }
+        drawerQuickActions = DrawerQuickActions(this, ::closeMainDrawer).apply {
+            bind(inflated.drawerFeatureCard.getChildAt(0) as LinearLayout)
         }
         drawerContentBinding = inflated
         bindDrawerAccountUi()
@@ -563,6 +572,7 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     private fun maybeRefreshDrawerProfilesAfterOpen() {
+        drawerQuickActions?.refresh()
         bindDrawerAccountUi()
         bindDrawerThirdPartyUi()
         bindDrawerSleepTimer(sleepTimerManager.state.value)

@@ -235,3 +235,8 @@
 
 - `ThirdPartyAccountsActivity`、`ui/thirdparty/`：单区域两条账号行、品牌/圆形头像、昵称尾随音源标签、有效/过期状态、单账号 Sheet 与顶部批量菜单；刷新暂未开放，清除复用危险色二次确认，底部固定药丸进入三方歌单导入。
 - `ThirdPartyAccountsRepository` 共享校验状态；失败保留原状态并经 `PmMessage.error` 提示固定文案。`MusicCookieManager` 的快照守卫保护校验、清除与候选缓存，结果按会话指纹持久化至 `AppConfigStore`。
+
+## 侧栏常用入口（2026-11-24）
+
+- `DrawerQuickActions` / `item_drawer_quick_action.xml`：在同一功能卡中依次提供主题外观、意见反馈、系统公告和检查更新，复用提供的侧栏图标、主题选项 Sheet、既有页面；右侧显示模式图标或当前版本，再显示设置页同款箭头。
+- 功能卡可垂直滚动，账号头固定；链接导入与定时关闭也保留同款箭头。MainActivity 创建/刷新/销毁快捷入口控制器，控制器等待侧栏关闭后执行操作。

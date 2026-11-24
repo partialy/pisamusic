@@ -28,9 +28,10 @@ class ThirdPartyAccountsViewModel @Inject constructor(
     private var validationJob: Job? = null
     private var validationRequested = false
     private var validationPending = false
+    private var lastValidationSessions: List<String>? = null
 
     fun validateOnResume(recreated: Boolean) {
-        if ((recreated && validationRequested) || clearing.value) return
+        if ((recreated && validationRequested && repository.sessionKeys() == lastValidationSessions) || clearing.value) return
         if (validationJob?.isActive == true) {
             // 登录返回可能早于旧会话查询结束，串行补一轮以校验新会话。
             validationPending = true
@@ -40,6 +41,7 @@ class ThirdPartyAccountsViewModel @Inject constructor(
         validationJob = viewModelScope.launch {
             do {
                 validationPending = false
+                lastValidationSessions = repository.sessionKeys()
                 try {
                     if (!repository.validateAll()) eventChannel.send(ThirdPartyAccountsEvent.NETWORK_ERROR)
                 } catch (cancelled: CancellationException) {
