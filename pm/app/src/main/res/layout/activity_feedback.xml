@@ -34,6 +34,23 @@
             android:textColor="@color/account_profile_value"
             android:textSize="17sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/feedbackHistoryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="@dimen/pm_page_content_start"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:minWidth="48dp"
+            android:paddingHorizontal="6dp"
+            android:text="@string/feedback_history_entry"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </FrameLayout>
 
     <androidx.core.widget.NestedScrollView

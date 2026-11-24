@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_radius_sheet"
+    android:orientation="vertical"
+    android:paddingTop="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/feedback_detail_title"
+            android:textColor="@color/pm_dialog_title"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/detailStatusPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_feedback_status_pill_pending"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="3dp"
+            android:textColor="@color/feedback_status_pending"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            tools:text="未处理" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="20dp"
+        android:background="@color/feedback_history_divider" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/detailScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="8dp">
+
+            <!-- 类型 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="76dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/feedback_detail_type"
+                    android:textColor="@color/account_profile_label"
+                    android:textSize="13sp" />
+
+                <ImageView
+                    android:id="@+id/detailTypeIcon"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_feedback_type_bug"
+                    app:tint="@color/account_profile_value" />
+
+                <TextView
+                    android:id="@+id/detailTypeText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:textColor="@color/account_profile_value"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="异常/报错" />
+            </LinearLayout>
+
+            <!-- 是否已处理 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="76dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/feedback_detail_status"
+                    android:textColor="@color/account_profile_label"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/detailStatusValueText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/feedback_status_pending"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="未处理" />
+            </LinearLayout>
+
+            <!-- 反馈时间 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="76dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/feedback_detail_created_at"
+                    android:textColor="@color/account_profile_label"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/detailCreatedAtText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/account_profile_value"
+                    android:textSize="14sp"
+                    tools:text="2026-10-19 18:10" />
+            </LinearLayout>
+
+            <!-- 处理时间（仅已处理展示） -->
+            <LinearLayout
+                android:id="@+id/detailProcessedAtRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="76dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/feedback_detail_processed_at"
+                    android:textColor="@color/account_profile_label"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/detailProcessedAtText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/account_profile_value"
+                    android:textSize="14sp"
+                    tools:text="2026-10-20 09:30" />
+            </LinearLayout>
+
+            <!-- 联系方式 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="76dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/feedback_detail_contact"
+                    android:textColor="@color/account_profile_label"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/detailContactText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/account_profile_value"
+                    android:textIsSelectable="true"
+                    android:textSize="14sp"
+                    tools:text="未填写" />
+            </LinearLayout>
+
+            <!-- 描述 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/feedback_detail_desc"
+                android:textColor="@color/account_profile_label"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/detailDescText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:lineSpacingExtra="3dp"
+                android:textColor="@color/account_profile_value"
+                android:textIsSelectable="true"
+                android:textSize="14sp"
+                tools:text="播放无损音质时偶尔出现闪退情况，切换下一首后恢复正常。" />
+
+            <!-- 图片 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/feedback_detail_images"
+                android:textColor="@color/account_profile_label"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/detailImagesEmptyText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/feedback_detail_images_empty"
+                android:textColor="@color/account_profile_label"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/detailImagesContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="16dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/detailCloseButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="@string/feedback_detail_close"
+            android:textColor="@color/action_secondary_text"
+            android:textStyle="bold"
+            app:backgroundTint="@color/action_secondary_background"
+            app:cornerRadius="24dp" />
+    </LinearLayout>
+</LinearLayout>

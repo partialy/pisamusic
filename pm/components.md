@@ -240,3 +240,8 @@
 
 - `DrawerQuickActions` / `item_drawer_quick_action.xml`：在同一功能卡中依次提供主题外观、意见反馈、系统公告和检查更新，复用提供的侧栏图标、主题选项 Sheet、既有页面；右侧显示模式图标或当前版本，再显示设置页同款箭头。
 - 功能卡可垂直滚动，账号头固定；链接导入与定时关闭也保留同款箭头。MainActivity 创建/刷新/销毁快捷入口控制器，控制器等待侧栏关闭后执行操作。
+
+## 反馈记录列表与详情 Sheet（2026-11-24）
+
+- `FeedbackHistoryActivity` / `FeedbackHistoryAdapter`（`activity_feedback_history.xml`、`item_feedback_history.xml`）：入口位于 `FeedbackActivity` 顶栏右上角；复用类歌曲列表排布与 `item_playlist_detail_status.xml` 分页底栏，左图/反馈类型图标圆角底占位（`bg_feedback_history_placeholder`）、中上类型下描述、右上时间下线条药丸状态（`bg_feedback_status_pill_pending` / `bg_feedback_status_pill_processed`）。
+- `FeedbackDetailBottomSheet`（`bottom_sheet_feedback_detail.xml`）：复用 `ThemeOverlay_Pm_BottomSheetDialog` 与 `bg_bottom_radius_sheet` 展示类型、状态、反馈时间、处理时间、联系方式、描述与附件缩略图，点击附件复用 `dialog_image_preview.xml` 全屏预览。

@@ -158,7 +158,9 @@
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
-| 提交用户反馈 (支持图片附件) | `POST` | `/api/feedback` | 无 (Form-Data) | [./feedback/submitFeedback.md](./feedback/submitFeedback.md) |
+| 提交用户反馈 (支持图片附件) | `POST` | `/api/feedback` | 可选 User/Device Token (Form-Data) | [./feedback/submitFeedback.md](./feedback/submitFeedback.md) |
+| 分页查询我的反馈记录 | `GET` | `/api/feedback` | User Token 或 Device Token | [./feedback/listFeedback.md](./feedback/listFeedback.md) |
+| 查看单条反馈详情 | `GET` | `/api/feedback/:id` | User Token 或 Device Token | [./feedback/getFeedbackDetail.md](./feedback/getFeedbackDetail.md) |
 
 ---
 

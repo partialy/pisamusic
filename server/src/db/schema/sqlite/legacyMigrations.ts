@@ -148,8 +148,36 @@ function migrateFeedback(db: DatabaseSync) {
   if (!cols.has("processed_at")) {
     db.exec(`ALTER TABLE feedback ADD COLUMN processed_at TEXT`);
   }
+  if (!cols.has("user_id")) {
+    db.exec(`ALTER TABLE feedback ADD COLUMN user_id TEXT`);
+  }
+  if (!cols.has("device_kind")) {
+    db.exec(`ALTER TABLE feedback ADD COLUMN device_kind TEXT`);
+  }
+  if (!cols.has("device_id")) {
+    db.exec(`ALTER TABLE feedback ADD COLUMN device_id TEXT`);
+  }
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at ON feedback (status, created_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_user_created ON feedback (user_id, created_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_device_created ON feedback (device_kind, device_id, created_at DESC)`);
+
+  // 回填历史匿名反馈中已附带的 Android serverDeviceId，确保设备可查看历史记录
+  const rows = db
+    .prepare("SELECT id, device_json FROM feedback WHERE device_id IS NULL AND device_json IS NOT NULL")
+    .all() as Array<{ id: string; device_json: string }>;
+  const updateStmt = db.prepare("UPDATE feedback SET device_kind = ?, device_id = ? WHERE id = ?");
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.device_json) as Record<string, unknown> | null;
+      const serverDeviceId = typeof parsed?.serverDeviceId === "string" ? parsed.serverDeviceId.trim() : "";
+      if (serverDeviceId && serverDeviceId.length <= 191) {
+        updateStmt.run("android", serverDeviceId, row.id);
+      }
+    } catch {
+      /* ignore malformed device_json */
+    }
+  }
 }
 
 function migrateFaultReports(db: DatabaseSync) {

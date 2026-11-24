@@ -106,16 +106,16 @@ export async function restoreTargetBackup(snapshotId:string,confirm:boolean):Pro
       if (names.has("schema_migrations")) {
         const ledger = source.prepare("SELECT version,status FROM schema_migrations ORDER BY version DESC LIMIT 1").get();
         version = Number(ledger?.version);
-        if (!ledger || ledger.status!=="applied" || ![1,2,3,4,5,SCHEMA_VERSION].includes(version)) throw new Error("备份 Schema 账本未完成或版本不支持，禁止恢复");
+        if (!ledger || ledger.status!=="applied" || ![1,2,3,4,5,6,SCHEMA_VERSION].includes(version)) throw new Error("备份 Schema 账本未完成或版本不支持，禁止恢复");
       }
       if (names.has("app_installation")) {
         const markers = source.prepare("SELECT id,transfer_status FROM app_installation").all();
         if (markers.length!==1 || Number(markers[0]?.id)!==1 || markers[0]?.transfer_status!=="ready") throw new Error("备份包含未完成复制或缺失安装标记，禁止恢复");
-        if (![2,3,4,5,SCHEMA_VERSION].includes(version!)) throw new Error("带安装标记的备份缺少当前完整 Schema 账本，禁止恢复");
+        if (![2,3,4,5,6,SCHEMA_VERSION].includes(version!)) throw new Error("带安装标记的备份缺少当前完整 Schema 账本，禁止恢复");
       } else if (version===SCHEMA_VERSION) throw new Error("当前版本备份缺失安装标记，禁止恢复");
-      if ([3,4,5,SCHEMA_VERSION].includes(version!) && !names.has("site_page_view_records")) throw new Error("v3 及以上备份缺少 PV 事件表，禁止恢复");
-      if ([5,SCHEMA_VERSION].includes(version!) && (!names.has("playlist_cover_resources") || !names.has("playlist_cover_refs"))) throw new Error("v5 及以上备份缺少封面资源表，禁止恢复");
-      if (version===SCHEMA_VERSION && (!names.has("song_download_quota_states") || !names.has("song_download_batches") || !names.has("song_download_records"))) throw new Error("v6 备份缺少歌曲下载统计与配额表，禁止恢复");
+      if ([3,4,5,6,SCHEMA_VERSION].includes(version!) && !names.has("site_page_view_records")) throw new Error("v3 及以上备份缺少 PV 事件表，禁止恢复");
+      if ([5,6,SCHEMA_VERSION].includes(version!) && (!names.has("playlist_cover_resources") || !names.has("playlist_cover_refs"))) throw new Error("v5 及以上备份缺少封面资源表，禁止恢复");
+      if ([6,SCHEMA_VERSION].includes(version!) && (!names.has("song_download_quota_states") || !names.has("song_download_batches") || !names.has("song_download_records"))) throw new Error("v6 及以上备份缺少歌曲下载统计与配额表，禁止恢复");
       // 无标记的旧备份仅兼容完整业务结构，账本可缺省或为已应用 v1；归档容器允许补空。
     }
     target=await createDatabase(standbyConfig());await inspectTarget(target);await prepareDatabaseSchema(target,"backup-restore");await ensureSqliteArchives(target);

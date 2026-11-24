@@ -5,7 +5,7 @@
 - **请求方法**：`POST`
 - **请求路径**：`/api/feedback`
 - **请求类型**：`multipart/form-data`
-- **需要鉴权**：否（支持匿名或客户端携带联系方式）
+- **需要鉴权**：否（支持匿名提交；若请求头携带可选 `Authorization: Bearer <UserToken>` 或 `x-pm-device-token`，或 `device.serverDeviceId`，服务端会同步登记归属身份以便后续在「反馈记录」中查询）
 - **加密模式**：默认明文白名单；若管理员从白名单移除此路径，客户端需携带 `x-pm-random`（128 字符随机 hex）和 `x-pm-enc-ver: 1`，字段和图片仍按 multipart 上传，不包装 JSON 加密信封；响应使用系统 AES-GCM 信封，客户端需兼容明文及加密响应。
 
 ---

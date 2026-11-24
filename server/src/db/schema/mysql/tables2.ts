@@ -550,12 +550,30 @@ export const tables2: readonly SchemaTable[] = [
         "type": "LONGTEXT",
         "nullable": true,
         "sqliteType": "TEXT"
+      },
+      {
+        "name": "user_id",
+        "type": "VARCHAR(191)",
+        "nullable": true,
+        "sqliteType": "TEXT"
+      },
+      {
+        "name": "device_kind",
+        "type": "VARCHAR(16)",
+        "nullable": true,
+        "sqliteType": "TEXT"
+      },
+      {
+        "name": "device_id",
+        "type": "VARCHAR(191)",
+        "nullable": true,
+        "sqliteType": "TEXT"
       }
     ],
     "primaryKey": [
       "id"
     ],
-    "createSql": "CREATE TABLE `feedback` (\n  `id` VARCHAR(191) NOT NULL,\n  `created_at` VARCHAR(191) NOT NULL,\n  `feedback_type` LONGTEXT NOT NULL,\n  `description` LONGTEXT NOT NULL,\n  `contact` LONGTEXT NULL,\n  `device_json` LONGTEXT NOT NULL,\n  `status` VARCHAR(191) NOT NULL DEFAULT 'pending',\n  `processed_at` LONGTEXT NULL,\n  PRIMARY KEY (`id`),\n  KEY `idx_feedback_status_created_at` (`status`, `created_at`),\n  KEY `idx_feedback_created_at` (`created_at`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
+    "createSql": "CREATE TABLE `feedback` (\n  `id` VARCHAR(191) NOT NULL,\n  `created_at` VARCHAR(191) NOT NULL,\n  `feedback_type` LONGTEXT NOT NULL,\n  `description` LONGTEXT NOT NULL,\n  `contact` LONGTEXT NULL,\n  `device_json` LONGTEXT NOT NULL,\n  `status` VARCHAR(191) NOT NULL DEFAULT 'pending',\n  `processed_at` LONGTEXT NULL,\n  `user_id` VARCHAR(191) NULL,\n  `device_kind` VARCHAR(16) NULL,\n  `device_id` VARCHAR(191) NULL,\n  PRIMARY KEY (`id`),\n  KEY `idx_feedback_status_created_at` (`status`, `created_at`),\n  KEY `idx_feedback_created_at` (`created_at`),\n  KEY `idx_feedback_user_created` (`user_id`, `created_at`),\n  KEY `idx_feedback_device_created` (`device_kind`, `device_id`, `created_at`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
     "foreignSql": []
   },
   {

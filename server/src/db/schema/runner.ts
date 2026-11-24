@@ -1,3 +1,4 @@
+import { upgradeMysqlFeedback, upgradeSqliteFeedback } from "./feedbackMigration";
 import { validatePlaylistCoverSchema } from "./playlistCoverValidation";
 import { validateSongDownloadSchema } from "./songDownloadValidation";
 import { upgradeMysqlPlaylistCovers } from "./playlistCoverMigration";
@@ -11,7 +12,7 @@ import { MYSQL_TABLES } from "./mysql/tables";
 import { MYSQL_ARCHIVE_TABLES } from "./mysql/archives";
 export { MYSQL_TABLES } from "./mysql/tables";
 export { MYSQL_ARCHIVE_TABLES } from "./mysql/archives";
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 export const schemaFingerprint = createHash("sha256").update(JSON.stringify({ tables: MYSQL_TABLES, archives: MYSQL_ARCHIVE_TABLES })).digest("hex");
 const ledgerSql = `CREATE TABLE schema_migrations (
  version BIGINT NOT NULL PRIMARY KEY, fingerprint VARCHAR(64) NOT NULL,
@@ -39,7 +40,7 @@ export async function assertSchemaCurrent(client: DbClient, allowIncompleteTrans
   if (!row || Number(row.version) !== SCHEMA_VERSION || row.status !== "applied") {
     throw new DatabaseError("DB_SCHEMA_NOT_READY", "MySQL Schema 未完成初始化或版本不匹配");
   }
-  for (const table of MYSQL_TABLES.filter(table => ["users", "site_visit_records", "download_records", "site_page_view_records", "playlist_cover_resources", "playlist_cover_refs", "song_download_quota_states", "song_download_batches", "song_download_records"].includes(table.name))) {
+  for (const table of MYSQL_TABLES.filter(table => ["users", "feedback", "site_visit_records", "download_records", "site_page_view_records", "playlist_cover_resources", "playlist_cover_refs", "song_download_quota_states", "song_download_batches", "song_download_records"].includes(table.name))) {
     await validateRecoveryTable(client, table.name, table.createSql);
   }
   await validatePlaylistCoverSchema(client);
@@ -196,6 +197,7 @@ export async function prepareDatabaseSchema(client: DbClient, transferTaskId?: s
     const { APP_SHARE_TRACKING_SQL } = await import("../appShareTrackingSchema.js");
     await upgradeSqliteWebsiteAnalytics(client);
     await upgradeSqliteSync(client);
+    await upgradeSqliteFeedback(client);
     for (const statement of (CREATE_SQL + APP_SHARE_TRACKING_SQL).split(";")) {
       if (statement.trim()) await client.execute(statement);
     }
@@ -208,12 +210,12 @@ export async function prepareDatabaseSchema(client: DbClient, transferTaskId?: s
   else {
     const hasLedger = tables.some(table=>table.name === "schema_migrations");
     let row = hasLedger ? await client.queryOne<MigrationRow>("SELECT version,fingerprint,status FROM schema_migrations ORDER BY version DESC LIMIT 1") : null;
-    if (transferTaskId && (!row || (row.status !== "applied" && !(((Number(row.version) === 3 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=2 AND status='applied'")) || (Number(row.version) === 4 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=3 AND status='applied'")) || (Number(row.version) === 5 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=4 AND status='applied'")) || (Number(row.version) === 6 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=5 AND status='applied'"))))))) {
+    if (transferTaskId && (!row || (row.status !== "applied" && !(((Number(row.version) === 3 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=2 AND status='applied'")) || (Number(row.version) === 4 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=3 AND status='applied'")) || (Number(row.version) === 5 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=4 AND status='applied'")) || (Number(row.version) === 6 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=5 AND status='applied'")) || (Number(row.version) === 7 && await client.queryOne("SELECT version FROM schema_migrations WHERE version=6 AND status='applied'"))))))) {
       await resumeTransferSchema(client, transferTaskId, tables);
       return;
     }
     if (transferTaskId) {
-      if (!row || (row.status !== "applied" && ![3,4,5,6].includes(Number(row.version))) || ![1,2,3,4,5,SCHEMA_VERSION].includes(Number(row.version))) throw new DatabaseError("DB_SCHEMA_RECOVERY", "目标 Schema 版本不可认领");
+      if (!row || (row.status !== "applied" && ![3,4,5,6,7].includes(Number(row.version))) || ![1,2,3,4,5,6,SCHEMA_VERSION].includes(Number(row.version))) throw new DatabaseError("DB_SCHEMA_RECOVERY", "目标 Schema 版本不可认领");
       if (tables.some(table=>table.name === "app_installation")) {
         const marker = await client.queryOne<{transfer_status:string;transfer_task_id:string|null}>("SELECT transfer_status,transfer_task_id FROM app_installation WHERE id=1");
         if (!marker || !["ready","incomplete"].includes(marker.transfer_status)) throw new DatabaseError("DB_SCHEMA_RECOVERY", "目标安装标记无效");
@@ -225,7 +227,7 @@ export async function prepareDatabaseSchema(client: DbClient, transferTaskId?: s
       for (const table of MYSQL_TABLES.filter(table => !["site_page_view_records", "playlist_cover_resources", "playlist_cover_refs", "song_download_quota_states", "song_download_batches", "song_download_records"].includes(table.name))) {
         const columns = await client.query<{name:string}>("SELECT COLUMN_NAME AS name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?", [table.name]);
         const actual = new Set(columns.map(column => column.name));
-        if (table.columns.some(column => column.name !== "domain" && column.name !== "sync_log_floor" && !actual.has(column.name))) throw new DatabaseError("DB_SCHEMA_NOT_READY", `业务表 ${table.name} 缺少必要字段`);
+        if (table.columns.some(column => column.name !== "domain" && column.name !== "sync_log_floor" && !["user_id", "device_kind", "device_id"].includes(column.name) && !actual.has(column.name))) throw new DatabaseError("DB_SCHEMA_NOT_READY", `业务表 ${table.name} 缺少必要字段`);
       }
       await ensureInstallationSchema(client);
       await client.execute("INSERT INTO schema_migrations(version,fingerprint,status,task_id,created_objects_json,started_at,completed_at) VALUES(?,?,?,?,?,?,?)", [2, schemaFingerprint, "applied", "upgrade-v2-installation", JSON.stringify(["app_installation"]), Date.now(), Date.now()]);
@@ -240,6 +242,8 @@ export async function prepareDatabaseSchema(client: DbClient, transferTaskId?: s
     if (row && ((Number(row.version) === 4 && row.status === "applied") || (Number(row.version) === 5 && row.status !== "applied"))) await upgradeMysqlPlaylistCovers(client, schemaFingerprint, validateRecoveryTable);
     row = await client.queryOne<MigrationRow>("SELECT version,fingerprint,status FROM schema_migrations ORDER BY version DESC LIMIT 1");
     if (row && ((Number(row.version) === 5 && row.status === "applied") || (Number(row.version) === 6 && row.status !== "applied"))) await upgradeMysqlSongDownloads(client, schemaFingerprint, validateRecoveryTable);
+    row = await client.queryOne<MigrationRow>("SELECT version,fingerprint,status FROM schema_migrations ORDER BY version DESC LIMIT 1");
+    if (row && ((Number(row.version) === 6 && row.status === "applied") || (Number(row.version) === 7 && row.status !== "applied"))) await upgradeMysqlFeedback(client, schemaFingerprint, validateRecoveryTable);
     await assertSchemaCurrent(client, Boolean(transferTaskId));
   }
 }

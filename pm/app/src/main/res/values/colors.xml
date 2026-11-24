@@ -221,6 +221,11 @@
     <color name="feedback_counter_text">#94A3B8</color>
     <color name="feedback_image_delete_bg">#80000000</color>
     <color name="feedback_thanks_text">#94A3B8</color>
+    <color name="feedback_status_pending">#EA580C</color>
+    <color name="feedback_status_processed">#16A34A</color>
+    <color name="feedback_history_placeholder_bg">#F1F5F9</color>
+    <color name="feedback_history_placeholder_icon">#64748B</color>
+    <color name="feedback_history_divider">#E5E7EB</color>
 
     <!-- 自有账号原生登录页 -->
     <color name="account_login_grad_start">#EFF9FF</color>
