@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import cn.partialy.pm.R
 import cn.partialy.pm.model.SongType
 
@@ -24,9 +25,12 @@ object SongSourceTagBinder {
         ON_DARK,
     }
 
-    fun bind(tagView: TextView, type: SongType, surface: Surface = Surface.LIST) {
+    fun bind(tagView: TextView, type: SongType, surface: Surface = Surface.LIST, active: Boolean = true) {
         val ctx = tagView.context
-        val (border, fill, text) = colors(ctx, type, surface)
+        val inactive = ContextCompat.getColor(ctx, R.color.text_secondary)
+        val (border, fill, text) = if (active) colors(ctx, type, surface) else Triple(
+            ColorUtils.setAlphaComponent(inactive, 120), ColorUtils.setAlphaComponent(inactive, 16), inactive,
+        )
         tagView.visibility = View.VISIBLE
         tagView.text = label(ctx, type)
         tagView.setTextColor(text)

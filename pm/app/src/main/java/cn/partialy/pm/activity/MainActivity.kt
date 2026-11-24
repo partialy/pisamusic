@@ -45,6 +45,8 @@ import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.config.StartupSnapshotStore
+import cn.partialy.pm.network.cookie.ThirdPartyAccountsRepository
+import cn.partialy.pm.network.cookie.ThirdPartyLoginValidity
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.auth.AccountSessionStore
@@ -52,7 +54,6 @@ import cn.partialy.pm.network.repository.SystemRepository
 import cn.partialy.pm.service.MusicService
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.ui.dialog.ModernDialog
-import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.PlaylistLinkImportDialog
 import cn.partialy.pm.ui.dialog.SleepTimerBottomSheet
 import cn.partialy.pm.ui.discover.DiscoverFragment
@@ -101,7 +102,7 @@ class MainActivity : BaseDownloadActivity() {
     lateinit var wyCookieRepository: WyCookieRepository
 
     @Inject
-    lateinit var musicCookieManager: MusicCookieManager
+    lateinit var thirdPartyAccountsRepository: ThirdPartyAccountsRepository
 
     @Inject
     lateinit var syncManager: SyncManager
@@ -173,6 +174,7 @@ class MainActivity : BaseDownloadActivity() {
         setupMiniPlayer()
         setupMainDrawer()
         observeSleepTimer()
+        observeThirdPartyAccounts()
         applyInsets()
         applyLocalModeFromIntent(intent)
         if (isLocalMode()) {
@@ -443,23 +445,9 @@ class MainActivity : BaseDownloadActivity() {
             closeMainDrawer()
         }
         inflated.drawerScanButton.setOnClickListener { startDrawerQrScan() }
-        inflated.drawerKgAccountEntry.setOnClickListener {
-            if (!musicCookieManager.getCookie(MusicCookieManager.SOURCE_KG).exist) {
-                PlaylistImportActivity.start(this, SongType.KG)
-                closeMainDrawer()
-            }
-        }
-        inflated.drawerWyAccountEntry.setOnClickListener {
-            if (!musicCookieManager.getCookie(MusicCookieManager.SOURCE_WY).exist) {
-                WyWebPlaylistLoginActivity.start(this)
-                closeMainDrawer()
-            }
-        }
         inflated.drawerImportPlaylistsRow.setOnClickListener {
-            importLoggedInPlaylistsFromDrawer()
-        }
-        inflated.drawerClearThirdPartyLogin.setOnClickListener {
-            clearThirdPartyLoginFromDrawer()
+            closeMainDrawer()
+            ThirdPartyAccountsActivity.start(this)
         }
         inflated.drawerLinkImportRow.setOnClickListener {
             closeMainDrawer()
@@ -469,8 +457,6 @@ class MainActivity : BaseDownloadActivity() {
             closeMainDrawer()
             SleepTimerBottomSheet.show(this, sleepTimerManager)
         }
-        SongSourceTagBinder.bind(inflated.drawerKgSourceTag, SongType.KG)
-        SongSourceTagBinder.bind(inflated.drawerWySourceTag, SongType.WY)
         drawerContentBinding = inflated
         bindDrawerAccountUi()
         bindDrawerThirdPartyUi()
@@ -541,104 +527,21 @@ class MainActivity : BaseDownloadActivity() {
 
     private fun bindDrawerThirdPartyUi() {
         val b = drawerContentBinding ?: return
-        val kgLoggedIn = musicCookieManager.getCookie(MusicCookieManager.SOURCE_KG).exist
-        val wyLoggedIn = musicCookieManager.getCookie(MusicCookieManager.SOURCE_WY).exist
-        val kgProfile = musicCookieManager.getProfile(MusicCookieManager.SOURCE_KG)
-        val wyProfile = musicCookieManager.getProfile(MusicCookieManager.SOURCE_WY)
-        val hasAnyLogin = kgLoggedIn || wyLoggedIn
-
-        b.drawerKgAccountEntry.isClickable = !kgLoggedIn
-        b.drawerKgAccountEntry.isFocusable = !kgLoggedIn
-        b.drawerKgChevron.visibility = if (kgLoggedIn) View.GONE else View.VISIBLE
-        b.drawerKgAvatar.visibility = if (kgLoggedIn) View.VISIBLE else View.GONE
-        if (kgLoggedIn) {
-            b.drawerKgNickname.text = kgProfile?.nickname?.takeIf(String::isNotBlank)
-                ?: kgProfile?.username?.takeIf(String::isNotBlank)
-                ?: getString(R.string.account_kg_default_user)
-            val avatarUrl = kgProfile?.avatarUrl?.takeIf(String::isNotBlank)
-            if (avatarUrl == null) {
-                b.drawerKgAvatar.setImageResource(R.drawable.ic_pm_icon)
-            } else {
-                b.drawerKgAvatar.load(avatarUrl) {
-                    transformations(CircleCropTransformation())
-                    placeholder(R.drawable.ic_pm_icon)
-                    error(R.drawable.ic_pm_icon)
-                }
-            }
-        } else {
-            b.drawerKgNickname.setText(R.string.drawer_not_logged_in)
-            b.drawerKgAvatar.setImageResource(R.drawable.ic_pm_icon)
-        }
-
-        b.drawerWyAccountEntry.isClickable = !wyLoggedIn
-        b.drawerWyAccountEntry.isFocusable = !wyLoggedIn
-        b.drawerWyChevron.visibility = if (wyLoggedIn) View.GONE else View.VISIBLE
-        b.drawerWyAvatar.visibility = if (wyLoggedIn) View.VISIBLE else View.GONE
-        if (wyLoggedIn) {
-            b.drawerWyNickname.text = wyProfile?.nickname?.takeIf(String::isNotBlank)
-                ?: wyProfile?.username?.takeIf(String::isNotBlank)
-                ?: getString(R.string.account_wy_default_user)
-            val avatarUrl = wyProfile?.avatarUrl?.takeIf(String::isNotBlank)
-            if (avatarUrl == null) {
-                b.drawerWyAvatar.setImageResource(R.drawable.ic_pm_icon)
-            } else {
-                b.drawerWyAvatar.load(avatarUrl) {
-                    transformations(CircleCropTransformation())
-                    placeholder(R.drawable.ic_pm_icon)
-                    error(R.drawable.ic_pm_icon)
-                }
-            }
-        } else {
-            b.drawerWyNickname.setText(R.string.drawer_not_logged_in)
-            b.drawerWyAvatar.setImageResource(R.drawable.ic_pm_icon)
-        }
-
-        b.drawerImportPlaylistsTitle.setText(
-            if (hasAnyLogin) {
-                R.string.drawer_import_playlists
-            } else {
-                R.string.drawer_import_playlists_login_required
-            },
-        )
-        b.drawerImportPlaylistsRow.isClickable = hasAnyLogin
-        b.drawerImportPlaylistsRow.isFocusable = hasAnyLogin
-        b.drawerClearThirdPartyLogin.visibility = if (hasAnyLogin) View.VISIBLE else View.GONE
+        val accounts = thirdPartyAccountsRepository.states.value
+        fun valid(source: String) = accounts.any { it.source == source && it.loggedIn && it.validity == ThirdPartyLoginValidity.VALID }
+        SongSourceTagBinder.bind(b.drawerKgSourceTag, SongType.KG, active = valid(MusicCookieManager.SOURCE_KG))
+        SongSourceTagBinder.bind(b.drawerWySourceTag, SongType.WY, active = valid(MusicCookieManager.SOURCE_WY))
     }
 
-    private fun clearThirdPartyLoginFromDrawer() {
-        val clearButton = drawerContentBinding?.drawerClearThirdPartyLogin ?: return
-        if (!clearButton.isEnabled) return
-        PmMinimalDialog.show(
-            context = this,
-            title = getString(R.string.drawer_clear_third_party_login_confirm_title),
-            message = getString(R.string.drawer_clear_third_party_login_confirm_message),
-            cancelText = getString(R.string.cancel),
-            confirmText = getString(R.string.drawer_clear_third_party_login_confirm),
-            confirmColor = ContextCompat.getColor(this, R.color.account_profile_logout_text),
-        ) {
-            clearButton.isEnabled = false
-            lifecycleScope.launch {
-                try {
-                    withContext(Dispatchers.IO) {
-                        musicCookieManager.clearAll()
-                    }
+    private fun observeThirdPartyAccounts() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                thirdPartyAccountsRepository.states.collect {
                     bindDrawerThirdPartyUi()
                     applyWyProfileBackgroundFromLogin()
-                    PmMessage.success(this@MainActivity, R.string.drawer_clear_third_party_login_done)
-                } finally {
-                    clearButton.isEnabled = true
                 }
             }
         }
-    }
-
-    private fun importLoggedInPlaylistsFromDrawer() {
-        if (!musicCookieManager.hasAnyLogin()) {
-            PmMessage.warning(this, R.string.drawer_import_playlists_login_required)
-            return
-        }
-        closeMainDrawer()
-        ThirdPartyPlaylistImportActivity.start(this)
     }
 
     private fun observeSleepTimer() {
