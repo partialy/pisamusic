@@ -15,7 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 仅作用于自有后端（SystemApiService 链路）：
+ * 仅作用于自有后端（SystemApiService 与原生反馈上传链路）：
  *
  * - 请求方向：生成 128 字符随机 hex `reqKey`，写入头 `x-pm-random`；如果原请求是 JSON body
  *   且非空，则按 `{ts, nonce, p:<原 body>}` 包装成明文，AES-GCM 加密为 `{isEnc, encData}` 信封。

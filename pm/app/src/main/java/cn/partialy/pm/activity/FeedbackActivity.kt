@@ -29,6 +29,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
+import cn.partialy.pm.network.crypto.SystemEncryptionInterceptor
 import coil.load
 import com.google.android.material.imageview.ShapeableImageView
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,7 +52,13 @@ class FeedbackActivity : BaseActivity() {
     @Inject
     lateinit var serviceDiscoveryManager: ServiceDiscoveryManager
 
-    private val httpClient = OkHttpClient()
+    @Inject
+    lateinit var encryptionInterceptor: SystemEncryptionInterceptor
+
+    // 反馈保持匿名 multipart 上传，只复用系统加密头和响应解密，不自动附加系统账号凭证。
+    private val httpClient by lazy {
+        OkHttpClient.Builder().addInterceptor(encryptionInterceptor).build()
+    }
 
     private val pickedImages = mutableListOf<Uri>()
     private var selectedType: String = TYPE_BUG

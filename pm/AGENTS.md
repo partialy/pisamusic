@@ -183,7 +183,9 @@
 
 安全与加密：
 
-- `SystemEncryptionInterceptor` 只用于 App 自有 `SystemApiService` 链路。
+- 原生反馈页的独立 multipart client 必须复用 `SystemEncryptionInterceptor`，自动携带 `x-pm-random` / `x-pm-enc-ver` 并兼容明文或加密响应；字段和图片保持原 multipart，不套 JSON 信封。反馈仍允许匿名，独立 client 不自动附加系统账号凭证。
+
+- `SystemEncryptionInterceptor` 只用于 App 自有后端请求（`SystemApiService` 与原生反馈上传），不得用于第三方音乐接口或文件资源直传。
 - 系统服务端请求会写入 `x-pm-random` / `x-pm-enc-ver`，把 JSON body 加密为 `{isEnc, encData}`，并解密加密响应。
 - 服务端 AES-GCM、明文路径、时间戳校验和 nonce 防重放逻辑位于 `../server/src/middleware/encryption.ts`。
 - `GatewaySignInterceptor` 只签名匹配 `GatewaySignRuntime` 的第三方网关请求。
