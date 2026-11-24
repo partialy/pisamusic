@@ -18,6 +18,7 @@ import cn.partialy.pm.model.HomeRecommendPlaylist
 import cn.partialy.pm.ui.home.adapters.HomePlaylistGridAdapter
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.ui.mine.FavoritePlaylistMenu
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -32,6 +33,7 @@ class FavoritePlaylistsActivity : BaseActivity() {
 
     private lateinit var binding: ActivityHomePlaylistListBinding
     private lateinit var adapter: HomePlaylistGridAdapter
+    private lateinit var playlistMenu: FavoritePlaylistMenu
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityHomePlaylistListBinding.inflate(layoutInflater)
@@ -59,9 +61,19 @@ class FavoritePlaylistsActivity : BaseActivity() {
     private fun setupHeader() {
         binding.titleTextView.setText(R.string.my_favorite_playlists)
         binding.backButton.setOnClickListener { finish() }
-        binding.searchButton.isVisible = true
-        binding.searchButton.setOnClickListener {
-            FavoritePlaylistsSearchActivity.start(this)
+        playlistMenu = FavoritePlaylistMenu(
+            anchor = binding.searchButton,
+            onSearch = { FavoritePlaylistsSearchActivity.start(this) },
+            onMultiSelect = { PlaylistManagementActivity.start(this) },
+            onImport = { ThirdPartyPlaylistImportActivity.start(this) },
+        )
+        binding.searchButton.apply {
+            isVisible = true
+            setImageResource(R.drawable.ic_more_vert_24)
+            contentDescription = getString(R.string.more)
+            updateLayoutParams { width = dp(48); height = dp(48) }
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setOnClickListener { playlistMenu.show() }
         }
         binding.swipeRefreshLayout.isEnabled = false
         binding.progressBar.isVisible = false
@@ -136,6 +148,11 @@ class FavoritePlaylistsActivity : BaseActivity() {
             }
             CollectedPlaylistType.LOCAL -> Unit
         }
+    }
+
+    override fun onDestroy() {
+        if (::playlistMenu.isInitialized) playlistMenu.dismiss()
+        super.onDestroy()
     }
 
     override fun finish() {

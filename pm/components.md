@@ -102,7 +102,7 @@
 | 歌单详情推拉门折叠工具条 / 搜索栏 | 四类歌单共用大封面 Header、双按钮、顶栏三动作及 52dp 折叠工具条 | `pm/app/src/main/res/layout/activity_playlist_detail.xml`、`item_playlist_detail_header.xml`、`playlist_detail_sticky_play_all.xml` | `ui/playlistdetail/PlaylistDetailHeaderController`、`PlaylistDetailContentAdapter`、`PlaylistDetailInteractionController`、`ui/collapsing/CollapsingHeaderPolicy`、`bg_playlist_detail_hero_top_scrim.xml`、`bg_playlist_detail_hero_bottom_fade.xml` | 与“我的”页同构：全宽封面信息区位于 `CollapsingToolbarLayout` 的 parallax 层，顶部 Header 按相同 200dp进度渐显，唯一 52dp 圆角工具条作为 AppBar 固定子项随内容上移，两者最终在封面前闭合；顶栏固定搜索/分享/更多（标题最多 1 行尾部省略），工具条左侧为播放图标 + 13sp 曲目数，右侧排序按钮打开默认/歌名 A-Z/歌手 A-Z 选项 Sheet。不得加入 RecyclerView Header、Anchor 手动位移或双工具条切换。 |
 | 歌单列表底部状态 / 增量加载指示器 | 歌单详情流式拉取剩余歌曲底部加载指示器与到底提示 | `pm/app/src/main/res/layout/item_playlist_detail_status.xml` | `PlaylistDetailContentAdapter.StatusViewHolder`、`CircularProgressIndicator` | 包含 18dp 旋转 `CircularProgressIndicator` 与 14sp 次级文字；流式加载中显示指示器与“正在加载剩余歌曲…”，全部完成或无更多时隐藏指示器并显示“已经到底了~”，初始与空搜状态自适应居中。 |
 | 收藏独立搜索页 | 从“我的收藏”右上角进入，实时过滤收藏歌曲 | `pm/app/src/main/res/layout/activity_loved_songs_search.xml` | `LovedSongsSearchActivity`、`PlaylistDetailContentAdapter`、`HomeMiniPlayerBinder` | 查询为空时保留搜索栏与迷你播放器；按歌名/歌手过滤展示，播放仍使用完整收藏列表并按 `type + id` 定位。 |
-| 歌单收藏独立搜索页 | 从“歌单收藏”右上角进入，实时过滤收藏歌单 | `pm/app/src/main/res/layout/activity_favorite_playlists_search.xml` | `FavoritePlaylistsSearchActivity`、`HomePlaylistGridAdapter`、`HomeMiniPlayerBinder` | 无播放全部工具条；按歌单名称过滤展示 3 列卡片网格，点击跳转对应平台歌单详情。 |
+| 歌单收藏独立搜索页 | 从“歌单收藏”右上角三点菜单的“搜索”进入，实时过滤收藏歌单 | `pm/app/src/main/res/layout/activity_favorite_playlists_search.xml` | `FavoritePlaylistsSearchActivity`、`HomePlaylistGridAdapter`、`HomeMiniPlayerBinder` | 无播放全部工具条；按歌单名称过滤展示 3 列卡片网格，点击跳转对应平台歌单详情。 |
 | 歌词设置面板 | 四分区设置、固定预览、滑轨、分段按钮、长按步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet`、`LyricSettingsStepper`、`LyricSettingsSheetWindow` | 与一起听 Sheet 一致：左右/顶部 16dp、标题高 40dp、首内容/分区间距 12dp、底部 16dp、卡片左右内边距 12dp、步进按钮 30dp；复用原背景/卡片，固定头部与预览，下方独立滚动，最大约 80% 可用窗口，IME 或小窗口不足时收起并暂停预览；预览测量按最新 16dp 外边距计算。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
@@ -225,3 +225,8 @@
 
 - `fragment_mine_playlists_tab.xml` 在列表外提供固定工具行：复用 `bg_search_field` 搜索框、`ic_list_check_24` 批量管理、`ic_add_24` 导入；`MinePlaylistsTabFragment` 防抖筛选名称/简介、区分空列表与无结果，恢复搜索并按 View 生命周期取消旧查询。
 - `fragment_mine.xml` 的 Tab 行恢复为居中双文字，不再承载管理/导入图标；列表内容与空态约束在工具行下方。
+
+## 歌单收藏三点菜单（2026-11-24）
+
+- `FavoritePlaylistsActivity` 只在本页将共享顶栏搜索按钮替换成 `ic_more_vert_24`（48dp 热区、12dp 内边距）；`FavoritePlaylistMenu` 复用下载管理的 `layout_search_source_dropdown` 与 `item_compact_action_menu_row`。
+- 依次为搜索（搜索图标）、多选（列表勾选图标）、导入（加号）；分别打开原搜索页、歌单管理页、三方导入页。先关闭菜单再跳转，销毁页面时释放菜单。
