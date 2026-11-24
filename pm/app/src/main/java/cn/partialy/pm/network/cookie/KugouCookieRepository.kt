@@ -259,6 +259,39 @@ class KugouCookieRepository @Inject constructor(
             http.getBlocking(configManager.kgApiTarget("user/vip/detail"), params, session)
         }
 
+    /** 刷新仅返回新凭证，由调用方在会话快照仍匹配时统一落库。 */
+    internal suspend fun refreshSession(session: MusicSessionSnapshot): KugouLoginSessionFinalized = withContext(Dispatchers.IO) {
+        val cookies = CookieRequest.parseCookieHeader(session.cookie)
+        val token = cookies["token"].orEmpty()
+        val uid = cookies["userid"].orEmpty()
+        require(token.isNotBlank() && uid.isNotBlank()) { "缺少酷狗登录凭证" }
+        val target = configManager.kgApiTarget("login/token")
+        val result = CookieRequest.getBlocking(
+            url = target.url,
+            params = mapOf("token" to token, "userid" to uid, "x-key" to "partialy", "res-dec" to "1"),
+            cookie = loginSessionFinalizer.buildSyntheticCookie(token, uid, cookies["vip_type"] ?: "0", cookies["vip_token"].orEmpty()),
+            mergeResponseSetCookie = false,
+            runtimeState = target.state,
+        )
+        check(result.isSuccessful) { "酷狗刷新请求失败" }
+        val response = gson.fromJson(result.body, KgStdEnvelope::class.java) ?: error("酷狗刷新响应为空")
+        check(response.status == 1) { "酷狗刷新未成功" }
+        val data = response.data ?: error("酷狗刷新缺少凭证")
+        // 登录收尾允许回退到原 token，刷新必须实际取得响应中的 token，不能误报成功。
+        val newToken = data.get("token")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty().trim()
+        val newUid = data.get("userid")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty().trim()
+        check(newToken.isNotBlank() && newToken != "null" && newToken != "undefined" && newUid == uid) { "酷狗刷新凭证无效" }
+        val previous = session.profile ?: MusicLoginProfile(userId = uid)
+        val refreshed = loginSessionFinalizer.buildSession(session.cookie,
+            KugouLoginAuthPayload(token, uid, previous.nickname, previous.avatarUrl), data)
+        refreshed.copy(profile = previous.copy(
+            userId = uid,
+            isVip = refreshed.profile.isVip,
+            vipType = refreshed.profile.vipType,
+            rawProfileJson = refreshed.profile.rawProfileJson,
+        ))
+    }
+
     /** 侧栏展示直接读取登录成功时保存的账号摘要。 */
     suspend fun fetchDrawerUserInfo(): Result<KgDrawerUserInfo> = withContext(Dispatchers.IO) {
         runCatching {

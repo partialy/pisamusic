@@ -77,6 +77,21 @@ class WyCookieRepository @Inject constructor(
         http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap(), session)
     }
 
+    /** 只接收响应正文中的 MUSIC_U，忽略响应头及 Cookie 属性。 */
+    internal suspend fun refreshCookie(session: MusicSessionSnapshot): String = withContext(Dispatchers.IO) {
+        val result = http.getBlocking(configManager.wyApiTarget("login/refresh"),
+            mapOf("timestamp" to System.currentTimeMillis().toString()), session)
+        check(result.isSuccessful) { "网易刷新请求失败" }
+        val response = gson.fromJson(result.body, com.google.gson.JsonObject::class.java)
+            ?: error("网易刷新响应为空")
+        check(response.get("code")?.asInt == 200) { "网易刷新未成功" }
+        val raw = response.get("cookie")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+        val musicU = CookieRequest.parseCookieHeader(raw)["MUSIC_U"].orEmpty()
+        check(musicU.isNotBlank() && musicU != "null" && musicU != "undefined") { "网易刷新缺少 MUSIC_U" }
+        CookieRequest.parseCookieHeader(session.cookie).apply { put("MUSIC_U", musicU) }
+            .entries.joinToString("; ") { "${it.key}=${it.value}" }
+    }
+
     /**
      * 第二步：`/user/playlist?uid=...`
      * @param uid 来自 [WyAccountResponse.account.id] 或 [WyAccountResponse.profile.userId]

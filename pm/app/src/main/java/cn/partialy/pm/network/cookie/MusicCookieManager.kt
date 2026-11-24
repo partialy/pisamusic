@@ -174,6 +174,13 @@ class MusicCookieManager @Inject constructor(
         true
     } ?: false
 
+    /** 刷新和清除/重新登录共用同一锁，旧刷新结果不能恢复已清除的账号。 */
+    internal fun replaceSessionIfCurrent(expected: MusicSessionSnapshot, cookie: String, profile: MusicLoginProfile): MusicSessionSnapshot? =
+        withCurrentSession(expected) {
+            saveSession(expected.source, cookie, profile)
+            snapshot(expected.source)
+        }
+
     fun clearIfCurrent(source: String, sessionKey: String): Boolean = synchronized(lock) {
         if (snapshot(source).sessionKey != sessionKey) return@synchronized false
         clear(source)

@@ -66,7 +66,7 @@ class KugouLoginSessionFinalizer {
         )
     }
 
-    private fun buildSyntheticCookie(
+    internal fun buildSyntheticCookie(
         token: String,
         userid: String,
         vipType: String,
