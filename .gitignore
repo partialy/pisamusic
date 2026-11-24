@@ -1,4 +1,5 @@
 # Reference code is opt-in only.
+.worktree/
 example/
 Splayer/
 SPlayer/
