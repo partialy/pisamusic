@@ -3,6 +3,7 @@ import type { FileRecordInfo } from "../types/config";
 export function fileUsageText(file: FileRecordInfo): string {
   if (file.usageType === "playlist-cover") return "歌单封面";
   if (file.usageType === "app-share-icon") return "App分享图标";
+  if (file.usageType === "sidebar-menu-icon") return "侧栏菜单图标";
   if (file.usageType === "desktop-update") return "PC 自动更新文件";
   if (file.usageType === "cloud-music") return "网盘音乐";
   if (file.usageType === "announcement-image") return "公告图片";

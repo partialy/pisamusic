@@ -165,6 +165,7 @@ export default function AdminLayout() {
           { key: "appShareRecords", icon: <ShareAltOutlined />, label: "分享记录" },
           { key: "update", icon: <CloudUploadOutlined />, label: "版本发布" },
           { key: "announcements", icon: <NotificationOutlined />, label: "公告管理" },
+          { key: "sidebarMenus", icon: <MenuOutlined />, label: "侧栏菜单" },
           { key: "content", icon: <FileTextOutlined />, label: "内容与协议" },
         ],
       },

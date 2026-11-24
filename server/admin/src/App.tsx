@@ -30,6 +30,7 @@ const SongDownloadsPage = lazy(() => import("./pages/SongDownloadsPage"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const ContentManagementPage = lazy(() => import("./pages/ContentManagementPage"));
 const AnnouncementsManagementPage = lazy(() => import("./pages/AnnouncementsManagementPage"));
+const SidebarMenuManagementPage = lazy(() => import("./pages/SidebarMenuManagementPage"));
 const DynamicConfigPage = lazy(() => import("./pages/DynamicConfigPage"));
 const EncryptionPage = lazy(() => import("./pages/EncryptionPage"));
 const DatabaseMigrationPage = lazy(() => import("./pages/DatabaseMigrationPage"));
@@ -99,6 +100,7 @@ export default function App() {
             <Route path="/website-records" element={<WebsiteRecordsRoute />} />
             <Route path="/updates" element={<UpdateManagementPage />} />
             <Route path="/announcements" element={<AnnouncementsManagementPage />} />
+            <Route path="/sidebar-menus" element={<SidebarMenuManagementPage />} />
             <Route path="/content" element={<ContentManagementPage />} />
             <Route path="/feedback" element={<FeedbackManagementPage />} />
             <Route path="/fault-reports" element={<FaultReportsPage />} />

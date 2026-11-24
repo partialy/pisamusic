@@ -25,7 +25,7 @@ const { Text } = Typography;
 
 type FileFilters = {
   status: "uploaded" | "deleted" | "pending" | "all";
-  usageType: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "playlist-cover" | "all";
+  usageType: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "sidebar-menu-icon" | "playlist-cover" | "all";
   keyword: string;
 };
 
@@ -289,6 +289,7 @@ export default function FileManagementTab({
               { label: "PC 自动更新", value: "desktop-update" },
               { label: "网盘音乐", value: "cloud-music" },
               { label: "App分享图标", value: "app-share-icon" },
+              { label: "侧栏菜单图标", value: "sidebar-menu-icon" },
               { label: "歌单封面", value: "playlist-cover" },
             ]}
           />

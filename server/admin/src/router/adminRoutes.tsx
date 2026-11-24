@@ -13,6 +13,7 @@ export type AdminRouteKey =
   | "files"
   | "update"
   | "announcements"
+  | "sidebarMenus"
   | "content"
   | "feedback"
   | "faultReports"
@@ -63,6 +64,7 @@ export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "websiteRecords", path: "/website-records", title: "官网记录", groupKey: "operation_group", groupTitle: "运营与发布", hideGlobalActions: true },
   { key: "update", path: "/updates", title: "版本发布", groupKey: "operation_group", groupTitle: "运营与发布" },
   { key: "announcements", path: "/announcements", title: "公告管理", groupKey: "operation_group", groupTitle: "运营与发布" },
+  { key: "sidebarMenus", path: "/sidebar-menus", title: "侧栏菜单", groupKey: "operation_group", groupTitle: "运营与发布", hideGlobalActions: true },
   { key: "content", path: "/content", title: "内容与协议", groupKey: "operation_group", groupTitle: "运营与发布" },
   { key: "feedback", path: "/feedback", title: "反馈管理", groupKey: "maintenance_group", groupTitle: "监控与运维" },
   { key: "faultReports", path: "/fault-reports", title: "故障管理", groupKey: "maintenance_group", groupTitle: "监控与运维" },
