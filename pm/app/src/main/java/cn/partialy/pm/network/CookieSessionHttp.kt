@@ -1,6 +1,7 @@
 package cn.partialy.pm.network
 
 import cn.partialy.pm.network.cookie.MusicCookieManager
+import cn.partialy.pm.network.cookie.MusicSessionSnapshot
 import cn.partialy.pm.network.config.ConfigManager
 
 /**
@@ -17,14 +18,18 @@ class CookieSessionHttp(
     internal fun getBlocking(
         target: ConfigManager.RuntimeUrlTarget,
         params: Map<String, String?> = emptyMap(),
+        session: MusicSessionSnapshot? = null,
     ): CookieHttpResult {
-        val current = cookieManager.getCookie(source).cookie.trim().takeIf { it.isNotEmpty() }
-        return CookieRequest.getBlocking(
+        if (session != null) check(session.source == source && cookieManager.withCurrentSession(session) { true } == true) { "登录状态已变化" }
+        val current = (session?.cookie ?: cookieManager.getCookie(source).cookie).trim().takeIf { it.isNotEmpty() }
+        val response = CookieRequest.getBlocking(
             url = target.url,
             params = params,
             cookie = current,
             mergeResponseSetCookie = false,
             runtimeState = target.state,
         )
+        if (session != null) check(session.source == source && cookieManager.withCurrentSession(session) { true } == true) { "登录状态已变化" }
+        return response
     }
 }

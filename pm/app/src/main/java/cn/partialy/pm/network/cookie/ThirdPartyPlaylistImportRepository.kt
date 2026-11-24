@@ -57,10 +57,11 @@ class ThirdPartyPlaylistImportRepository @Inject constructor(
     suspend fun pullCandidates(
         targetSources: List<String> = loggedInSources(),
     ): ThirdPartyPullOutcome = withContext(Dispatchers.IO) {
-        val sources = targetSources.distinct().filter {
-            (it == MusicCookieManager.SOURCE_KG || it == MusicCookieManager.SOURCE_WY) &&
-                musicCookieManager.getCookie(it).exist
-        }
+        val sessions = targetSources.distinct()
+            .filter { it == MusicCookieManager.SOURCE_KG || it == MusicCookieManager.SOURCE_WY }
+            .associateWith(musicCookieManager::snapshot)
+            .filterValues { it.cookie.isNotBlank() }
+        val sources = sessions.keys.toList()
         if (sources.isEmpty()) {
             return@withContext ThirdPartyPullOutcome.NoLogin(candidateStore.getAll())
         }
@@ -70,8 +71,8 @@ class ThirdPartyPlaylistImportRepository @Inject constructor(
                 async {
                     source to runCatching {
                         when (source) {
-                            MusicCookieManager.SOURCE_KG -> fetchKgCandidates()
-                            MusicCookieManager.SOURCE_WY -> fetchWyCandidates()
+                            MusicCookieManager.SOURCE_KG -> fetchKgCandidates(sessions.getValue(source))
+                            MusicCookieManager.SOURCE_WY -> fetchWyCandidates(sessions.getValue(source))
                             else -> emptyList()
                         }
                     }.onFailure { if (it is CancellationException) throw it }
@@ -86,8 +87,11 @@ class ThirdPartyPlaylistImportRepository @Inject constructor(
         for ((source, result) in results) {
             result.fold(
                 onSuccess = { items ->
-                    candidateStore.replaceSource(source, items, now)
-                    succeeded.add(source)
+                    val saved = musicCookieManager.withCurrentSession(sessions.getValue(source)) {
+                        candidateStore.replaceSource(source, items, now)
+                        true
+                    } == true
+                    if (saved) succeeded.add(source)
                 },
                 onFailure = { err ->
                     failed.add(source)
@@ -106,8 +110,8 @@ class ThirdPartyPlaylistImportRepository @Inject constructor(
         }
     }
 
-    private suspend fun fetchKgCandidates(): List<ThirdPartyPlaylistCandidate> {
-        val items = kugouCookieRepository.fetchAllUserPlaylists().getOrThrow()
+    private suspend fun fetchKgCandidates(session: MusicSessionSnapshot): List<ThirdPartyPlaylistCandidate> {
+        val items = kugouCookieRepository.fetchAllUserPlaylists(session = session).getOrThrow()
         val now = System.currentTimeMillis()
         val seenIds = HashSet<String>()
         val out = ArrayList<ThirdPartyPlaylistCandidate>(items.size)
@@ -135,14 +139,14 @@ class ThirdPartyPlaylistImportRepository @Inject constructor(
         return out
     }
 
-    private suspend fun fetchWyCandidates(): List<ThirdPartyPlaylistCandidate> {
-        val uid = wyCookieRepository.getProfile()?.userId?.toLongOrNull()
+    private suspend fun fetchWyCandidates(session: MusicSessionSnapshot): List<ThirdPartyPlaylistCandidate> {
+        val uid = session.profile?.userId?.toLongOrNull()
             ?: run {
-                val account = wyCookieRepository.getAccount().getOrThrow()
+                val account = wyCookieRepository.getAccount(session).getOrThrow()
                 wyCookieRepository.resolveUid(account)
             }
             ?: error("网易云账号信息缺失")
-        val items = wyCookieRepository.fetchAllUserPlaylists(uid).getOrThrow()
+        val items = wyCookieRepository.fetchAllUserPlaylists(uid, session = session).getOrThrow()
         val now = System.currentTimeMillis()
         val seenIds = HashSet<String>()
         val out = ArrayList<ThirdPartyPlaylistCandidate>(items.size)

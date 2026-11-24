@@ -66,15 +66,15 @@ class WyCookieRepository @Inject constructor(
     }
 
     /** 第一步：`/user/account` */
-    suspend fun getAccount(): Result<WyAccountResponse> = withContext(Dispatchers.IO) {
+    suspend fun getAccount(session: MusicSessionSnapshot? = null): Result<WyAccountResponse> = withContext(Dispatchers.IO) {
         runCatching {
-            val result = http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap())
+            val result = http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap(), session)
             result.parseAccountOrThrow()
         }
     }
 
-    suspend fun getAccountRaw(): CookieHttpResult = withContext(Dispatchers.IO) {
-        http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap())
+    suspend fun getAccountRaw(session: MusicSessionSnapshot? = null): CookieHttpResult = withContext(Dispatchers.IO) {
+        http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap(), session)
     }
 
     /**
@@ -85,6 +85,7 @@ class WyCookieRepository @Inject constructor(
         uid: Long,
         limit: Int? = null,
         offset: Int? = null,
+        session: MusicSessionSnapshot? = null,
     ): Result<WyUserPlaylistResponse> = withContext(Dispatchers.IO) {
         runCatching {
             val params = buildMap {
@@ -92,7 +93,7 @@ class WyCookieRepository @Inject constructor(
                 limit?.let { put("limit", it.toString()) }
                 offset?.let { put("offset", it.toString()) }
             }
-            val result = http.getBlocking(configManager.wyApiTarget("user/playlist"), params)
+            val result = http.getBlocking(configManager.wyApiTarget("user/playlist"), params, session)
             result.parsePlaylistOrThrow()
         }
     }
@@ -107,13 +108,14 @@ class WyCookieRepository @Inject constructor(
     suspend fun fetchAllUserPlaylists(
         uid: Long,
         limit: Int = 30,
+        session: MusicSessionSnapshot? = null,
     ): Result<List<WyPlaylistItem>> = withContext(Dispatchers.IO) {
         runCatching {
             val all = mutableListOf<WyPlaylistItem>()
             var offset = 0
             var guard = 0
             while (guard++ < 500) {
-                val resp = getUserPlaylists(uid, limit, offset).getOrThrow()
+                val resp = getUserPlaylists(uid, limit, offset, session).getOrThrow()
                 if (resp.code != 200) error("code=${resp.code}")
                 val batch = resp.playlist.orEmpty()
                 all.addAll(batch)

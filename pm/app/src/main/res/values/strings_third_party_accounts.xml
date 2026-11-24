@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="third_party_accounts_title">三方账号管理</string>
+    <string name="third_party_accounts_kg">酷狗音乐</string>
+    <string name="third_party_accounts_wy">网易云音乐</string>
+    <string name="third_party_accounts_valid">有效</string>
+    <string name="third_party_accounts_expired">过期</string>
+    <string name="third_party_accounts_unchecked">未校验</string>
+    <string name="third_party_accounts_batch_refresh">批量刷新</string>
+    <string name="third_party_accounts_refresh">刷新</string>
+    <string name="third_party_accounts_clear">清除</string>
+    <string name="third_party_accounts_clear_all">全部清除</string>
+    <string name="third_party_accounts_refresh_unavailable">刷新功能暂未开放</string>
+    <string name="third_party_accounts_network_error">网络错误，状态更新失败</string>
+    <string name="third_party_accounts_clear_failed">清除失败，请重试</string>
+    <string name="third_party_accounts_clear_confirm">确定清除%1$s账号的登录信息吗？</string>
+</resources>

@@ -230,3 +230,8 @@
 
 - `FavoritePlaylistsActivity` 只在本页将共享顶栏搜索按钮替换成 `ic_more_vert_24`（48dp 热区、12dp 内边距）；`FavoritePlaylistMenu` 复用下载管理的 `layout_search_source_dropdown` 与 `item_compact_action_menu_row`。
 - 依次为搜索（搜索图标）、多选（列表勾选图标）、导入（加号）；分别打开原搜索页、歌单管理页、三方导入页。先关闭菜单再跳转，销毁页面时释放菜单。
+
+## 三方账号管理（2026-11-24）
+
+- `ThirdPartyAccountsActivity`、`ui/thirdparty/`：单区域两条账号行、品牌/圆形头像、昵称尾随音源标签、有效/过期状态、单账号 Sheet 与顶部批量菜单；刷新暂未开放，清除复用危险色二次确认，底部固定药丸进入三方歌单导入。
+- `ThirdPartyAccountsRepository` 共享校验状态；失败保留原状态并经 `PmMessage.error` 提示固定文案。`MusicCookieManager` 的快照守卫保护校验、清除与候选缓存，结果按会话指纹持久化至 `AppConfigStore`。

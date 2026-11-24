@@ -70,13 +70,14 @@ class KugouCookieRepository @Inject constructor(
     suspend fun getUserPlaylists(
         page: Int? = null,
         pagesize: Int? = null,
+        session: MusicSessionSnapshot? = null,
     ): Result<KgUserPlaylistResponse> = withContext(Dispatchers.IO) {
         runCatching {
             val params = buildMap {
                 page?.let { put("page", it.toString()) }
                 pagesize?.let { put("pagesize", it.toString()) }
             }
-            val result = http.getBlocking(configManager.kgApiTarget("user/playlist"), params)
+            val result = http.getBlocking(configManager.kgApiTarget("user/playlist"), params, session)
             result.parseOrThrow()
         }
     }
@@ -84,13 +85,13 @@ class KugouCookieRepository @Inject constructor(
     /**
      * 分页拉取当前账号全部歌单，直到累计条数达到 [KgUserPlaylistData.listCount] 或本页为空。
      */
-    suspend fun fetchAllUserPlaylists(pageSize: Int = 30): Result<List<KgUserPlaylistInfoItem>> =
+    suspend fun fetchAllUserPlaylists(pageSize: Int = 30, session: MusicSessionSnapshot? = null): Result<List<KgUserPlaylistInfoItem>> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val all = mutableListOf<KgUserPlaylistInfoItem>()
                 var page = 1
                 while (page <= 500) {
-                    val resp = getUserPlaylists(page, pageSize).getOrThrow()
+                    val resp = getUserPlaylists(page, pageSize, session).getOrThrow()
                     if (resp.status != 1 || resp.errorCode != 0) {
                         error("status=${resp.status} error_code=${resp.errorCode}")
                     }
@@ -252,10 +253,10 @@ class KugouCookieRepository @Inject constructor(
         type = KgPlaylistTrackAllApiResponse::class.java,
     )
 
-    /** 调试：`GET /user/detail`（无额外 query，可按需扩展 [params]）。 */
-    suspend fun getUserDetailRaw(params: Map<String, String?> = emptyMap()): CookieHttpResult =
+    /** 开发者调试与登录态校验共用 `GET /user/vip/detail`。 */
+    suspend fun getUserDetailRaw(params: Map<String, String?> = emptyMap(), session: MusicSessionSnapshot? = null): CookieHttpResult =
         withContext(Dispatchers.IO) {
-            http.getBlocking(configManager.kgApiTarget("user/vip/detail"), params)
+            http.getBlocking(configManager.kgApiTarget("user/vip/detail"), params, session)
         }
 
     /** 侧栏展示直接读取登录成功时保存的账号摘要。 */
