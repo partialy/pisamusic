@@ -1,5 +1,6 @@
 package cn.partialy.pm.model
 
+import cn.partialy.pm.announcement.ANNOUNCEMENT_VERSION
 import cn.partialy.pm.directmessage.DirectMessageUnreadPage
 
 data class AndroidStartupRequest(
@@ -7,6 +8,7 @@ data class AndroidStartupRequest(
     val agreementVersion: Long? = null,
     val unreadMessageLimit: Int = 20,
     val sidebarMenuSchemaVersion: Int = 2,
+    val announcementVersion: Int = ANNOUNCEMENT_VERSION,
 )
 
 data class AndroidStartupResponse(

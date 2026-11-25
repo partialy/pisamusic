@@ -61,9 +61,23 @@ object AnnouncementContentRenderer {
                     is AnnouncementBlock.Text -> {
                         val start = builder.length
                         builder.append(block.text)
-                        if (block.bold) {
+                        val style = when {
+                            block.bold && block.italic -> Typeface.BOLD_ITALIC
+                            block.bold -> Typeface.BOLD
+                            block.italic -> Typeface.ITALIC
+                            else -> Typeface.NORMAL
+                        }
+                        if (style != Typeface.NORMAL) {
                             builder.setSpan(
-                                StyleSpan(Typeface.BOLD),
+                                StyleSpan(style),
+                                start,
+                                builder.length,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+                            )
+                        }
+                        block.color?.let { color ->
+                            builder.setSpan(
+                                ForegroundColorSpan(resolveAnnouncementColor(color, defaultTextColor)),
                                 start,
                                 builder.length,
                                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,

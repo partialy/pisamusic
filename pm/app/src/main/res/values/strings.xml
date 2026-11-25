@@ -1267,6 +1267,7 @@
     <string name="player_no_lyric">暂无歌词</string>
     <string name="announcement_title">公告</string>
     <string name="announcement_confirm_default">我知道了</string>
+    <string name="announcement_confirm_countdown">%1$s（%2$d）</string>
     <string name="announcement_goto">前往</string>
     <string name="announcement_time_just_now">刚刚</string>
     <string name="announcement_image_placeholder_format">图片暂不可用（%1$s）</string>

@@ -8,7 +8,10 @@ import android.content.Intent
 import android.net.Uri
 import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.FullscreenWebContentActivity
+import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.activity.PlayerActivity
+import cn.partialy.pm.activity.SettingsActivity
 import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.activity.WebContentActivity
 import cn.partialy.pm.listen.ListenTogetherScanLink
@@ -43,8 +46,18 @@ object AnnouncementActionExecutor {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         context.startActivity(intent)
-                    } else {
+                    } else if (action.showHeaderBar) {
                         WebContentActivity.start(context, action.url, action.label)
+                    } else {
+                        FullscreenWebContentActivity.start(context, action.url)
+                    }
+                    true
+                }
+
+                is AnnouncementAction.Page -> {
+                    when (action.page) {
+                        AnnouncementAction.Page.Destination.DISCOVER -> MainActivity.openDiscover(context)
+                        AnnouncementAction.Page.Destination.SETTINGS -> SettingsActivity.start(context)
                     }
                     true
                 }

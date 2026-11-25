@@ -1,6 +1,9 @@
 package cn.partialy.pm.model
 
+import cn.partialy.pm.announcement.AnnouncementAction
+import cn.partialy.pm.announcement.AnnouncementActionAdapter
 import cn.partialy.pm.announcement.AnnouncementContent
+import com.google.gson.annotations.JsonAdapter
 
 /**
  * 启动配置下发响应（兼容 success 字段）。
@@ -138,4 +141,7 @@ data class AnnouncementItem(
     val showGotoButton: Boolean = false,
     val gotoUrl: String? = null,
     val enabled: Boolean = true,
+    val waitSeconds: Int = 0,
+    @JsonAdapter(AnnouncementActionAdapter::class)
+    val gotoAction: AnnouncementAction? = null,
 )

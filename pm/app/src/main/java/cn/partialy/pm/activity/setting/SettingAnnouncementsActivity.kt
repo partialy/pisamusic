@@ -10,7 +10,6 @@ import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.model.AnnouncementItem
 import cn.partialy.pm.network.repository.SystemRepository
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -99,11 +98,7 @@ class SettingAnnouncementsActivity : BaseSettingWebActivity() {
                 AnnouncementDetailBottomSheet.show(
                     activity = this@SettingAnnouncementsActivity,
                     item = item,
-                    onConfirmed = {
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            systemRepository.markAnnouncementRead(item.id)
-                        }
-                    },
+                    onConfirmed = { systemRepository.confirmAnnouncement(item) },
                 )
             }
         }

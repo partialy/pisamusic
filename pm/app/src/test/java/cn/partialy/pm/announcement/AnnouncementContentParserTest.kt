@@ -1,5 +1,6 @@
 package cn.partialy.pm.announcement
 
+import cn.partialy.pm.model.AnnouncementItem
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import org.junit.Assert.assertEquals
@@ -77,10 +78,51 @@ class AnnouncementContentParserTest {
     }
 
     @Test
-    fun `shouldUnderline only for Url and Protocol actions`() {
-        // 规则 2：高亮的文本，只有 url 和内置地址才显示下划线，其他操作不要下划线
+    fun `decode V2 actions and styled text alongside V1 fields`() {
+        val v2 = gson.fromJson(
+            """
+            {
+              "id": "anno2",
+              "waitSeconds": 10,
+              "showGotoButton": true,
+              "gotoAction": { "type": "url", "url": "https://example.com", "openMode": "app", "showHeaderBar": false },
+              "content": {
+                "schemaVersion": 1,
+                "blocks": [
+                  { "type": "text", "text": "Text", "bold": true, "italic": true, "color": "#12345680" },
+                  { "type": "highlight", "text": "Discover", "color": "primary", "action": { "type": "page", "page": "discover" } }
+                ]
+              }
+            }
+            """.trimIndent(),
+            AnnouncementItem::class.java,
+        )
+        assertEquals(10, v2.waitSeconds)
+        assertEquals(
+            AnnouncementAction.Url(url = "https://example.com", openMode = AnnouncementAction.Url.OpenMode.APP, showHeaderBar = false),
+            v2.gotoAction,
+        )
+        val content = parseAnnouncementContent(v2.content)
+        assertEquals(AnnouncementBlock.Text("Text", bold = true, color = "#12345680", italic = true), content.blocks[0])
+        assertEquals(0x80123456.toInt(), resolveAnnouncementColor("#12345680", 0))
+        val highlight = content.blocks[1] as AnnouncementBlock.Highlight
+        assertEquals(AnnouncementAction.Page(AnnouncementAction.Page.Destination.DISCOVER), highlight.action)
+        assertEquals(content, gson.fromJson(gson.toJson(content), AnnouncementContent::class.java))
+
+        val v1 = gson.fromJson(
+            "{\"id\":\"anno1\",\"gotoUrl\":\"https://example.com\"}",
+            AnnouncementItem::class.java,
+        )
+        assertEquals(0, v1.waitSeconds)
+        assertEquals(null, v1.gotoAction)
+        assertEquals("https://example.com", v1.gotoUrl)
+    }
+
+    @Test
+    fun `navigation actions are underlined`() {
         assertTrue(shouldUnderlineAnnouncementAction(AnnouncementAction.Url(url = "https://example.com")))
         assertTrue(shouldUnderlineAnnouncementAction(AnnouncementAction.Protocol(value = "pisamusic://scan?type=listen-together-join&roomId=123")))
+        assertTrue(shouldUnderlineAnnouncementAction(AnnouncementAction.Page(AnnouncementAction.Page.Destination.SETTINGS)))
         assertFalse(shouldUnderlineAnnouncementAction(AnnouncementAction.Copy(value = "test")))
         assertFalse(shouldUnderlineAnnouncementAction(AnnouncementAction.None))
     }
