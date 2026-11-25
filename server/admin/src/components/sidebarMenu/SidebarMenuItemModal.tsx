@@ -1,22 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { Checkbox, Form, Input, Modal, Radio, Select, Switch, Typography, message } from "antd";
+import SidebarIconField from "./SidebarIconField";
 import {
-  AutoComplete,
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  Modal,
-  Progress,
-  Radio,
-  Space,
-  Switch,
-  Typography,
-  message,
-} from "antd";
-import { UploadOutlined } from "@ant-design/icons";
-import { uploadSidebarMenuIcon } from "../../api/sidebarMenu";
-import {
-  SIDEBAR_PRESET_ICON_OPTIONS,
+  SIDEBAR_APP_ACTION_OPTIONS,
+  getSidebarAppActionLabel,
   type SidebarBadgeType,
   type SidebarIconType,
   type SidebarMenuItem,
@@ -35,6 +22,7 @@ type ItemFormValues = {
   retriggerDotOnce: boolean;
   openType: SidebarOpenType;
   url: string;
+  actionKey: string;
 };
 
 type Props = {
@@ -52,15 +40,6 @@ function createItemId(): string {
   return `menu_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function validateImageFile(file: File): Promise<void> {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    throw new Error("请选择 JPG、PNG 或 WebP 图片");
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    throw new Error("图标文件不能超过 2 MiB");
-  }
-}
-
 export default function SidebarMenuItemModal({
   open,
   section,
@@ -69,14 +48,11 @@ export default function SidebarMenuItemModal({
   onSubmit,
 }: Props) {
   const [form] = Form.useForm<ItemFormValues>();
-  const iconType = Form.useWatch("iconType", form);
-  const iconValue = Form.useWatch("iconValue", form);
   const badgeType = Form.useWatch("badgeType", form);
+  const openType = Form.useWatch("openType", form);
   const [imageMode, setImageMode] = useState<"upload" | "url">("upload");
   const [uploadedPreviewUrl, setUploadedPreviewUrl] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
@@ -104,29 +80,10 @@ export default function SidebarMenuItemModal({
       subtitleText: initialItem?.subtitleText ?? "",
       retriggerDotOnce: false,
       openType: initialItem?.openType ?? "web",
-      url: initialItem?.url ?? "https://",
+      url: initialItem?.url || "https://",
+      actionKey: initialItem?.actionKey || SIDEBAR_APP_ACTION_OPTIONS[0]!.key,
     });
   }, [open, section, initialItem, form]);
-
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    setProgress(0);
-    try {
-      await validateImageFile(file);
-      const result = await uploadSidebarMenuIcon(file, (pct) => setProgress(pct));
-      form.setFieldsValue({
-        iconType: "image",
-        iconFileId: result.fileId,
-        iconValue: "",
-      });
-      setUploadedPreviewUrl(result.url);
-      void messageApi.success("图标已上传");
-    } catch (e) {
-      void messageApi.error(e instanceof Error ? e.message : "图标上传失败");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleOk = async () => {
     const values = await form.validateFields();
@@ -155,6 +112,8 @@ export default function SidebarMenuItemModal({
           : nextIconValue
         : "";
 
+    const isAppAction = values.openType === "app_action";
+
     onSubmit({
       id: initialItem?.id ?? createItemId(),
       enabled: values.enabled,
@@ -168,20 +127,21 @@ export default function SidebarMenuItemModal({
       subtitleText: values.badgeType === "text" ? values.subtitleText.trim() : "",
       badgeVersion: nextBadgeVersion,
       openType: values.openType,
-      url: values.url.trim(),
+      url: isAppAction ? "" : values.url.trim(),
+      actionKey: isAppAction ? values.actionKey : "",
     });
   };
 
   return (
     <Modal
       open={open}
-      title={`${initialItem ? "编辑" : "新增"}${section === "list" ? "横栏入口" : "九宫格入口"}`}
+      title={`${initialItem ? "编辑" : "新增"}${section === "list" ? "横栏入口" : "四宫格入口"}`}
       onCancel={onCancel}
       onOk={() => void handleOk()}
       okText="确定"
       cancelText="取消"
       okButtonProps={{ disabled: uploading }}
-      width={600}
+      width={620}
       destroyOnClose
     >
       {contextHolder}
@@ -203,169 +163,19 @@ export default function SidebarMenuItemModal({
           </Form.Item>
         </div>
 
-        <Form.Item label="图标类型" name="iconType">
-          <Radio.Group
-            optionType="button"
-            onChange={(e) => {
-              const next = e.target.value as SidebarIconType;
-              if (next === "preset" && !form.getFieldValue("iconValue")) {
-                form.setFieldValue("iconValue", "link");
-              }
-            }}
-          >
-            {section === "list" && <Radio.Button value="none">无图标</Radio.Button>}
-            <Radio.Button value="image">图片</Radio.Button>
-            <Radio.Button value="svg">SVG 源码</Radio.Button>
-            <Radio.Button value="preset">预置图标</Radio.Button>
-          </Radio.Group>
-        </Form.Item>
-
-        <Form.Item name="iconFileId" hidden>
-          <Input />
-        </Form.Item>
-
-        {iconType === "image" && (
-          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-3">
-            <Radio.Group
-              size="small"
-              value={imageMode}
-              onChange={(e) => setImageMode(e.target.value as "upload" | "url")}
-            >
-              <Radio value="upload">上传图标到七牛</Radio>
-              <Radio value="url">填写 HTTPS 图片链接</Radio>
-            </Radio.Group>
-
-            {imageMode === "upload" ? (
-              <div className="space-y-2">
-                <Space wrap>
-                  {uploadedPreviewUrl && (
-                    <img
-                      src={uploadedPreviewUrl}
-                      alt="图标预览"
-                      className="h-10 w-10 rounded-lg border border-slate-200 object-cover bg-white"
-                    />
-                  )}
-                  <Button
-                    icon={<UploadOutlined />}
-                    loading={uploading}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    选择图片（JPG/PNG/WebP，≤2MiB）
-                  </Button>
-                </Space>
-                <Form.Item
-                  name="iconFileId"
-                  className="!mb-0"
-                  rules={[
-                    {
-                      validator: () =>
-                        form.getFieldValue("iconFileId")
-                          ? Promise.resolve()
-                          : Promise.reject(new Error("请先上传图片图标")),
-                    },
-                  ]}
-                >
-                  <span />
-                </Form.Item>
-                {uploading && <Progress percent={progress} size="small" />}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  style={{ display: "none" }}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = "";
-                    if (file) void handleUpload(file);
-                  }}
-                />
-              </div>
-            ) : (
-              <Form.Item
-                label="图片 HTTPS 地址"
-                name="iconValue"
-                className="!mb-0"
-                rules={[
-                  { required: true, whitespace: true, message: "请输入 HTTPS 图片链接" },
-                  {
-                    validator: (_, val: string) => {
-                      try {
-                        const u = new URL((val ?? "").trim());
-                        if (u.protocol === "https:") return Promise.resolve();
-                      } catch {
-                        // ignore
-                      }
-                      return Promise.reject(new Error("仅支持合法 HTTPS 图片链接"));
-                    },
-                  },
-                ]}
-              >
-                <Input placeholder="https://..." />
-              </Form.Item>
-            )}
-          </div>
-        )}
-
-        {iconType === "svg" && (
-          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-            <Form.Item
-              label="SVG 源码（支持 currentColor 自动适配深浅色）"
-              name="iconValue"
-              className="!mb-0"
-              rules={[
-                { required: true, whitespace: true, message: "请输入 <svg>...</svg> 源码" },
-                {
-                  validator: (_, val: string) => {
-                    const t = (val ?? "").trim();
-                    if (!/^<svg\b[\s\S]*<\/svg>$/i.test(t)) {
-                      return Promise.reject(new Error("必须包含完整的 <svg>...</svg>"));
-                    }
-                    if (/<script\b|\bon[a-z]+\s*=|javascript:/i.test(t)) {
-                      return Promise.reject(new Error("SVG 不允许包含脚本或事件属性"));
-                    }
-                    return Promise.resolve();
-                  },
-                },
-              ]}
-            >
-              <Input.TextArea rows={4} placeholder='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">...</svg>' />
-            </Form.Item>
-            {typeof iconValue === "string" && /^<svg\b[\s\S]*<\/svg>$/i.test(iconValue.trim()) && (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span>实时预览：</span>
-                <span
-                  className="inline-flex h-6 w-6 items-center justify-center text-slate-800 [&>svg]:h-5 [&>svg]:w-5"
-                  // 管理后台仅预览管理员自己输入的已清洗 SVG
-                  dangerouslySetInnerHTML={{
-                    __html: iconValue.replace(/<script[\s\S]*?<\/script>/gi, ""),
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {iconType === "preset" && (
-          <Form.Item
-            label="预置图标键名（暂置框架，客户端未匹配键名时将安全回退）"
-            name="iconValue"
-            rules={[
-              { required: true, whitespace: true, message: "请选择或输入预置图标键名" },
-              {
-                pattern: /^[A-Za-z0-9_-]{1,64}$/,
-                message: "仅支持字母、数字、下划线和短横线",
-              },
-            ]}
-          >
-            <AutoComplete
-              options={SIDEBAR_PRESET_ICON_OPTIONS.map((o) => ({
-                value: o.key,
-                label: o.label,
-              }))}
-              placeholder="选择或输入预置图标 key，如 link / feedback"
-            />
-          </Form.Item>
-        )}
+        <SidebarIconField
+          form={form}
+          allowDefault={false}
+          allowNone={section === "list"}
+          imageMode={imageMode}
+          onImageModeChange={setImageMode}
+          uploadedPreviewUrl={uploadedPreviewUrl}
+          onUploadedPreviewUrlChange={setUploadedPreviewUrl}
+          uploading={uploading}
+          onUploadingChange={setUploading}
+          onMessageSuccess={(msg) => void messageApi.success(msg)}
+          onMessageError={(msg) => void messageApi.error(msg)}
+        />
 
         <Form.Item label={section === "list" ? "副标题 / 红点" : "角标红点"} name="badgeType">
           <Radio.Group>
@@ -399,38 +209,59 @@ export default function SidebarMenuItemModal({
 
         <Form.Item label="打开方式" name="openType">
           <Radio.Group>
-            <Radio value="web">打开网页（带顶栏，标题来自网页 / JS 桥）</Radio>
-            <Radio value="fullscreen_web">打开全屏网页（整页 WebView，无顶栏及返回键）</Radio>
+            <Radio value="web">打开网页</Radio>
+            <Radio value="fullscreen_web">打开全屏网页</Radio>
+            <Radio value="app_action">打开 App 页面 / 功能</Radio>
           </Radio.Group>
         </Form.Item>
 
-        <Form.Item
-          label="目标链接"
-          name="url"
-          rules={[
-            { required: true, whitespace: true, message: "请输入目标链接" },
-            { max: 1000, message: "最多 1000 字符" },
-            {
-              validator: (_, val: string) => {
-                try {
-                  const u = new URL((val ?? "").trim());
-                  if ((u.protocol === "http:" || u.protocol === "https:") && !u.username && !u.password) {
-                    return Promise.resolve();
-                  }
-                } catch {
-                  // ignore
+        {openType === "app_action" ? (
+          <Form.Item
+            label="App 页面 / 功能"
+            name="actionKey"
+            rules={[{ required: true, message: "请选择目标页面或功能" }]}
+          >
+            <Select
+              options={SIDEBAR_APP_ACTION_OPTIONS.map((item) => ({
+                value: item.key,
+                label: `${item.label}（${item.key}）`,
+              }))}
+              onChange={(key: string) => {
+                if (!form.getFieldValue("name")?.trim()) {
+                  form.setFieldValue("name", getSidebarAppActionLabel(key).replace(/（.*$/, ""));
                 }
-                return Promise.reject(new Error("请输入合法的 http:// 或 https:// 链接"));
+              }}
+            />
+          </Form.Item>
+        ) : (
+          <Form.Item
+            label="目标链接"
+            name="url"
+            rules={[
+              { required: true, whitespace: true, message: "请输入目标链接" },
+              { max: 1000, message: "最多 1000 字符" },
+              {
+                validator: (_, val: string) => {
+                  try {
+                    const u = new URL((val ?? "").trim());
+                    if ((u.protocol === "http:" || u.protocol === "https:") && !u.username && !u.password) {
+                      return Promise.resolve();
+                    }
+                  } catch {
+                    // ignore
+                  }
+                  return Promise.reject(new Error("请输入合法的 http:// 或 https:// 链接"));
+                },
               },
-            },
-          ]}
-        >
-          <Input placeholder="https://example.com" />
-        </Form.Item>
+            ]}
+          >
+            <Input placeholder="https://example.com" />
+          </Form.Item>
+        )}
 
         {badgeType === "dot_once" && (
           <Typography.Text type="secondary" className="text-xs">
-            提示：一次性红点默认会在客户端点击该项后消除；修改名称或链接不会重置红点，仅在勾选“重新触发”或列表点击“重置红点”时递增版本。
+            提示：一次性红点默认会在客户端点击该项后消除；修改名称或目标不会重置红点，仅在勾选“重新触发”或列表点击“重置红点”时递增版本。
           </Typography.Text>
         )}
       </Form>
