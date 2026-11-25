@@ -7,6 +7,7 @@ import kotlin.math.roundToInt
 
 enum class LyricEffectStyleId(val id: String) {
     DEFAULT("default"),
+    ACCOMPANIST("accompanist"),
     TYPEWRITER("typewriter"),
     INK("ink"),
     BOUNCE("bounce"),
@@ -14,6 +15,8 @@ enum class LyricEffectStyleId(val id: String) {
     NEON("neon"),
     OCEAN("ocean"),
     ;
+
+    val hasParameters: Boolean get() = this != DEFAULT
 
     companion object {
         fun fromId(raw: String?): LyricEffectStyleId =
@@ -116,6 +119,42 @@ data class OceanEffectConfig(
     )
 }
 
+enum class AccompanistLyricAlignment { LEFT, CENTER, RIGHT }
+
+enum class AccompanistLyricPosition(val fraction: Float) { TOP(0f), CENTER(0.5f), BOTTOM(1f) }
+
+@Serializable
+data class AccompanistLyricConfig(
+    val fontSizeSp: Int = 34,
+    val bold: Boolean = true,
+    val alignment: AccompanistLyricAlignment = AccompanistLyricAlignment.LEFT,
+    val position: AccompanistLyricPosition = AccompanistLyricPosition.TOP,
+    val textColorArgb: Int = -1,
+    val additiveBlend: Boolean = true,
+    val blurEnabled: Boolean = false,
+    val blurStrength: Int = 3,
+    val dotsCount: Int = 3,
+    val dotsSizeDp: Int = 16,
+    val dotsSpacingDp: Int = 12,
+    val dotsColorArgb: Int = -1,
+) {
+    fun normalized() = copy(
+        fontSizeSp = fontSizeSp.coerceIn(FONT_SIZE_SP),
+        blurStrength = blurStrength.coerceIn(BLUR_STRENGTH),
+        dotsCount = dotsCount.coerceIn(DOTS_COUNT),
+        dotsSizeDp = dotsSizeDp.coerceIn(DOTS_SIZE_DP),
+        dotsSpacingDp = dotsSpacingDp.coerceIn(DOTS_SPACING_DP),
+    )
+
+    companion object {
+        val FONT_SIZE_SP = 18..48
+        val BLUR_STRENGTH = 1..6
+        val DOTS_COUNT = 0..5
+        val DOTS_SIZE_DP = 8..24
+        val DOTS_SPACING_DP = 4..20
+    }
+}
+
 @Serializable
 data class LyricEffectConfig(
     val style: String = LyricEffectStyleId.DEFAULT.id,
@@ -126,6 +165,7 @@ data class LyricEffectConfig(
     val spotlight: SpotlightEffectConfig = SpotlightEffectConfig(),
     val neon: NeonEffectConfig = NeonEffectConfig(),
     val ocean: OceanEffectConfig = OceanEffectConfig(),
+    val accompanist: AccompanistLyricConfig = AccompanistLyricConfig(),
 ) {
     val styleId: LyricEffectStyleId
         get() = LyricEffectStyleId.fromId(style)
@@ -139,6 +179,7 @@ data class LyricEffectConfig(
         spotlight = spotlight.normalized(),
         neon = neon.normalized(),
         ocean = ocean.normalized(),
+        accompanist = accompanist.normalized(),
     )
 
     fun withStyle(styleId: LyricEffectStyleId): LyricEffectConfig =
@@ -146,6 +187,7 @@ data class LyricEffectConfig(
 
     fun resetStyle(styleId: LyricEffectStyleId): LyricEffectConfig = when (styleId) {
         LyricEffectStyleId.DEFAULT -> this
+        LyricEffectStyleId.ACCOMPANIST -> copy(accompanist = AccompanistLyricConfig())
         LyricEffectStyleId.TYPEWRITER -> copy(typewriter = TypewriterEffectConfig())
         LyricEffectStyleId.INK -> copy(ink = InkEffectConfig())
         LyricEffectStyleId.BOUNCE -> copy(bounce = BounceEffectConfig())

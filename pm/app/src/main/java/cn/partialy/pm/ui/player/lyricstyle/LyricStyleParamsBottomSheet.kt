@@ -3,6 +3,7 @@ package cn.partialy.pm.ui.player.lyricstyle
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -14,7 +15,6 @@ import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
-import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
@@ -24,10 +24,13 @@ import cn.partialy.pm.activity.LyricColorPresetsActivity
 import cn.partialy.pm.databinding.BottomSheetLyricStyleParamsBinding
 import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.ui.player.LyricPreviewController
+import cn.partialy.pm.ui.player.installLyricComposeOwners
 import cn.partialy.pm.ui.widget.PmSwitch
 import cn.partialy.pm.utils.LyricDisplayPrefs
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -43,7 +46,7 @@ internal object LyricStyleParamsBottomSheet {
         onChanged: () -> Unit,
         onDismissed: () -> Unit,
     ) {
-        if (styleId == LyricEffectStyleId.DEFAULT) {
+        if (!styleId.hasParameters) {
             onDismissed()
             return
         }
@@ -55,19 +58,26 @@ internal object LyricStyleParamsBottomSheet {
         val binding = BottomSheetLyricStyleParamsBinding.inflate(dialog.layoutInflater)
         dialog.setContentView(binding.root)
 
+        val isAccompanist = styleId == LyricEffectStyleId.ACCOMPANIST
+        if (isAccompanist) {
+            dialog.installLyricComposeOwners()
+            binding.styleParamsMotionHeading.setText(R.string.lyric_settings_section_typography)
+            binding.styleParamsAccompanistGroups.visibility = View.VISIBLE
+        }
+
         val styleName = LyricStyleParamsMeta.styleLabel(activity, styleId)
         binding.styleParamsTitle.text = activity.getString(R.string.lyric_settings_style_params_title, styleName)
 
         val preview = LyricPreviewController(
             binding.styleParamsPreview.previewNormalLyrics,
             binding.styleParamsPreview.previewKaraokeLyrics,
+            binding.styleParamsPreview.previewAccompanistLyrics.takeIf { isAccompanist },
         )
 
         val density = activity.resources.displayMetrics.density
         fun dp(value: Float): Int = (value * density).roundToInt()
 
         val colorPrimary = resolveThemeColor(activity, androidx.appcompat.R.attr.colorPrimary)
-        val colorOnSurface = resolveThemeColor(activity, com.google.android.material.R.attr.colorOnSurface)
         val colorOnSurfaceVariant = resolveThemeColor(activity, com.google.android.material.R.attr.colorOnSurfaceVariant)
         val selectedStrokeColor = ContextCompat.getColor(activity, R.color.blue_selected)
 
@@ -91,15 +101,8 @@ internal object LyricStyleParamsBottomSheet {
             checked: Boolean,
             onToggle: (Boolean) -> Unit,
         ) {
-            val sw = PmSwitch(ContextThemeWrapper(activity, R.style.Widget_Pm_SettingsSwitch)).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                )
-                minimumHeight = dp(48f)
-                text = activity.getString(titleRes)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                setTextColor(colorOnSurface)
+            val sw = (dialog.layoutInflater.inflate(R.layout.item_lyric_settings_switch, container, false) as PmSwitch).apply {
+                setText(titleRes)
                 isChecked = checked
                 setOnCheckedChangeListener { _, isChecked -> onToggle(isChecked) }
             }
@@ -113,7 +116,7 @@ internal object LyricStyleParamsBottomSheet {
             initialStep: Int,
             formatValue: (Int) -> String,
             onStepChanged: (Int) -> Unit,
-        ) {
+        ): SeekBar {
             val topMargin = if (container.childCount == 0) 0 else dp(12f)
             val header = LinearLayout(activity).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -126,7 +129,7 @@ internal object LyricStyleParamsBottomSheet {
             val label = TextView(activity).apply {
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 text = activity.getString(titleRes)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_LabelLarge)
                 setTextColor(colorOnSurfaceVariant)
             }
             val valueView = TextView(activity).apply {
@@ -135,7 +138,7 @@ internal object LyricStyleParamsBottomSheet {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
                 text = formatValue(initialStep)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
                 setTextColor(colorPrimary)
                 paint.isFakeBoldText = true
             }
@@ -143,18 +146,9 @@ internal object LyricStyleParamsBottomSheet {
             header.addView(valueView)
             container.addView(header)
 
-            val seekBar = SeekBar(activity).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(32f),
-                ).apply { this.topMargin = dp(4f) }
+            val seekBar = (dialog.layoutInflater.inflate(R.layout.item_lyric_settings_seekbar, container, false) as SeekBar).apply {
                 max = steps.coerceAtLeast(1)
                 progress = initialStep.coerceIn(0, max)
-                setPadding(0, 0, 0, 0)
-                splitTrack = false
-                progressDrawable = ContextCompat.getDrawable(activity, R.drawable.bg_lyric_settings_seekbar_progress)
-                thumb = ContextCompat.getDrawable(activity, R.drawable.bg_lyric_settings_seekbar_thumb)
-                thumbOffset = dp(6f)
                 contentDescription = activity.getString(titleRes)
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -166,6 +160,7 @@ internal object LyricStyleParamsBottomSheet {
                 })
             }
             container.addView(seekBar)
+            return seekBar
         }
 
         fun addColorRow(
@@ -263,6 +258,54 @@ internal object LyricStyleParamsBottomSheet {
             }
             rowWrapper.addView(presetBtn)
             container.addView(rowWrapper)
+        }
+
+        fun <T> addAccompanistSegments(
+            container: LinearLayout,
+            titleRes: Int,
+            options: List<Pair<T, Int>>,
+            selected: T,
+            onSelected: (T) -> Unit,
+        ) {
+            container.addView(TextView(dialog.context).apply {
+                setText(titleRes)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(colorOnSurfaceVariant)
+            })
+            val group = MaterialButtonToggleGroup(dialog.context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(8f) }
+                isSingleSelection = true
+                isSelectionRequired = true
+            }
+            val valuesById = options.associate { (value, title) ->
+                val button = (dialog.layoutInflater.inflate(R.layout.item_lyric_settings_segment, group, false) as MaterialButton).apply {
+                    id = View.generateViewId()
+                    setText(title)
+                }
+                group.addView(button)
+                if (value == selected) group.check(button.id)
+                button.id to value
+            }
+            group.addOnButtonCheckedListener { _, id, checked ->
+                if (checked) valuesById[id]?.let(onSelected)
+            }
+            container.addView(group)
+        }
+
+        fun addAccompanistSlider(
+            container: LinearLayout,
+            title: Int,
+            range: IntRange,
+            value: Int,
+            formatValue: (Int) -> String,
+            update: (AccompanistLyricConfig, Int) -> AccompanistLyricConfig,
+        ): SeekBar = addSliderRow(container, title, range.last - range.first, value - range.first, {
+            formatValue(it + range.first)
+        }) { step ->
+            updateConfig { it.copy(accompanist = update(it.accompanist, step + range.first)) }
         }
 
         fun rebuildControls() {
@@ -463,6 +506,76 @@ internal object LyricStyleParamsBottomSheet {
                     addColorRow(colorCard, "glowColor", R.string.lyric_param_ocean_glow_color, s.glowColorArgb) { c ->
                         updateConfig { it.copy(ocean = it.ocean.copy(glowColorArgb = c)) }
                     }
+                }
+
+                LyricEffectStyleId.ACCOMPANIST -> {
+                    val s = config.accompanist
+                    val effectsCard = binding.styleParamsEffectsCard
+                    val dotsCard = binding.styleParamsDotsCard
+                    effectsCard.removeAllViews()
+                    dotsCard.removeAllViews()
+                    addAccompanistSegments(
+                        motionCard,
+                        R.string.lyric_settings_alignment,
+                        listOf(
+                            AccompanistLyricAlignment.LEFT to R.string.lyric_settings_align_start,
+                            AccompanistLyricAlignment.CENTER to R.string.lyric_settings_align_center,
+                            AccompanistLyricAlignment.RIGHT to R.string.lyric_settings_align_end,
+                        ),
+                        s.alignment,
+                    ) { alignment -> updateConfig { it.copy(accompanist = it.accompanist.copy(alignment = alignment)) } }
+                    addAccompanistSegments(
+                        motionCard,
+                        R.string.lyric_param_accompanist_position,
+                        listOf(
+                            AccompanistLyricPosition.TOP to R.string.lyric_param_accompanist_position_top,
+                            AccompanistLyricPosition.CENTER to R.string.lyric_settings_align_center,
+                            AccompanistLyricPosition.BOTTOM to R.string.lyric_param_accompanist_position_bottom,
+                        ),
+                        s.position,
+                    ) { position -> updateConfig { it.copy(accompanist = it.accompanist.copy(position = position)) } }
+                    val formatDp: (Int) -> String = { activity.getString(R.string.lyric_param_accompanist_dp, it) }
+                    addAccompanistSlider(motionCard, R.string.lyric_settings_font_size, AccompanistLyricConfig.FONT_SIZE_SP,
+                        s.fontSizeSp, { activity.getString(R.string.lyric_param_accompanist_sp, it) }) { config, value ->
+                        config.copy(fontSizeSp = value)
+                    }
+                    addSwitchRow(motionCard, R.string.lyric_param_accompanist_bold, s.bold) { enabled ->
+                        updateConfig { it.copy(accompanist = it.accompanist.copy(bold = enabled)) }
+                    }
+                    addSwitchRow(effectsCard, R.string.lyric_param_accompanist_blend, s.additiveBlend) { enabled ->
+                        updateConfig { it.copy(accompanist = it.accompanist.copy(additiveBlend = enabled)) }
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        var strength: SeekBar? = null
+                        addSwitchRow(effectsCard, R.string.lyric_param_accompanist_blur, s.blurEnabled) { enabled ->
+                            strength?.isEnabled = enabled
+                            updateConfig { it.copy(accompanist = it.accompanist.copy(blurEnabled = enabled)) }
+                        }
+                        strength = addAccompanistSlider(effectsCard, R.string.lyric_param_accompanist_blur_strength,
+                            AccompanistLyricConfig.BLUR_STRENGTH, s.blurStrength, Int::toString) { config, value ->
+                            config.copy(blurStrength = value)
+                        }.apply { isEnabled = s.blurEnabled }
+                    }
+                    addAccompanistSlider(dotsCard, R.string.lyric_param_accompanist_dots_count, AccompanistLyricConfig.DOTS_COUNT,
+                        s.dotsCount, { if (it == 0) activity.getString(R.string.audio_effect_value_off) else it.toString() }) { config, value ->
+                        config.copy(dotsCount = value)
+                    }
+                    addAccompanistSlider(dotsCard, R.string.lyric_param_accompanist_dots_size,
+                        AccompanistLyricConfig.DOTS_SIZE_DP, s.dotsSizeDp, formatDp) { config, value ->
+                        config.copy(dotsSizeDp = value)
+                    }
+                    addAccompanistSlider(dotsCard, R.string.lyric_param_accompanist_dots_spacing,
+                        AccompanistLyricConfig.DOTS_SPACING_DP, s.dotsSpacingDp, formatDp) { config, value ->
+                        config.copy(dotsSpacingDp = value)
+                    }
+                    addColorRow(
+                        colorCard, LyricColorPresetRegistry.SLOT_ACCOMPANIST_TEXT,
+                        R.string.lyric_param_accompanist_text_color, s.textColorArgb,
+                    ) { color -> updateConfig { it.copy(accompanist = it.accompanist.copy(textColorArgb = color)) } }
+                    addColorRow(
+                        colorCard, LyricColorPresetRegistry.SLOT_ACCOMPANIST_DOTS,
+                        R.string.lyric_param_accompanist_dots_color, s.dotsColorArgb,
+                    ) { color -> updateConfig { it.copy(accompanist = it.accompanist.copy(dotsColorArgb = color)) } }
                 }
 
                 LyricEffectStyleId.DEFAULT -> Unit

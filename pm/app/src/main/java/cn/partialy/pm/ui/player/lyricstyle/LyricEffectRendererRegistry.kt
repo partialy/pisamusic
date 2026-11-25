@@ -15,7 +15,7 @@ internal class LyricEffectRendererRegistry(
     private val oceanRenderer = OceanWaveLyricRenderer()
 
     fun get(styleId: LyricEffectStyleId): LyricEffectRenderer = when (styleId) {
-        LyricEffectStyleId.DEFAULT -> defaultRenderer
+        LyricEffectStyleId.DEFAULT, LyricEffectStyleId.ACCOMPANIST -> defaultRenderer
         LyricEffectStyleId.TYPEWRITER -> typewriterRenderer
         LyricEffectStyleId.INK -> inkRenderer
         LyricEffectStyleId.BOUNCE -> bounceRenderer

@@ -16,6 +16,7 @@ internal class PlayerPagesController(private val host: ActivityPlayerBinding, re
     private val context = host.root.context
     val cover = PlayerPageCoverBinding.inflate(LayoutInflater.from(context))
     val lyrics = PlayerPageLyricsBinding.inflate(LayoutInflater.from(context))
+    val accompanistLyrics = AccompanistLyricsHost(lyrics.accompanistLyrics)
     private val coverRequest = SongCoverRequestBinder(cover.coverImage, cover.compactDisc::setArtwork)
     private var started = false
     private var songKey: String? = null
@@ -66,16 +67,22 @@ internal class PlayerPagesController(private val host: ActivityPlayerBinding, re
         cover.coverSongInfo.visibility = if (active) View.INVISIBLE else View.VISIBLE
     }
 
-    fun setPlayback(playing: Boolean) = cover.compactDisc.setPlayback(playing)
+    fun setPlayback(playing: Boolean) {
+        cover.compactDisc.setPlayback(playing)
+        accompanistLyrics.setPlaying(playing)
+    }
     fun setStarted(started: Boolean) { this.started = started; updateDiscVisibility() }
     private fun updateDiscVisibility() {
         cover.coverStage.setActive(started && currentPage == 0)
         cover.compactDisc.setActive(started && currentPage == 0)
         cover.compactLyrics.setRenderingActive(started && currentPage == 0)
-        lyrics.karaokeLyricsView.setRenderingActive(started && currentPage == 1)
+        val lyricsActive = started && currentPage == 1
+        lyrics.karaokeLyricsView.setRenderingActive(lyricsActive)
+        accompanistLyrics.setRenderingActive(lyricsActive)
     }
     fun release() {
         setStarted(false)
+        accompanistLyrics.release()
         coverRequest.dispose()
         cover.compactDisc.setArtwork(null)
         host.playerPager.unregisterOnPageChangeCallback(pageCallback)

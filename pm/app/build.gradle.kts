@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -48,6 +49,7 @@ android {
     buildFeatures {
         buildConfig = true
         viewBinding = true
+        compose = true
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
@@ -117,6 +119,12 @@ dependencies {
     ksp(libs.hilt.compiler)
     // Hilt 聚合任务继承 KSP 的处理器依赖，使用当前编译器对应的 Kotlin 元数据读取器。
     ksp(libs.kotlin.metadata.jvm)
+
+    // 完整歌词页中的 Accompanist 渲染组件
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.accompanist.lyrics.ui)
+    implementation(libs.accompanist.lyrics.core)
 
     // 音频标签
     implementation(libs.jaudiotagger)

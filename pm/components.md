@@ -113,6 +113,7 @@
 | 封面 CD 与紧凑歌词 | 左侧半圆缺口封面、右侧半露 CD、三句单行歌词 | `PlayerCoverStageLayout`、`PlayerCoverNotchEdge`、`CompactDiscView`、`CompactDiscRenderer`、`CompactLyricsView` | `SongCoverRequestBinder`、`CoverFlowPaletteExtractor`、`SongCoverUrl`、`SongSourceTagBinder`、`CompactLyricRules` | 加载新图期间保留旧封面/CD，候选全部失败才用主题兜底；CD 共用背景原始主色采样，外圈淡亮色、约 20 道较宽同心纹，整盘旋转。缺口为黑点 1.125 倍；切歌 1 秒合拢、1 秒停留、1 秒展开，连续切歌合并；隐藏/离开取消复位，遵循系统禁动画。 |
 | 完整歌词渐隐与方向仲裁 | 普通/逐字歌词透明边缘与纵向浏览 | `LyricsFadeLayout`、`PlayerLyricsRecyclerView`、`KaraokeLyricsView` | `PlayerSwipeDirectionPolicy` | 中央横向交给 Pager，纵向保留浏览/中线 Seek/三秒恢复；多指重置本次方向，系统边缘返回优先。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
+| Accompanist-Lyric | 类 Apple Music 的整页同步歌词与逐字渲染 | `player_page_lyrics.xml`、`include_lyric_settings_preview.xml` | `AccompanistLyricsHost`、`LyricSettingsSheet` | 通过 ComposeView 复用上游逐字绘制，PM 管理横向左/中/右与当前行上/中/下的布局，沿用 PM 歌词数据和播放时间轴。完整歌词页支持点行跳转，两级 Sheet 预览使用现有无声样本。“样式参数”复用独立参数 Sheet、色板和恢复默认按钮。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |
 | 歌源标签 | KG/WY/KW/CLOUD/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY/KW/CLOUD 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y` / `W` / `C`（无额外 padding、居中），KW 使用橙色，Cloud 使用青绿色。LOCAL 保留自适应矩形，禁止调用方单独设置来源文案、背景或 padding。 |
 
@@ -159,7 +160,7 @@
 | 在线转本地确认与进度 | 完整抓取 KG/WY 歌单并事务创建本地副本 | `ui/playlistdetail/OnlinePlaylistToLocalCoordinator.kt`、`OnlinePlaylistToLocalViewModel.kt` | 复用 `PmMinimalDialog` 与 Material 加载指示器；加载可取消、保存不可取消；ViewModel 保留旋转会话，成功只跳转一次。 |
 | 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 歌曲更多/分享详情与歌单详情统一优先 1024，失败按 720/480/240/原 URL 降级，再用既有占位；KG 解析模板及已知固定尺寸目录，WY 解析真实 query 尺寸并保留编码参数/fragment；列表缩略图独立取用。 |
 
-- 歌词样式实时预览：`include_lyric_settings_preview.xml`、`bg_lyric_settings_preview.xml`、`ui/player/LyricPreviewController.kt` 与 `LyricPreviewSamples.kt`；8 秒原创三行无声样本，复用普通/逐字渲染器，透明覆盖阻断歌词触摸，样式变化保留时间轴；隐藏暂停、关闭释放、系统禁动画静态展示。预览基准 96dp、圆角 12dp，大字号按换行高度扩展。
+- 歌词样式实时预览：`include_lyric_settings_preview.xml`、`bg_lyric_settings_preview.xml`、`ui/player/LyricPreviewController.kt` 与 `LyricPreviewSamples.kt`；8 秒原创三行无声样本，按当前样式复用原生渲染器或 AccompanistLyricsHost，透明覆盖阻断歌词触摸，样式变化保留时间轴；隐藏暂停、关闭释放、系统禁动画静态展示。预览基准 96dp、圆角 12dp，大字号按换行高度扩展。
 
 ## 下载管理双页（2026-11-07）
 
@@ -205,6 +206,6 @@
 
 ## 主歌词特效与参数设置（2026-11-19）
 
-- 歌词特效专属参数 Sheet：`ui/player/lyricstyle/LyricStyleParamsBottomSheet.kt`、`res/layout/bottom_sheet_lyric_style_params.xml`；复用 `bg_lyric_settings_sheet`、顶部 `include_lyric_settings_preview` 实时预览、右上 `ic_refresh_24` 恢复当前样式默认按钮、`bg_listen_together_create_card` 分组卡片、`PmSwitch`、`bg_lyric_settings_seekbar_*` 细滑轨及圆形预设色板行；由 `LyricSettingsSheet` 显示设置区「样式参数」入口弹出（默认样式隐藏），「歌词样式」与「渲染帧率」复用 `showSettingsOptionPicker`（音质同款 Sheet）。
+- 歌词特效专属参数 Sheet：`ui/player/lyricstyle/LyricStyleParamsBottomSheet.kt`、`res/layout/bottom_sheet_lyric_style_params.xml`；复用 `bg_lyric_settings_sheet`、顶部 `include_lyric_settings_preview` 实时预览、右上 `ic_refresh_24` 恢复当前样式默认按钮、`bg_listen_together_create_card` 分组卡片、歌词设置同款 `PmSwitch`、分段按钮、细滑轨及圆形预设色板行（动态控件通过 `item_lyric_settings_switch.xml`、`item_lyric_settings_segment.xml`、`item_lyric_settings_seekbar.xml` 加载）；由 `LyricSettingsSheet` 显示设置区「样式参数」入口弹出（Accompanist-Lyric 和支持专属参数的内置样式显示），「歌词样式」与内置渲染器的「渲染帧率」复用 `showSettingsOptionPicker`（音质同款 Sheet）。
 - 主歌词特效引擎：`ui/player/lyricstyle/` 下的 `KaraokeLyricLayoutEngine`、`KaraokeBrowseController`、`LyricFrameRateLimiter` 与 7 款独立 `LyricEffectRenderer`，由 `KaraokeLyricsView` 组合驱动；配置通过 `utils/localdata/AppConfigStore` 写入 SQLite `app_config` 表。
 - 原生歌词颜色管理与通用取色器：`activity/LyricColorPresetsActivity.kt`（`activity_lyric_color_presets.xml`、`item_lyric_color_group.xml`、`item_lyric_color_pill.xml`、`bg_lyric_color_pill.xml`），全屏 Edge-to-Edge 复用 `@drawable/bg_account_login_gradient`，按分组展示 3 列圆角胶囊色板（左圆形色块、中间 Hex 文本、编辑态显示右侧删除按钮；默认隐藏删除图标，支持右上角三点菜单选择「编辑 / 重置」或长按任意色板进入编辑态），分组右侧「+ 添加」；颜色编辑/新增统一弹出通用原生 `ui/dialog/ColorPickerBottomSheet.kt`（`bottom_sheet_color_picker.xml` + `ui/widget/colorpicker/SatValPaletteView.kt` + `CheckerboardDrawable.kt`，色块下方居中展示 `RGBA(r, g, b, a)`）。

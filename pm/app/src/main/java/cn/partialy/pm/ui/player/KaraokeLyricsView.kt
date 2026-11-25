@@ -516,7 +516,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     }
 
     private fun resolveEmphasisColor(): Int = when (effectConfig.styleId) {
-        LyricEffectStyleId.DEFAULT -> style.currentColorArgb
+        LyricEffectStyleId.DEFAULT, LyricEffectStyleId.ACCOMPANIST -> style.currentColorArgb
         LyricEffectStyleId.TYPEWRITER -> effectConfig.typewriter.textColorArgb
         LyricEffectStyleId.INK -> effectConfig.ink.highlightStartColorArgb
         LyricEffectStyleId.BOUNCE -> effectConfig.bounce.sungColorArgb

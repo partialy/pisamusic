@@ -8,6 +8,7 @@ internal object LyricStyleParamsMeta {
 
     fun styleLabel(context: Context, styleId: LyricEffectStyleId): String = when (styleId) {
         LyricEffectStyleId.DEFAULT -> context.getString(R.string.lyric_effect_style_default)
+        LyricEffectStyleId.ACCOMPANIST -> context.getString(R.string.lyric_effect_style_accompanist)
         LyricEffectStyleId.TYPEWRITER -> context.getString(R.string.lyric_effect_style_typewriter)
         LyricEffectStyleId.INK -> context.getString(R.string.lyric_effect_style_ink)
         LyricEffectStyleId.BOUNCE -> context.getString(R.string.lyric_effect_style_bounce)
@@ -18,6 +19,7 @@ internal object LyricStyleParamsMeta {
 
     fun styleDescription(context: Context, styleId: LyricEffectStyleId): String = when (styleId) {
         LyricEffectStyleId.DEFAULT -> context.getString(R.string.lyric_effect_style_default_desc)
+        LyricEffectStyleId.ACCOMPANIST -> context.getString(R.string.lyric_effect_style_accompanist_desc)
         LyricEffectStyleId.TYPEWRITER -> context.getString(R.string.lyric_effect_style_typewriter_desc)
         LyricEffectStyleId.INK -> context.getString(R.string.lyric_effect_style_ink_desc)
         LyricEffectStyleId.BOUNCE -> context.getString(R.string.lyric_effect_style_bounce_desc)

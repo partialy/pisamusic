@@ -314,37 +314,25 @@
                     app:singleSelection="true">
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/lyricSettingsAlignStart"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Pm.LyricSettings.Segment"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/lyric_settings_align_start"
-                        android:textColor="@color/lyric_settings_segment_text"
-                        app:backgroundTint="@color/lyric_settings_segment_bg"
-                        app:rippleColor="@color/settings_row_value_faded_primary"
-                        app:strokeColor="@color/lyric_settings_segment_stroke" />
+                        android:text="@string/lyric_settings_align_start" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/lyricSettingsAlignCenter"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Pm.LyricSettings.Segment"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/lyric_settings_align_center"
-                        android:textColor="@color/lyric_settings_segment_text"
-                        app:backgroundTint="@color/lyric_settings_segment_bg"
-                        app:rippleColor="@color/settings_row_value_faded_primary"
-                        app:strokeColor="@color/lyric_settings_segment_stroke" />
+                        android:text="@string/lyric_settings_align_center" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/lyricSettingsAlignEnd"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Pm.LyricSettings.Segment"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/lyric_settings_align_end"
-                        android:textColor="@color/lyric_settings_segment_text"
-                        app:backgroundTint="@color/lyric_settings_segment_bg"
-                        app:rippleColor="@color/settings_row_value_faded_primary"
-                        app:strokeColor="@color/lyric_settings_segment_stroke" />
+                        android:text="@string/lyric_settings_align_end" />
                 </com.google.android.material.button.MaterialButtonToggleGroup>
             </LinearLayout>
             <TextView
@@ -558,16 +546,11 @@
                 </LinearLayout>
                 <SeekBar
                     android:id="@+id/lyricSettingsOpacitySlider"
+                    style="@style/Widget.Pm.LyricSettings.SeekBar"
                     android:layout_width="match_parent"
                     android:layout_height="32dp"
                     android:layout_marginTop="8dp"
                     android:max="100"
-                    android:paddingStart="0dp"
-                    android:paddingEnd="0dp"
-                    android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
-                    android:splitTrack="false"
-                    android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
-                    android:thumbOffset="6dp"
                     tools:progress="85"
                     android:contentDescription="@string/lyric_settings_inactive_opacity" />
             </LinearLayout>

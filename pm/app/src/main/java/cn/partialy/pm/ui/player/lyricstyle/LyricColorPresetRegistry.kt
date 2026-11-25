@@ -26,6 +26,8 @@ internal object LyricColorPresetRegistry {
 
     const val SLOT_DEFAULT_NORMAL = "normal"
     const val SLOT_DEFAULT_CURRENT = "current"
+    const val SLOT_ACCOMPANIST_TEXT = "textColor"
+    const val SLOT_ACCOMPANIST_DOTS = "dotsColor"
 
     private fun buildDefaultEffectPresets(
         defaultColor: Int,
@@ -264,6 +266,24 @@ internal object LyricColorPresetRegistry {
 
     private val slotsByStyle: Map<LyricEffectStyleId, List<LyricColorSlotSpec>> = mapOf(
         LyricEffectStyleId.DEFAULT to defaultSlots,
+        LyricEffectStyleId.ACCOMPANIST to listOf(
+            effectSlot(
+                styleId = LyricEffectStyleId.ACCOMPANIST,
+                slotKey = SLOT_ACCOMPANIST_TEXT,
+                titleRes = R.string.lyric_param_accompanist_text_color,
+                defaultColor = AccompanistLyricConfig().textColorArgb,
+                read = { it.accompanist.textColorArgb },
+                write = { config, color -> config.copy(accompanist = config.accompanist.copy(textColorArgb = color)) },
+            ),
+            effectSlot(
+                styleId = LyricEffectStyleId.ACCOMPANIST,
+                slotKey = SLOT_ACCOMPANIST_DOTS,
+                titleRes = R.string.lyric_param_accompanist_dots_color,
+                defaultColor = AccompanistLyricConfig().dotsColorArgb,
+                read = { it.accompanist.dotsColorArgb },
+                write = { config, color -> config.copy(accompanist = config.accompanist.copy(dotsColorArgb = color)) },
+            ),
+        ),
         LyricEffectStyleId.TYPEWRITER to typewriterSlots,
         LyricEffectStyleId.INK to inkSlots,
         LyricEffectStyleId.BOUNCE to bounceSlots,

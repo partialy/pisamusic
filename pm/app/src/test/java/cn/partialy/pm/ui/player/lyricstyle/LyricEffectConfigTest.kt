@@ -60,6 +60,32 @@ class LyricEffectConfigTest {
     }
 
     @Test
+    fun accompanistSettingsKeepLegacyDefaultsAndResetIndependently() {
+        val previous = LyricEffectConfig.fromJson(
+            """{"style":"accompanist","accompanist":{"alignment":"AUTO","topPaddingDp":32},"ocean":{"jumpHeightDp":20}}""",
+        )
+        assertEquals(AccompanistLyricConfig(), previous.accompanist)
+
+        val saved = LyricEffectConfig.fromJson(previous.copy(
+            accompanist = AccompanistLyricConfig(
+                fontSizeSp = 70,
+                alignment = AccompanistLyricAlignment.RIGHT,
+                position = AccompanistLyricPosition.CENTER,
+                bold = false,
+            ),
+        ).toJson())
+        assertEquals(48, saved.accompanist.fontSizeSp)
+        assertEquals(AccompanistLyricPosition.CENTER, saved.accompanist.position)
+        assertEquals(AccompanistLyricAlignment.RIGHT, saved.accompanist.alignment)
+        assertFalse(saved.accompanist.bold)
+
+        val reset = saved.resetStyle(LyricEffectStyleId.ACCOMPANIST)
+        assertEquals(LyricEffectStyleId.ACCOMPANIST, reset.styleId)
+        assertEquals(AccompanistLyricConfig(), reset.accompanist)
+        assertEquals(20, reset.ocean.jumpHeightDp)
+    }
+
+    @Test
     fun storePersistsAndResetsSingleStyleOnly() {
         val storage = FakeStorage()
         val repo = LyricEffectConfigStore(AppConfigStore(storage))

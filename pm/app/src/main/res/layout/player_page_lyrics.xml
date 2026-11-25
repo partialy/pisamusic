@@ -59,10 +59,14 @@
             </LinearLayout>
 
 
-    <cn.partialy.pm.ui.player.LyricsFadeLayout
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
+
+        <cn.partialy.pm.ui.player.LyricsFadeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
             <cn.partialy.pm.ui.player.PlayerLyricsRecyclerView
         android:id="@+id/lyricsRecyclerView"
         android:layout_width="match_parent"
@@ -124,6 +128,14 @@
             </LinearLayout>
 
 
-    </cn.partialy.pm.ui.player.LyricsFadeLayout>
+        </cn.partialy.pm.ui.player.LyricsFadeLayout>
+
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/accompanistLyrics"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="24dp"
+            android:visibility="gone" />
+    </FrameLayout>
 </LinearLayout>
 
