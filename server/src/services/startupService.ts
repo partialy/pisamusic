@@ -8,7 +8,7 @@ import {
   type ReleaseInfo,
 } from "../db/configStore";
 import { verifyUserToken } from "../middleware/requireUserJwt";
-import { readHydratedAnnouncements } from "./announcementService";
+import { readPublicAnnouncements } from "./announcementService";
 import {
   reportAndroidDevice,
   reportDesktopDevice,
@@ -138,7 +138,11 @@ async function executeStartupCommon<TDevice extends DeviceReportResult>(params: 
   const [device, authedUser, announcements] = await Promise.all([
     params.reportDevice(body.device, params.input.clientIp),
     rawToken ? verifyUserToken(rawToken) : Promise.resolve(null),
-    readHydratedAnnouncements({ enabledOnly: true }),
+    readPublicAnnouncements({
+      announcementVersion: body.announcementVersion,
+      appVersion: asObject(body.device).appVersion,
+      type: params.deviceKind === "android" ? "mobile" : "pc",
+    }, true),
   ]);
 
   const [account, unreadMessages] = await Promise.all([

@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { type Announcement } from "../db/configStore";
+import { AnnouncementWriteConflict, readAnnouncements } from "../db/announcements/announcementStore";
+import { normalizeAnnouncementDraft } from "../services/announcementDraft";
 import { announcementExists, readAnnouncementReads } from "../db/announcementReadStore";
 import {
   completeAnnouncementImageUpload,
   createAnnouncementImageToken,
   deleteManagedAnnouncement,
-  normalizeAnnouncementContent,
   readHydratedAnnouncements,
   saveManagedAnnouncement,
 } from "../services/announcementService";
@@ -15,71 +15,6 @@ export const adminAnnouncementsRouter = Router();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function normalizeRequiredString(
-  value: unknown,
-  field: string,
-  maxLength: number,
-): { ok: true; value: string } | { ok: false; msg: string } {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!text) return { ok: false, msg: `${field} 不能为空` };
-  if (text.length > maxLength) return { ok: false, msg: `${field} 长度不能超过 ${maxLength}` };
-  return { ok: true, value: text };
-}
-
-function normalizeAnnouncementGotoUrl(value: unknown): string {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (!raw) return "";
-  let parsed: URL;
-  if (/^pisamusic:\/\/[A-Za-z0-9][A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*$/i.test(raw)) return raw;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    throw new Error("gotoUrl 必须是有效 HTTPS 或 pisamusic:// 地址");
-  }
-  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
-    throw new Error("gotoUrl 只允许 HTTPS 或 pisamusic:// 地址，且 HTTPS 不得带认证信息");
-  }
-  return parsed.toString();
-}
-
-function normalizeAnnouncement(body: unknown): { ok: true; value: Announcement } | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
-  const id = normalizeRequiredString(body.id, "id", 120);
-  if (!id.ok) return id;
-  let content: Announcement["content"];
-  try {
-    content = normalizeAnnouncementContent(body.content);
-  } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "公告内容不合法" };
-  }
-  const time = normalizeRequiredString(body.time, "time", 100);
-  if (!time.ok) return time;
-  const publisher = normalizeRequiredString(body.publisher, "publisher", 120);
-  if (!publisher.ok) return publisher;
-  const confirmText = normalizeRequiredString(body.confirmText, "confirmText", 60);
-  if (!confirmText.ok) return confirmText;
-  let gotoUrl = "";
-  try {
-    gotoUrl = normalizeAnnouncementGotoUrl(body.gotoUrl);
-  } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "gotoUrl 不合法" };
-  }
-  return {
-    ok: true,
-    value: {
-      id: id.value,
-      content,
-      time: time.value,
-      publisher: publisher.value,
-      confirmText: confirmText.value,
-      showEveryTime: Boolean(body.showEveryTime),
-      showGotoButton: Boolean(body.showGotoButton),
-      gotoUrl,
-      enabled: body.enabled === undefined ? true : Boolean(body.enabled),
-    },
-  };
 }
 
 // Announcements CRUD
@@ -94,10 +29,14 @@ adminAnnouncementsRouter.get("/", async (_req, res) => {
 
 adminAnnouncementsRouter.post("/", async (req, res) => {
   try {
-    const result = normalizeAnnouncement(req.body);
+    const id = isRecord(req.body) && typeof req.body.id === "string" ? req.body.id.trim() : "";
+    const [existing] = id ? await readAnnouncements({ id }) : [];
+    if (existing) return res.status(409).json(fail("公告 ID 已存在", 409));
+    const result = await normalizeAnnouncementDraft(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(await saveManagedAnnouncement(result.value), "公告已保存"));
+    return res.json(ok(await saveManagedAnnouncement(result.value, null), "公告已保存"));
   } catch (e) {
+    if (e instanceof AnnouncementWriteConflict) return res.status(409).json(fail(e.message, 409));
     const message = e instanceof Error ? e.message : "保存公告失败";
     return res.status(500).json(fail(message, 500));
   }
@@ -105,16 +44,13 @@ adminAnnouncementsRouter.post("/", async (req, res) => {
 
 adminAnnouncementsRouter.put("/:id", async (req, res) => {
   try {
-    const existing = (await readHydratedAnnouncements()).find((item) => item.id === req.params.id);
+    const [existing] = await readAnnouncements({ id: req.params.id });
     const body = isRecord(req.body) ? req.body : {};
-    const result = normalizeAnnouncement({
-      ...body,
-      id: req.params.id,
-      ...(body.enabled === undefined && existing ? { enabled: existing.enabled } : {}),
-    });
+    const result = await normalizeAnnouncementDraft({ ...body, id: req.params.id }, existing);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(await saveManagedAnnouncement(result.value), "公告已保存"));
+    return res.json(ok(await saveManagedAnnouncement(result.value, existing?.announcementVersion ?? null), "公告已保存"));
   } catch (e) {
+    if (e instanceof AnnouncementWriteConflict) return res.status(409).json(fail(e.message, 409));
     const message = e instanceof Error ? e.message : "保存公告失败";
     return res.status(500).json(fail(message, 500));
   }

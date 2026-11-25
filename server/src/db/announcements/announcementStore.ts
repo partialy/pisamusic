@@ -14,7 +14,10 @@ import {
   type FileRecordRow,
 } from "../files/fileRecordStore";
 
-export type Announcement = {
+import { defaultAnnouncementDelivery, type AnnouncementDelivery } from "../../services/announcementDelivery";
+
+export type Announcement = AnnouncementDelivery & {
+  announcementVersion: number;
   id: string;
   content: AnnouncementContent;
   time: string;
@@ -104,14 +107,24 @@ export async function reconcileAnnouncementImageReferences(
   });
 }
 
-export async function readAnnouncements(options: { enabledOnly?: boolean } = {}): Promise<Announcement[]> {
+export async function readAnnouncements(options: { enabledOnly?: boolean; maxVersion?: number; id?: string } = {}): Promise<Announcement[]> {
   const db = getAppDb();
-  const where = options.enabledOnly ? " WHERE enabled = 1" : "";
+  const clauses = options.enabledOnly ? ["enabled = 1"] : [];
+  const params: (string | number)[] = [];
+  if (options.maxVersion !== undefined) {
+    clauses.push("announcement_version <= ?");
+    params.push(options.maxVersion);
+  }
+  if (options.id !== undefined) {
+    clauses.push("id = ?");
+    params.push(options.id);
+  }
+  const where = clauses.length ? " WHERE " + clauses.join(" AND ") : "";
   const rows = (await db.query(
     db.dialect === "mysql"
       ? `SELECT * FROM announcements${where} ORDER BY sort_order ASC, id ASC`
       : `SELECT * FROM announcements${where} ORDER BY sort_order ASC, rowid ASC`,
-    [],
+    params,
   )) as {
     id: string;
     content_json: string;
@@ -122,6 +135,8 @@ export async function readAnnouncements(options: { enabledOnly?: boolean } = {})
     show_goto_button: number;
     goto_url: string | null;
     enabled: number;
+    announcement_version: number;
+    delivery_json: string | null;
   }[];
   return rows.map((row) => {
     let content: AnnouncementContent;
@@ -130,7 +145,10 @@ export async function readAnnouncements(options: { enabledOnly?: boolean } = {})
     } catch {
       throw new Error(`公告 ${row.id} 的内容数据无效`);
     }
+    const delivery: AnnouncementDelivery = row.delivery_json ? JSON.parse(row.delivery_json) : defaultAnnouncementDelivery;
     return {
+      ...delivery,
+      announcementVersion: Number(row.announcement_version),
       id: row.id,
       content,
       time: row.time,
@@ -144,55 +162,33 @@ export async function readAnnouncements(options: { enabledOnly?: boolean } = {})
   });
 }
 
-export async function saveAnnouncement(announcement: Announcement): Promise<Announcement> {
-  const db = getAppDb();
-  const existing = (await db.queryOne("SELECT sort_order FROM announcements WHERE id = ?", [announcement.id])) as
-    | { sort_order: number }
-    | undefined;
-  const maxRow = (await db.queryOne("SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM announcements", [])) as {
-    max_order: number;
-  };
-  const sortOrder = existing?.sort_order ?? maxRow.max_order + 1;
-  await db.execute(
-    db.dialect === "mysql"
-      ? `INSERT INTO announcements (
-          id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          content_json = VALUES(content_json),
-          time = VALUES(time),
-          publisher = VALUES(publisher),
-          confirm_text = VALUES(confirm_text),
-          show_every_time = VALUES(show_every_time),
-          show_goto_button = VALUES(show_goto_button),
-          goto_url = VALUES(goto_url),
-          enabled = VALUES(enabled)`
-      : `INSERT INTO announcements (
-          id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          content_json = excluded.content_json,
-          time = excluded.time,
-          publisher = excluded.publisher,
-          confirm_text = excluded.confirm_text,
-          show_every_time = excluded.show_every_time,
-          show_goto_button = excluded.show_goto_button,
-          goto_url = excluded.goto_url,
-          enabled = excluded.enabled`,
-    [
-      announcement.id,
-      JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
-      announcement.time,
-      announcement.publisher,
-      announcement.confirmText,
-      boolToDb(Boolean(announcement.showEveryTime)),
-      boolToDb(announcement.showGotoButton),
-      announcement.gotoUrl ?? "",
-      sortOrder,
-      announcement.enabled === false ? 0 : 1,
-    ],
-  );
-  return announcement;
+export class AnnouncementWriteConflict extends Error {}
+
+export async function saveAnnouncement(
+  announcement: Announcement,
+  expectedVersion: number | null,
+): Promise<Announcement> {
+  return getAppDb().transaction(async (db) => {
+    const lock = db.dialect === "mysql" ? " FOR UPDATE" : "";
+    const existing = await db.queryOne<{ announcement_version: number }>(
+      "SELECT announcement_version FROM announcements WHERE id = ?" + lock,
+      [announcement.id],
+    );
+    if ((existing ? Number(existing.announcement_version) : null) !== expectedVersion) {
+      throw new AnnouncementWriteConflict("公告已被其他操作更新，请刷新后重试");
+    }
+    if (existing) {
+      await db.execute(
+        "UPDATE announcements SET content_json = ?, time = ?, publisher = ?, confirm_text = ?, show_every_time = ?, "
+        + "show_goto_button = ?, goto_url = ?, enabled = ?, announcement_version = ?, delivery_json = ? WHERE id = ?",
+        [...announcementValues(announcement), announcement.id],
+      );
+    } else {
+      const max = await db.queryOne<{ max_order: number }>("SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM announcements");
+      await insertAnnouncement(db, announcement, Number(max?.max_order ?? -1) + 1);
+    }
+    return announcement;
+  });
 }
 
 export async function deleteAnnouncement(id: string): Promise<boolean> {
@@ -201,26 +197,28 @@ export async function deleteAnnouncement(id: string): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
+function announcementValues(announcement: Announcement): (number | string)[] {
+  return [
+    JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
+    announcement.time,
+    announcement.publisher,
+    announcement.confirmText,
+    boolToDb(Boolean(announcement.showEveryTime)),
+    boolToDb(announcement.showGotoButton),
+    announcement.gotoUrl ?? "",
+    boolToDb(announcement.enabled),
+    announcement.announcementVersion,
+    JSON.stringify({
+      platform: announcement.platform,
+      versionRule: announcement.versionRule,
+      waitSeconds: announcement.waitSeconds,
+      gotoAction: announcement.gotoAction,
+    }),
+  ];
+}
+
 export async function insertAnnouncement(db: DbTransaction, announcement: Announcement, sortOrder: number): Promise<void> {
-  await db.execute(
-    db.dialect === "mysql"
-      ? `INSERT INTO announcements (
-          id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id`
-      : `INSERT INTO announcements (
-          id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      announcement.id,
-      JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
-      announcement.time,
-      announcement.publisher,
-      announcement.confirmText,
-      boolToDb(Boolean(announcement.showEveryTime)),
-      boolToDb(announcement.showGotoButton),
-      announcement.gotoUrl ?? "",
-      sortOrder,
-      announcement.enabled === false ? 0 : 1,
-    ],
-  );
+  const sql = "INSERT INTO announcements (content_json, time, publisher, confirm_text, show_every_time, show_goto_button, "
+    + "goto_url, enabled, announcement_version, delivery_json, id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  await db.execute(sql, [...announcementValues(announcement), announcement.id, sortOrder]);
 }

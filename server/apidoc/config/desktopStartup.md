@@ -31,6 +31,7 @@
     }
   },
   "agreementVersion": 1,
+  "announcementVersion": 2,
   "unreadMessageLimit": 20
 }
 ```
@@ -38,6 +39,7 @@
 | 字段名 | 类型 | 必填 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `device` | `object` | 是 | PC 桌面设备上报结构（与 `POST /api/device/desktop/report` 一致） |
+| `announcementVersion` | `number` | 否 | 客户端支持的公告协议版本，默认 1；投放依据设备 App 版本和本接口的平台 |
 | `agreementVersion` | `number` | 否 | 客户端本地已同意的用户协议版本号；与服务端一致时 `agreement.acceptedUpToDate` 为 `true` 并省略正文 |
 | `unreadMessageLimit` | `number` | 否 | 未读专属消息最大返回条数（同时兼容 `directMessageLimit`） |
 

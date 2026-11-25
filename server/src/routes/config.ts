@@ -14,7 +14,8 @@ import {
 import { readDynamicConfigById } from "../db/dynamicConfigStore";
 import { tokenFromRequest } from "../middleware/requireUserJwt";
 import { createPrivateQiniuDownloadUrl } from "../services/qiniuReleaseFiles";
-import { readHydratedAnnouncements } from "../services/announcementService";
+import { readPublicAnnouncements } from "../services/announcementService";
+import { AnnouncementDeliveryError } from "../services/announcementDelivery";
 import { DeviceReportValidationError, resolveClientIp } from "../services/deviceReportService";
 import {
   ReleaseNotFoundError,
@@ -327,15 +328,19 @@ configRouter.get("/privacy-policy", async (_req, res) => {
   }
 });
 
-configRouter.get("/announcements", async (_req, res) => {
+configRouter.get("/announcements", async (req, res) => {
   try {
     const { state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
     }
-    res.json(ok((await readHydratedAnnouncements({ enabledOnly: true }))));
+    res.json(ok(await readPublicAnnouncements(req.query)));
   } catch (e) {
+    if (e instanceof AnnouncementDeliveryError) {
+      res.status(400).json(fail(e.message, 400));
+      return;
+    }
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));
   }

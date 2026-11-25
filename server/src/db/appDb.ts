@@ -253,7 +253,9 @@ CREATE TABLE IF NOT EXISTS announcements (
     show_goto_button    INTEGER NOT NULL DEFAULT 0,
     goto_url            TEXT,
     sort_order          INTEGER NOT NULL DEFAULT 0,
-    enabled             INTEGER NOT NULL DEFAULT 1
+    enabled             INTEGER NOT NULL DEFAULT 1,
+    announcement_version INTEGER NOT NULL DEFAULT 1,
+    delivery_json       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS encryption_plaintext_paths (

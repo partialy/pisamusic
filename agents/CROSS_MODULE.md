@@ -30,6 +30,7 @@
 ## 公告与专属消息
 
 - 系统公告存储在 `announcements`，通过 `enabled` 控制客户端是否拉取；停用只是不返回公开公告列表，不删除公告或历史回执。客户端确认公告后通过加密 `POST /api/announcements/:id/read` 提交已读，使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，可选绑定 User Token；回执记录用户与设备公开快照，后台通过 `/api/admin/announcements/:id/reads` 分页查看，禁止使用原始设备 UUID、设备 ID 或 token 作为客户端凭据。
+- 公告列表与冷启动统一按协议上限、平台和 App 版本匹配，旧客户端默认协议 V1。V2 支持前往动作、正文样式和自动弹出倒计时，字段见[公告 API](../server/apidoc/config/getAnnouncements.md)。
 - 专属消息统一存储在 `server` SQLite 的 `direct_messages` 表；每条消息只可指向一个接收方（账号、Android 设备或桌面设备）。后台用 `/api/admin/messages` 发送和分页查看，客户端用加密的 `/api/messages/unread`、`/api/messages/:id/read` 读取与确认。未读查询合并有效账号与当前设备的消息，`read_at` 是唯一权威已读状态；不要新增客户端永久已读表。设备消息只能使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，不得传或暴露原始设备 UUID。
 - 管理后台支持通过加密 `DELETE /api/admin/messages/:id` 删除用户、Android 设备或 PC 设备留言；删除为硬删除，不提供客户端撤回语义，前后端接口文档同步维护。
 

@@ -4,16 +4,28 @@ export type AnnouncementColor = (typeof ANNOUNCEMENT_COLORS)[number] | (string &
 
 export type AnnouncementUrlOpenMode = "browser" | "app";
 
+export type AnnouncementPageAction = { type: "page"; page: "discover" | "settings"; label?: string };
+export type AnnouncementUrlAction = {
+  type: "url";
+  label?: string;
+  url: string;
+  openMode: AnnouncementUrlOpenMode;
+  showHeaderBar?: boolean;
+};
+
 export type AnnouncementAction =
   | { type: "none" }
   | { type: "copy"; label: string; value: string }
-  | { type: "url"; label: string; url: string; openMode: AnnouncementUrlOpenMode }
+  | AnnouncementUrlAction
+  | AnnouncementPageAction
   | { type: "protocol"; label: string; value: string };
 
 export type AnnouncementTextBlock = {
   type: "text";
   text: string;
   bold?: boolean;
+  italic?: boolean;
+  color?: AnnouncementColor;
 };
 
 export type AnnouncementImageBlock = {
@@ -79,6 +91,40 @@ function assertKnownKeys(value: Record<string, unknown>, keys: readonly string[]
   }
 }
 
+export function parseAnnouncementPageAction(value: Record<string, unknown>, field: string): AnnouncementPageAction {
+  assertKnownKeys(value, ["type", "label", "page"], field);
+  if (value.page !== "discover" && value.page !== "settings") {
+    throw new AnnouncementContentValidationError(field + ".page 不受支持");
+  }
+  const label = optionalString(value.label, field + ".label", MAX_LABEL_LENGTH);
+  return { type: "page", page: value.page, ...(label ? { label } : {}) };
+}
+
+export function parseAnnouncementUrlAction(value: Record<string, unknown>, field: string): AnnouncementUrlAction {
+  assertKnownKeys(value, ["type", "label", "url", "openMode", "showHeaderBar"], field);
+  const url = requiredString(value.url, `${field}.url`, 2048);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new AnnouncementContentValidationError(`${field}.url 必须是有效地址`);
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    throw new AnnouncementContentValidationError(`${field}.url 只允许不带认证信息的 HTTPS 地址`);
+  }
+  if (value.openMode !== "browser" && value.openMode !== "app") {
+    throw new AnnouncementContentValidationError(`${field}.openMode 只能是 browser 或 app`);
+  }
+  if (value.showHeaderBar !== undefined && typeof value.showHeaderBar !== "boolean") {
+    throw new AnnouncementContentValidationError(field + ".showHeaderBar 必须为布尔值");
+  }
+  const label = optionalString(value.label, field + ".label", MAX_LABEL_LENGTH);
+  return { type: "url", url: parsed.toString(), openMode: value.openMode,
+    ...(label ? { label } : {}),
+    ...(value.showHeaderBar === undefined ? {} : { showHeaderBar: value.showHeaderBar }),
+  };
+}
+
 function parseAction(value: unknown, field: string): AnnouncementAction {
   if (value === undefined) return { type: "none" };
   if (!isRecord(value)) throw new AnnouncementContentValidationError(`${field} 必须是对象`);
@@ -87,28 +133,13 @@ function parseAction(value: unknown, field: string): AnnouncementAction {
     assertKnownKeys(value, ["type"], field);
     return { type: "none" };
   }
+  if (type === "page") return parseAnnouncementPageAction(value, field);
   const label = requiredString(value.label, `${field}.label`, MAX_LABEL_LENGTH);
   if (type === "copy") {
     assertKnownKeys(value, ["type", "label", "value"], field);
     return { type, label, value: requiredString(value.value, `${field}.value`, MAX_COPY_LENGTH) };
   }
-  if (type === "url") {
-    assertKnownKeys(value, ["type", "label", "url", "openMode"], field);
-    const url = requiredString(value.url, `${field}.url`, 2048);
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new AnnouncementContentValidationError(`${field}.url 必须是有效地址`);
-    }
-    if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
-      throw new AnnouncementContentValidationError(`${field}.url 只允许不带认证信息的 HTTPS 地址`);
-    }
-    if (value.openMode !== "browser" && value.openMode !== "app") {
-      throw new AnnouncementContentValidationError(`${field}.openMode 只能是 browser 或 app`);
-    }
-    return { type, label, url: parsed.toString(), openMode: value.openMode };
-  }
+  if (type === "url") return parseAnnouncementUrlAction({ ...value, label }, field);
   if (type === "protocol") {
     assertKnownKeys(value, ["type", "label", "value"], field);
     const protocol = requiredString(value.value, `${field}.value`, 2048);
@@ -124,12 +155,24 @@ function parseBlock(value: unknown, index: number): AnnouncementBlock {
   const field = `blocks[${index}]`;
   if (!isRecord(value)) throw new AnnouncementContentValidationError(`${field} 必须是对象`);
   if (value.type === "text") {
-    assertKnownKeys(value, ["type", "text", "bold"], field);
+    assertKnownKeys(value, ["type", "text", "bold", "italic", "color"], field);
     if (typeof value.text !== "string") throw new AnnouncementContentValidationError(`${field}.text 必须是字符串`);
     if (value.text.length === 0) throw new AnnouncementContentValidationError(`${field}.text 不能为空`);
     if (value.text.length > MAX_BLOCK_TEXT_LENGTH) throw new AnnouncementContentValidationError(`${field}.text 不能超过 ${MAX_BLOCK_TEXT_LENGTH} 个字符`);
     if (value.bold !== undefined && typeof value.bold !== "boolean") throw new AnnouncementContentValidationError(`${field}.bold 必须是布尔值`);
-    return { type: "text", text: value.text, ...(value.bold ? { bold: true } : {}) };
+    if (value.italic !== undefined && typeof value.italic !== "boolean") {
+      throw new AnnouncementContentValidationError(field + ".italic 必须为布尔值");
+    }
+    const color = value.color;
+    if (color !== undefined && (typeof color !== "string" ||
+      (!ANNOUNCEMENT_COLORS.some((preset) => preset === color) && !/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)))) {
+      throw new AnnouncementContentValidationError(field + ".color 不受支持");
+    }
+    return { type: "text", text: value.text,
+      ...(value.bold ? { bold: true } : {}),
+      ...(value.italic ? { italic: true } : {}),
+      ...(color === undefined ? {} : { color }),
+    };
   }
   if (value.type === "image") {
     assertKnownKeys(value, ["type", "fileId", "alt", "url"], field);
