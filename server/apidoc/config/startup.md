@@ -31,7 +31,8 @@
     "extras": {}
   },
   "agreementVersion": 1,
-  "unreadMessageLimit": 20
+  "unreadMessageLimit": 20,
+  "sidebarMenuSchemaVersion": 2
 }
 ```
 
@@ -40,6 +41,7 @@
 | `device` | `object` | 是 | Android 设备上报结构（与 `POST /api/device/report` 一致） |
 | `agreementVersion` | `number` | 否 | 客户端本地已同意的用户协议版本号；与服务端一致时 `agreement.acceptedUpToDate` 为 `true` 并省略正文 |
 | `unreadMessageLimit` | `number` | 否 | 未读专属消息最大返回条数 |
+| `sidebarMenuSchemaVersion` | `number` | 否 | 侧栏动态菜单协议版本（默认 `1`，传 `2` 返回含 `builtinItems` / `listSections` / `app_action` 的完整结构） |
 
 ---
 
@@ -90,9 +92,12 @@
       "hasMore": false
     },
     "sidebarMenu": {
+      "schemaVersion": 2,
+      "builtinItems": [],
+      "listSections": [],
       "listSection": {
-        "enabled": true,
-        "title": "其他",
+        "enabled": false,
+        "title": "",
         "items": []
       },
       "gridSection": {

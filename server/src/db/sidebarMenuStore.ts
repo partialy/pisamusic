@@ -1,9 +1,27 @@
 import { getAppDb } from "./appDb";
 
 export type SidebarIconType = "none" | "image" | "svg" | "preset";
+export type SidebarBuiltinIconType = "default" | SidebarIconType;
 export type SidebarBadgeType = "none" | "text" | "dot_once" | "dot_always";
-export type SidebarOpenType = "web" | "fullscreen_web";
+export type SidebarOpenType = "web" | "fullscreen_web" | "app_action";
 export type SidebarGridPosition = "top" | "bottom";
+export type SidebarBuiltinKey = "import_playlists" | "link_import" | "sleep_timer" | "theme";
+
+export const SIDEBAR_BUILTIN_KEYS: readonly SidebarBuiltinKey[] = [
+  "import_playlists",
+  "link_import",
+  "sleep_timer",
+  "theme",
+] as const;
+
+export type SidebarBuiltinItemStored = {
+  key: SidebarBuiltinKey;
+  enabled: boolean;
+  name: string;
+  iconType: SidebarBuiltinIconType;
+  iconFileId: string | null;
+  iconValue: string;
+};
 
 export type SidebarMenuStoredItem = {
   id: string;
@@ -18,10 +36,13 @@ export type SidebarMenuStoredItem = {
   badgeVersion: number;
   openType: SidebarOpenType;
   url: string;
+  actionKey: string;
 };
 
 export type SidebarListSectionStored = {
+  id: string;
   enabled: boolean;
+  sortOrder: number;
   title: string;
   items: SidebarMenuStoredItem[];
 };
@@ -33,23 +54,98 @@ export type SidebarGridSectionStored = {
 };
 
 export type SidebarMenuStoredConfig = {
-  listSection: SidebarListSectionStored;
+  builtinItems: SidebarBuiltinItemStored[];
+  listSections: SidebarListSectionStored[];
   gridSection: SidebarGridSectionStored;
   updatedAt: number;
 };
 
+export function createDefaultBuiltinItems(): SidebarBuiltinItemStored[] {
+  return SIDEBAR_BUILTIN_KEYS.map((key) => ({
+    key,
+    enabled: true,
+    name: "",
+    iconType: "default",
+    iconFileId: null,
+    iconValue: "",
+  }));
+}
+
 export const SIDEBAR_MENU_DEFAULTS: SidebarMenuStoredConfig = {
-  listSection: {
-    enabled: false,
-    title: "其他",
-    items: [],
-  },
+  builtinItems: createDefaultBuiltinItems(),
+  listSections: [],
   gridSection: {
     enabled: false,
     position: "top",
     items: [],
   },
   updatedAt: 0,
+};
+
+function normalizeStoredItem(raw: Partial<SidebarMenuStoredItem>, index: number): SidebarMenuStoredItem {
+  const openType: SidebarOpenType =
+    raw.openType === "fullscreen_web" || raw.openType === "app_action" ? raw.openType : "web";
+  return {
+    id: typeof raw.id === "string" ? raw.id : "",
+    enabled: raw.enabled === undefined ? true : Boolean(raw.enabled),
+    sortOrder: typeof raw.sortOrder === "number" && Number.isFinite(raw.sortOrder) ? Math.trunc(raw.sortOrder) : index,
+    name: typeof raw.name === "string" ? raw.name : "",
+    iconType:
+      raw.iconType === "image" || raw.iconType === "svg" || raw.iconType === "preset" ? raw.iconType : "none",
+    iconFileId: typeof raw.iconFileId === "string" && raw.iconFileId ? raw.iconFileId : null,
+    iconValue: typeof raw.iconValue === "string" ? raw.iconValue : "",
+    badgeType:
+      raw.badgeType === "text" || raw.badgeType === "dot_once" || raw.badgeType === "dot_always"
+        ? raw.badgeType
+        : "none",
+    subtitleText: typeof raw.subtitleText === "string" ? raw.subtitleText : "",
+    badgeVersion:
+      typeof raw.badgeVersion === "number" && Number.isSafeInteger(raw.badgeVersion) && raw.badgeVersion >= 1
+        ? raw.badgeVersion
+        : 1,
+    openType,
+    url: typeof raw.url === "string" ? raw.url : "",
+    actionKey: typeof raw.actionKey === "string" ? raw.actionKey : "",
+  };
+}
+
+function normalizeStoredBuiltinItems(rawList: unknown): SidebarBuiltinItemStored[] {
+  const byKey = new Map<SidebarBuiltinKey, Partial<SidebarBuiltinItemStored>>();
+  if (Array.isArray(rawList)) {
+    for (const entry of rawList) {
+      if (!entry || typeof entry !== "object") continue;
+      const item = entry as Partial<SidebarBuiltinItemStored>;
+      if (item.key && SIDEBAR_BUILTIN_KEYS.includes(item.key)) {
+        byKey.set(item.key, item);
+      }
+    }
+  }
+  return SIDEBAR_BUILTIN_KEYS.map((key) => {
+    const raw = byKey.get(key);
+    const iconType: SidebarBuiltinIconType =
+      raw?.iconType === "none" ||
+      raw?.iconType === "image" ||
+      raw?.iconType === "svg" ||
+      raw?.iconType === "preset"
+        ? raw.iconType
+        : "default";
+    return {
+      key,
+      enabled: raw?.enabled === undefined ? true : Boolean(raw.enabled),
+      name: typeof raw?.name === "string" ? raw.name : "",
+      iconType,
+      iconFileId: typeof raw?.iconFileId === "string" && raw.iconFileId ? raw.iconFileId : null,
+      iconValue: typeof raw?.iconValue === "string" ? raw.iconValue : "",
+    };
+  });
+}
+
+type LegacyStoredConfig = Partial<SidebarMenuStoredConfig> & {
+  listSection?: {
+    enabled?: boolean;
+    title?: string;
+    items?: Partial<SidebarMenuStoredItem>[];
+  };
 };
 
 export async function readSidebarMenuConfig(): Promise<SidebarMenuStoredConfig> {
@@ -59,22 +155,47 @@ export async function readSidebarMenuConfig(): Promise<SidebarMenuStoredConfig> 
   )) as { config_json: string; updated_at: number } | undefined;
   if (!row) {
     return {
-      listSection: { ...SIDEBAR_MENU_DEFAULTS.listSection, items: [] },
+      builtinItems: createDefaultBuiltinItems(),
+      listSections: [],
       gridSection: { ...SIDEBAR_MENU_DEFAULTS.gridSection, items: [] },
       updatedAt: 0,
     };
   }
-  const parsed = JSON.parse(row.config_json) as Partial<SidebarMenuStoredConfig>;
+  const parsed = JSON.parse(row.config_json) as LegacyStoredConfig;
+  let listSections: SidebarListSectionStored[] = [];
+  if (Array.isArray(parsed.listSections)) {
+    listSections = parsed.listSections.map((sec, idx) => ({
+      id: typeof sec?.id === "string" && sec.id.trim() ? sec.id.trim() : `section_${idx + 1}`,
+      enabled: Boolean(sec?.enabled),
+      sortOrder:
+        typeof sec?.sortOrder === "number" && Number.isFinite(sec.sortOrder) ? Math.trunc(sec.sortOrder) : idx,
+      title: typeof sec?.title === "string" ? sec.title : "",
+      items: Array.isArray(sec?.items) ? sec.items.map((it, itemIdx) => normalizeStoredItem(it, itemIdx)) : [],
+    }));
+  } else if (parsed.listSection) {
+    // 兼容旧版单区块配置
+    listSections = [
+      {
+        id: "section_1",
+        enabled: Boolean(parsed.listSection.enabled),
+        sortOrder: 0,
+        title: typeof parsed.listSection.title === "string" ? parsed.listSection.title : "其他",
+        items: Array.isArray(parsed.listSection.items)
+          ? parsed.listSection.items.map((it, itemIdx) => normalizeStoredItem(it, itemIdx))
+          : [],
+      },
+    ];
+  }
+
   return {
-    listSection: {
-      enabled: Boolean(parsed.listSection?.enabled),
-      title: typeof parsed.listSection?.title === "string" ? parsed.listSection.title : "其他",
-      items: Array.isArray(parsed.listSection?.items) ? parsed.listSection.items : [],
-    },
+    builtinItems: normalizeStoredBuiltinItems(parsed.builtinItems),
+    listSections: listSections.sort((a, b) => a.sortOrder - b.sortOrder),
     gridSection: {
       enabled: Boolean(parsed.gridSection?.enabled),
       position: parsed.gridSection?.position === "bottom" ? "bottom" : "top",
-      items: Array.isArray(parsed.gridSection?.items) ? parsed.gridSection.items : [],
+      items: Array.isArray(parsed.gridSection?.items)
+        ? parsed.gridSection.items.map((it, itemIdx) => normalizeStoredItem(it, itemIdx))
+        : [],
     },
     updatedAt: Number(row.updated_at) || 0,
   };
@@ -92,13 +213,31 @@ export async function saveSidebarMenuConfig(
     );
 
     const refsByFileId = new Map<string, Array<{ type: string; id: string }>>();
-    for (const item of [...input.listSection.items, ...input.gridSection.items]) {
-      if (item.iconType === "image" && item.iconFileId) {
-        const list = refsByFileId.get(item.iconFileId) ?? [];
-        list.push({ type: "sidebar-menu-icon", id: item.id });
-        refsByFileId.set(item.iconFileId, list);
+    const collectRef = (fileId: string | null, refId: string) => {
+      if (!fileId) return;
+      const list = refsByFileId.get(fileId) ?? [];
+      list.push({ type: "sidebar-menu-icon", id: refId });
+      refsByFileId.set(fileId, list);
+    };
+
+    for (const builtin of input.builtinItems) {
+      if (builtin.iconType === "image") {
+        collectRef(builtin.iconFileId, `builtin:${builtin.key}`);
       }
     }
+    for (const section of input.listSections) {
+      for (const item of section.items) {
+        if (item.iconType === "image") {
+          collectRef(item.iconFileId, item.id);
+        }
+      }
+    }
+    for (const item of input.gridSection.items) {
+      if (item.iconType === "image") {
+        collectRef(item.iconFileId, item.id);
+      }
+    }
+
     for (const [fileId, refs] of refsByFileId.entries()) {
       await db.execute(
         "UPDATE file_records SET referenced_by = ? WHERE id = ?",

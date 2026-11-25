@@ -21,6 +21,7 @@ import {
   type DirectMessageUnreadPage,
 } from "./directMessageService";
 import {
+  parseSidebarMenuSchemaVersion,
   readPublicSidebarMenu,
   type PublicSidebarMenuConfig,
 } from "./sidebarMenuService";
@@ -168,13 +169,15 @@ async function executeStartupCommon<TDevice extends DeviceReportResult>(params: 
 export async function executeAndroidStartup(
   input: ExecuteAndroidStartupInput,
 ): Promise<AndroidStartupResult> {
+  const body = asObject(input.rawBody);
+  const schemaVersion = parseSidebarMenuSchemaVersion(body.sidebarMenuSchemaVersion);
   const [common, sidebarMenu] = await Promise.all([
     executeStartupCommon({
       input,
       deviceKind: "android",
       reportDevice: reportAndroidDevice,
     }),
-    readPublicSidebarMenu(input.absolutizeUrl),
+    readPublicSidebarMenu(input.absolutizeUrl, schemaVersion),
   ]);
 
   const update: AppUpdate = {
