@@ -24,6 +24,14 @@
         android:importantForAccessibility="noHideDescendants"
         android:visibility="gone" />
 
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/previewAccompanistLyrics"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingHorizontal="12dp"
+        android:importantForAccessibility="noHideDescendants"
+        android:visibility="gone" />
+
     <!-- 吞掉子歌词手势；父级 Sheet 仍可按正常拦截规则处理下滑关闭。 -->
     <View
         android:layout_width="match_parent"

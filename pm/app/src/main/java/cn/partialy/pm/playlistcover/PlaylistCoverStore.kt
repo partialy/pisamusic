@@ -149,7 +149,7 @@ internal class PlaylistCoverStore(context: Context) {
             val prior=read(db,account,id)
             if(prior != null && prior.expected == current.cover &&
                 (current.coverResource == null || current.coverResource.resourceId == prior.resourceId)) {
-                db.execSQL("UPDATE playlist_cover_edits SET document_clock=? WHERE account_id=? AND playlist_id=?",arrayOf(clock,account,id))
+                db.execSQL("UPDATE playlist_cover_edits SET document_clock=? WHERE account_id=? AND playlist_id=?",arrayOf<Any>(clock,account,id))
                 return
             }
             val local=MinePlaylistCoverResolver.isLocalFileCover(current.cover)

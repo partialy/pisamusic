@@ -87,4 +87,21 @@
     <string name="lyric_color_picker_hex_hint_rgb">#RRGGBB</string>
     <string name="lyric_color_picker_hex_hint_argb">#AARRGGBB</string>
     <string name="lyric_color_picker_preset_section">推荐颜色</string>
+    <string name="lyric_effect_style_accompanist">Accompanist-Lyric</string>
+    <string name="lyric_effect_style_accompanist_desc">类Apple Music Lyric效果</string>
+    <string name="lyric_param_accompanist_position">当前行位置</string>
+    <string name="lyric_param_accompanist_position_top">上</string>
+    <string name="lyric_param_accompanist_position_bottom">下</string>
+    <string name="lyric_param_accompanist_sp">%1$d sp</string>
+    <string name="lyric_param_accompanist_dp">%1$d dp</string>
+    <string name="lyric_param_accompanist_bold">文字加粗</string>
+    <string name="lyric_param_accompanist_blend">叠加提亮</string>
+    <string name="lyric_param_accompanist_text_color">歌词颜色</string>
+    <string name="lyric_param_accompanist_blur">非当前行模糊</string>
+    <string name="lyric_param_accompanist_blur_strength">模糊强度</string>
+    <string name="lyric_param_accompanist_dots_section">前奏与间奏呼吸点</string>
+    <string name="lyric_param_accompanist_dots_count">圆点数量</string>
+    <string name="lyric_param_accompanist_dots_size">圆点大小</string>
+    <string name="lyric_param_accompanist_dots_spacing">圆点间距</string>
+    <string name="lyric_param_accompanist_dots_color">呼吸点颜色</string>
 </resources>

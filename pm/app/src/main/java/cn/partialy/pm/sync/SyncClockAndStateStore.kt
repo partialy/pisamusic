@@ -93,7 +93,7 @@ internal object SyncClockAndStateStore {
         ensureRow(db, normalized)
         db.execSQL(
             "UPDATE sync_account_state SET seeded = 1, last_version = ?, last_sync_at = ?, last_error = '' WHERE account_id = ?",
-            arrayOf(version, nowMs, normalized),
+            arrayOf<Any>(version, nowMs, normalized),
         )
     }
 
@@ -114,7 +114,7 @@ internal object SyncClockAndStateStore {
         val nextLc = if (nextPt > current.hlcPt) 0 else current.hlcLc
         db.execSQL(
             "UPDATE sync_account_state SET clock_offset_ms = ?, hlc_pt = ?, hlc_lc = ? WHERE account_id = ?",
-            arrayOf(offset, nextPt, nextLc, normalized),
+            arrayOf<Any>(offset, nextPt, nextLc, normalized),
         )
     }
 
@@ -126,7 +126,7 @@ internal object SyncClockAndStateStore {
         val next = advanceHlc(current.hlcPt, current.hlcLc, localNowMs, current.clockOffsetMs)
         db.execSQL(
             "UPDATE sync_account_state SET hlc_pt = ?, hlc_lc = ? WHERE account_id = ?",
-            arrayOf(next.pt, next.lc, normalized),
+            arrayOf<Any>(next.pt, next.lc, normalized),
         )
         return next.pt
     }
@@ -214,7 +214,7 @@ internal object SyncClockAndStateStore {
             handled += item.opId
             db.execSQL(
                 "UPDATE sync_op_history SET status = ?, server_version = ?, detail = ? WHERE account_id = ? AND op_id = ?",
-                arrayOf("synced", item.version, if (item.noop) "noop" else "", normalized, item.opId),
+                arrayOf<Any>("synced", item.version, if (item.noop) "noop" else "", normalized, item.opId),
             )
             val action = actionByOpId[item.opId]
             upsertEntityVersion(db, normalized, item.itemType, item.itemKey, item.version, action == SyncPayloads.ACTION_DELETE, nowMs)
@@ -224,7 +224,7 @@ internal object SyncClockAndStateStore {
             val status = if (item.reason == "lww_lost") "dropped_by_lww" else item.reason
             db.execSQL(
                 "UPDATE sync_op_history SET status = ?, server_version = ?, detail = ? WHERE account_id = ? AND op_id = ?",
-                arrayOf(status, item.serverVersion, item.reason, normalized, item.opId),
+                arrayOf<Any>(status, item.serverVersion, item.reason, normalized, item.opId),
             )
         }
         for (opId in sentOpIds) {

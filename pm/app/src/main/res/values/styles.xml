@@ -88,4 +88,20 @@
         <item name="thumbTint">@null</item>
         <item name="useMaterialThemeColors">false</item>
     </style>
+
+    <style name="Widget.Pm.LyricSettings.Segment" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/lyric_settings_segment_text</item>
+        <item name="backgroundTint">@color/lyric_settings_segment_bg</item>
+        <item name="rippleColor">@color/settings_row_value_faded_primary</item>
+        <item name="strokeColor">@color/lyric_settings_segment_stroke</item>
+    </style>
+
+    <style name="Widget.Pm.LyricSettings.SeekBar" parent="@android:style/Widget.SeekBar">
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+        <item name="android:progressDrawable">@drawable/bg_lyric_settings_seekbar_progress</item>
+        <item name="android:splitTrack">false</item>
+        <item name="android:thumb">@drawable/bg_lyric_settings_seekbar_thumb</item>
+        <item name="android:thumbOffset">6dp</item>
+    </style>
 </resources>

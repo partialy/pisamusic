@@ -53,6 +53,7 @@ import cn.partialy.pm.listen.ListenTogetherUiEvent
 import cn.partialy.pm.listen.targetPosition
 import cn.partialy.pm.listen.toSongInfo
 import cn.partialy.pm.lyric.LyricContent
+import cn.partialy.pm.lyric.LyricFormat
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
 import cn.partialy.pm.model.MusicQualityAccessPolicy
@@ -75,6 +76,7 @@ import cn.partialy.pm.ui.player.PlayerPagesController
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfigRepository
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 import cn.partialy.pm.ui.player.LyricsAdapter
 import cn.partialy.pm.ui.player.background.PlayerBackgroundController
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
@@ -131,6 +133,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private lateinit var lyricsAdapter: LyricsAdapter
     private var lyricRows: List<LyricRow> = emptyList()
     private var lyricContent: LyricContent = LyricContent.noLyrics()
+    private var lyricStyleId = LyricEffectStyleId.DEFAULT
     private var lyricCurrentIndex: Int = -1
     private var lastUserLyricScrollAtMs: Long = 0L
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
@@ -168,6 +171,8 @@ class PlayerActivity : BaseDownloadActivity() {
             binding = ActivityPlayerBinding.inflate(layoutInflater)
             setContentView(binding.root)
             pages = PlayerPagesController(binding, savedInstanceState?.getInt("player_page"))
+            pages.accompanistLyrics.readPositionMs = ::currentPlaybackPositionMs
+            pages.accompanistLyrics.onSeek = listenTogetherManager::requestSeek
             playerBackgroundController = PlayerBackgroundController(
                 legacyBackground = binding.blurredBgImageView,
                 flowingBackground = binding.flowingCoverBackgroundView,
@@ -1128,6 +1133,10 @@ class PlayerActivity : BaseDownloadActivity() {
         val rv = pages.lyrics.lyricsRecyclerView
         rv.removeCallbacks(lyricSeekButtonHideRunnable)
         val overlay = pages.lyrics.lyricCenterSeekOverlay
+        if (lyricStyleId == LyricEffectStyleId.ACCOMPANIST) {
+            overlay.visibility = View.GONE
+            return
+        }
         if (pages.lyrics.karaokeLyricsView.visibility == View.VISIBLE) {
             updateKaraokeCenterSeekUi()
             return
@@ -1166,7 +1175,9 @@ class PlayerActivity : BaseDownloadActivity() {
         val rows = lyricRows
         val idx = pages.lyrics.karaokeLyricsView.browsedLineIndex
         lyricCenterSeekIndex = idx
-        if (pages.lyrics.karaokeLyricsView.visibility != View.VISIBLE || idx !in rows.indices) {
+        if (lyricStyleId == LyricEffectStyleId.ACCOMPANIST ||
+            pages.lyrics.karaokeLyricsView.visibility != View.VISIBLE || idx !in rows.indices
+        ) {
             overlay.visibility = View.GONE
             return
         }
@@ -1194,6 +1205,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun applyListenTogetherLyricSpacing() {
         pages.lyrics.lyricsRecyclerView.post { applyLyricsRecyclerVerticalPadding() }
         applyKaraokeListenTogetherPadding()
+        pages.lyrics.accompanistLyrics.updatePadding(top = dp(12) + listenTogetherLyricTopOffsetPx())
     }
 
     private fun applyKaraokeListenTogetherPadding() {
@@ -1318,6 +1330,10 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun updateLyricTime(currentTime: Long) {
         updateCompactLyrics(currentTime)
+        if (pages.lyrics.accompanistLyrics.visibility == View.VISIBLE) {
+            if (!musicController.isPlaying.value) pages.accompanistLyrics.updatePosition(currentTime)
+            return
+        }
         val rows = lyricRows
         if (rows.isEmpty()) return
         val current = LyricParser.findCurrentLine(rows, currentTime) ?: return
@@ -1360,12 +1376,25 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun applyLyricDisplayMode() {
-        // 完整歌词页统一由 KaraokeLyricsView 渲染，普通与逐字/特效共用 AMLyric 弹簧级联滚动。
-        pages.lyrics.karaokeLyricsView.visibility = View.VISIBLE
+        val effectConfig = LyricEffectConfigRepository.read(this)
+        lyricStyleId = effectConfig.styleId
+        val position = currentPlaybackPositionMs()
+        // TXT 只有展示用的时间轴，与加载和无歌词提示一并沿用原生显示。
+        val timedLyrics = lyricContent.lines.takeIf {
+            lyricStyleId == LyricEffectStyleId.ACCOMPANIST &&
+                lyricContent.hasLyrics && lyricContent.format != LyricFormat.NONE
+        }
+        pages.accompanistLyrics.updatePosition(position)
+        val usingAccompanist = pages.accompanistLyrics.bind(
+            timedLyrics,
+            useWordTiming = timedLyrics != null && LyricDisplayPrefs.isUseWordLyricEnabled(this),
+            config = effectConfig.accompanist,
+        )
+        pages.lyrics.karaokeLyricsView.visibility = if (usingAccompanist) View.GONE else View.VISIBLE
         pages.lyrics.lyricsRecyclerView.visibility = View.GONE
         applyListenTogetherLyricSpacing()
         pages.lyrics.lyricCenterSeekOverlay.visibility = View.GONE
-        updateKaraokeLyricsView(currentPlaybackPositionMs())
+        if (!usingAccompanist) updateKaraokeLyricsView(position)
         startKaraokeSync()
     }
 
@@ -1407,7 +1436,12 @@ class PlayerActivity : BaseDownloadActivity() {
             lyricCurrentIndex = current.index
             lyricsAdapter.setCurrentIndex(current.index)
         }
-        val effectConfig = LyricEffectConfigRepository.read(this)
+        val selectedEffect = LyricEffectConfigRepository.read(this)
+        val effectConfig = if (selectedEffect.styleId == LyricEffectStyleId.ACCOMPANIST) {
+            selectedEffect.withStyle(LyricEffectStyleId.DEFAULT)
+        } else {
+            selectedEffect
+        }
         val useWordTiming = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
         pages.lyrics.karaokeLyricsView.bind(
             lines = lyricRows,

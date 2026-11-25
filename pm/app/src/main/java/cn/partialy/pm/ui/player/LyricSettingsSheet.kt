@@ -10,6 +10,8 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.LyricColorPresetsActivity
@@ -27,6 +29,14 @@ import cn.partialy.pm.utils.LyricDisplayPrefs
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+internal fun BottomSheetDialog.installLyricComposeOwners() {
+    // Sheet 有独立窗口，Compose 的窗口重组器从窗口内容根查找宿主。
+    window?.decorView?.apply {
+        setViewTreeLifecycleOwner(this@installLyricComposeOwners)
+        setViewTreeSavedStateRegistryOwner(this@installLyricComposeOwners)
+    }
+}
+
 object LyricSettingsSheet {
 
     fun show(activity: ComponentActivity, onChanged: () -> Unit) {
@@ -37,10 +47,12 @@ object LyricSettingsSheet {
         )
         binding.root.setBackgroundResource(R.drawable.bg_lyric_settings_sheet)
         dialog.setContentView(binding.root)
+        dialog.installLyricComposeOwners()
 
         val preview = LyricPreviewController(
             binding.lyricSettingsPreview.previewNormalLyrics,
             binding.lyricSettingsPreview.previewKaraokeLyrics,
+            binding.lyricSettingsPreview.previewAccompanistLyrics,
         )
         fun notifyChanged() {
             preview.applyStyle(
@@ -205,7 +217,9 @@ object LyricSettingsSheet {
             binding.lyricSettingsStyleValue.text =
                 LyricStyleParamsMeta.styleLabel(activity, effectConfig.styleId)
             binding.lyricSettingsStyleParamsRow.visibility =
-                if (effectConfig.styleId == LyricEffectStyleId.DEFAULT) View.GONE else View.VISIBLE
+                if (effectConfig.styleId.hasParameters) View.VISIBLE else View.GONE
+            binding.lyricSettingsFpsRow.visibility =
+                if (effectConfig.styleId == LyricEffectStyleId.ACCOMPANIST) View.GONE else View.VISIBLE
             binding.lyricSettingsFpsValue.text =
                 LyricStyleParamsMeta.fpsShortLabel(activity, effectConfig.fps)
 
@@ -256,7 +270,7 @@ object LyricSettingsSheet {
 
         binding.lyricSettingsStyleParamsRow.setOnClickListener {
             val current = LyricEffectConfigRepository.read(activity)
-            if (current.styleId == LyricEffectStyleId.DEFAULT) return@setOnClickListener
+            if (!current.styleId.hasParameters) return@setOnClickListener
             preview.setVisible(false)
             fontStepper.stop()
             enlargedStepper.stop()
