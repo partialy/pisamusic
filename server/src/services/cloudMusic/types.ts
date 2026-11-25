@@ -6,7 +6,7 @@ import type {
   CloudMusicUploadState,
   CloudMusicPublicSummary as StorePublicSummary,
 } from "../../db/cloudMusicStore";
-import type { CloudMusicFileInfo } from "../cloudMusicAssets";
+import type { CloudMusicFileInfo, CloudMusicLyricsFormat } from "../cloudMusicAssets";
 import type { PaginatedListData } from "../../types/response";
 
 export type {
@@ -41,7 +41,7 @@ export type CloudMusicTrackDto = {
   trackNo: number | null;
   playable: boolean;
   cover: { source: "uploaded" | "embedded" | "default"; url: string };
-  lyrics: null | { format: "lrc" | "txt"; fileName: string };
+  lyrics: null | { format: CloudMusicLyricsFormat; fileName: string };
   audioFile: CloudMusicFileInfo | null;
   createdAt: number;
   updatedAt: number;
@@ -180,7 +180,8 @@ export type CloudMusicLyricsUrlResponse = {
   source: "cloud";
   url: string;
   expiresAt: number;
-  format: "lrc" | "txt";
+  format: CloudMusicLyricsFormat;
+  text?: string;
 };
 
 export type CloudMusicPublicSummary = StorePublicSummary;

@@ -13,6 +13,7 @@ import {
   createPrivateQiniuDownloadUrlForBucket,
   deleteQiniuObject,
   statQiniuObject,
+  updateQiniuObjectMimeType,
   uploadQiniuBuffer,
   type QiniuObjectStat,
   type QiniuUploadTokenInfo,
@@ -30,26 +31,34 @@ const ASSET_MAX_SIZES: Record<CloudMusicAssetKind, number> = {
   lyrics: CLOUD_MUSIC_LYRICS_MAX_SIZE,
 };
 
-const ASSET_ALLOWED_EXTENSIONS: Record<CloudMusicAssetKind, readonly string[]> = {
+const LYRIC_EXTENSIONS = [".lrc", ".txt", ".krc", ".yrc"];
+
+const ASSET_ALLOWED_EXTENSIONS: Record<Exclude<CloudMusicAssetKind, "cover-uploaded">, readonly string[]> = {
   audio: [".mp3", ".flac", ".m4a", ".mp4", ".aac", ".ogg", ".opus", ".wav"],
-  "cover-uploaded": [".jpg", ".jpeg", ".png", ".webp"],
-  "cover-extracted": [".jpg", ".jpeg", ".png", ".webp"],
-  lyrics: [".lrc", ".txt"],
+  "cover-extracted": [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"],
+  lyrics: LYRIC_EXTENSIONS,
 };
 
-export type CloudMusicCoverMimeType = "image/jpeg" | "image/png" | "image/webp";
-
-const COVER_MIME_EXTENSIONS: Record<CloudMusicCoverMimeType, string> = {
+const COVER_MIME_EXTENSIONS = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
-};
+  "image/gif": ".gif",
+  "image/bmp": ".bmp",
+  "image/avif": ".avif",
+} as const;
+
+export type CloudMusicCoverMimeType = keyof typeof COVER_MIME_EXTENSIONS;
+export type CloudMusicLyricsFormat = "lrc" | "txt" | "krc" | "yrc";
 
 const COVER_EXTENSION_MIME_TYPES: Record<string, CloudMusicCoverMimeType> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".bmp": "image/bmp",
+  ".avif": "image/avif",
 };
 
 export type CloudMusicFileLocation = {
@@ -71,7 +80,7 @@ export type CloudMusicFileInfo = CloudMusicFileLocation & {
 export type ExtractedCoverUploadInput = {
   uuid: string;
   data: Buffer;
-  mimeType: string;
+  mimeType: CloudMusicCoverMimeType;
 };
 
 function normalizeMimeType(value: string): string {
@@ -84,15 +93,17 @@ function isCoverMimeType(value: string): value is CloudMusicCoverMimeType {
 
 export function requireCloudMusicAssetExtension(kind: CloudMusicAssetKind, fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
+  if (kind === "cover-uploaded") return COVER_EXTENSION_MIME_TYPES[ext] ? ext : ".img";
   if (!ASSET_ALLOWED_EXTENSIONS[kind].includes(ext)) {
     throw new Error(`网盘音乐 ${kind} 仅支持 ${ASSET_ALLOWED_EXTENSIONS[kind].join("、")}`);
   }
   return ext;
 }
 
-export function coverMimeTypeForExtension(fileName: string): CloudMusicCoverMimeType {
-  const ext = requireCloudMusicAssetExtension("cover-uploaded", fileName);
-  return COVER_EXTENSION_MIME_TYPES[ext];
+export function getCloudMusicLyricsFormat(fileName: string, stored?: string | null): CloudMusicLyricsFormat {
+  const ext = path.extname(fileName).slice(1).toLowerCase();
+  if (ext === "krc" || ext === "yrc") return ext;
+  return stored === "txt" || ext === "txt" ? "txt" : "lrc";
 }
 
 function monthStamp(date = new Date()): string {
@@ -136,9 +147,10 @@ export function inferAssetMimeType(kind: CloudMusicAssetKind, fileName: string, 
   }
   if (kind === "cover-uploaded" || kind === "cover-extracted") {
     if (normalized && isCoverMimeType(normalized)) return normalized;
-    return coverMimeTypeForExtension(fileName);
+    return COVER_EXTENSION_MIME_TYPES[path.extname(fileName).toLowerCase()] || "application/octet-stream";
   }
   if (kind === "lyrics") {
+    if (getCloudMusicLyricsFormat(fileName) === "krc") return "application/octet-stream";
     if (normalized && (normalized === "text/plain" || normalized.startsWith("text/"))) return normalized;
     return "text/plain";
   }
@@ -229,6 +241,10 @@ export function createCloudMusicAssetUrl(asset: CloudMusicFileLocation, ttlSecon
   return createPrivateQiniuDownloadUrlForBucket(asset.bucket, asset.objectKey, ttlSeconds);
 }
 
+export function createCloudMusicAssetReadUrl(asset: CloudMusicFileLocation, ttlSeconds: number): string {
+  return createPrivateQiniuDownloadUrlForBucket(asset.bucket, asset.objectKey, ttlSeconds, true);
+}
+
 export function detectCoverMimeType(data: Uint8Array): CloudMusicCoverMimeType | null {
   if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "image/jpeg";
   if (
@@ -241,20 +257,24 @@ export function detectCoverMimeType(data: Uint8Array): CloudMusicCoverMimeType |
     && data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46
     && data[8] === 0x57 && data[9] === 0x45 && data[10] === 0x42 && data[11] === 0x50
   ) return "image/webp";
+  const header = Buffer.from(data.buffer, data.byteOffset, Math.min(data.byteLength, 32));
+  const gifSignature = header.toString("latin1", 0, 6);
+  if (header.length >= 13 && (gifSignature === "GIF87a" || gifSignature === "GIF89a")) return "image/gif";
+  if (header.length >= 26 && header.toString("latin1", 0, 2) === "BM") {
+    const pixelOffset = header.readUInt32LE(10);
+    if (pixelOffset >= 26 && pixelOffset < data.byteLength) return "image/bmp";
+  }
+  if (header.length >= 16 && header.toString("latin1", 4, 8) === "ftyp") {
+    const brand = header.toString("latin1", 8, 12);
+    if (brand === "avif" || brand === "avis") return "image/avif";
+  }
   return null;
 }
 
 export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Promise<CloudMusicFileInfo> {
   const track = (await readCloudMusicTrack(input.uuid));
   if (!track || track.status !== "temp") throw new Error("只有 temp 曲目可以登记内嵌封面");
-  const mimeType = normalizeMimeType(input.mimeType);
-  const detectedMimeType = detectCoverMimeType(input.data);
-  if (!isCoverMimeType(mimeType) || !detectedMimeType || detectedMimeType !== mimeType) {
-    throw new Error("内嵌封面格式或文件头不正确");
-  }
-  if (input.data.byteLength <= 0 || input.data.byteLength > CLOUD_MUSIC_COVER_MAX_SIZE) {
-    throw new Error("内嵌封面不能超过 10 MiB");
-  }
+  const { mimeType } = input;
   const ext = COVER_MIME_EXTENSIONS[mimeType];
   const fileName = `cover-embedded${ext}`;
   const bucket = String(process.env.QINIU_BUCKET ?? "").trim();
@@ -277,13 +297,14 @@ export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Pr
     fileSize: reserved.fileSize,
     mimeType,
   });
-  if (stat.fileSize !== reserved.fileSize || normalizeMimeType(stat.mimeType) !== mimeType) {
-    throw new Error("内嵌封面上传结果与预登记不一致");
+  if (stat.fileSize !== reserved.fileSize) {
+    throw new Error("内嵌封面上传大小与预登记不一致");
   }
+  if (stat.mimeType !== mimeType) await updateQiniuObjectMimeType(reserved.bucket, reserved.objectKey, mimeType);
   (await confirmCloudMusicAsset({
     fileRecordId: reserved.fileRecordId,
     hash: stat.hash,
-    mimeType: stat.mimeType,
+    mimeType,
     fileSize: stat.fileSize,
   }));
   return {
@@ -294,7 +315,7 @@ export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Pr
     bucket: reserved.bucket,
     objectKey: reserved.objectKey,
     fileName: reserved.fileName,
-    mimeType: stat.mimeType,
+    mimeType,
     fileSize: stat.fileSize,
     hash: stat.hash,
   };

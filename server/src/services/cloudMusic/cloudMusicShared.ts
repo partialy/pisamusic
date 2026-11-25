@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import path from "node:path";
 import { getAppDb } from "../../db/appDb";
 import {
   confirmCloudMusicAsset,
@@ -15,7 +14,9 @@ import {
   buildCloudMusicAssetObjectKey,
   CLOUD_MUSIC_DEFAULT_COVER_PATH,
   createCloudMusicAssetUploadToken,
+  createCloudMusicAssetReadUrl,
   createCloudMusicAssetUrl,
+  getCloudMusicLyricsFormat,
   inferAssetMimeType,
   requireCloudMusicAssetExtension,
   statCloudMusicAsset,
@@ -24,9 +25,9 @@ import {
 } from "../cloudMusicAssets";
 import {
   extractCloudMusicMetadata,
-  validateCloudMusicCover,
-  validateCloudMusicLyrics,
+  readCloudMusicCoverMimeType,
 } from "../cloudMusicMetadata";
+import { updateQiniuObjectMimeType } from "../qiniuReleaseFiles";
 import type {
   CloudMusicAssetUploadTicket,
   CloudMusicOwner,
@@ -101,10 +102,8 @@ export async function toCloudMusicTrackDto(track: StoreTrack): Promise<CloudMusi
   if (lyricsAsset) {
     const file = await readFileRecordById(lyricsAsset.fileRecordId);
     if (file && file.status === "uploaded") {
-      const ext = path.extname(file.fileName).slice(1).toLowerCase();
-      const format = (track.lyricsFormat as "lrc" | "txt") || (ext === "txt" ? "txt" : "lrc");
       lyrics = {
-        format,
+        format: getCloudMusicLyricsFormat(file.fileName, track.lyricsFormat),
         fileName: file.fileName,
       };
     }
@@ -308,7 +307,7 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
   if (kind === "audio") {
     const db = getAppDb();
     await db.execute(`UPDATE cloud_music_tracks SET upload_state = 'processing', updated_at = ? WHERE uuid = ?`, [Date.now(), uuid]);
-    const signedUrl = createCloudMusicAssetUrl(reserved, 300);
+    const signedUrl = createCloudMusicAssetReadUrl(reserved, 300);
 
     try {
       const extracted = await extractCloudMusicMetadata({
@@ -367,36 +366,30 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
   }
 
   if (kind === "cover-uploaded") {
-    const signedUrl = createCloudMusicAssetUrl(reserved, 300);
-    await validateCloudMusicCover({
+    const signedUrl = createCloudMusicAssetReadUrl(reserved, 300);
+    const mimeType = await readCloudMusicCoverMimeType({
       signedUrl,
       fileName: reserved.fileName,
       expectedSize: stat.fileSize,
-      expectedMimeType: reserved.mimeType,
     });
+    if (stat.mimeType !== mimeType) await updateQiniuObjectMimeType(reserved.bucket, reserved.objectKey, mimeType);
     const updated = await confirmCloudMusicAsset({
       fileRecordId: reserved.fileRecordId,
       hash: stat.hash,
-      mimeType: stat.mimeType,
+      mimeType,
       fileSize: stat.fileSize,
     });
     return await toCloudMusicTrackDto(updated);
   }
 
   if (kind === "lyrics") {
-    const signedUrl = createCloudMusicAssetUrl(reserved, 300);
-    const lyricsVal = await validateCloudMusicLyrics({
-      signedUrl,
-      fileName: reserved.fileName,
-      expectedSize: stat.fileSize,
-    });
     const updated = await confirmCloudMusicAsset({
       fileRecordId: reserved.fileRecordId,
       hash: stat.hash,
       mimeType: stat.mimeType,
       fileSize: stat.fileSize,
       parsed: {
-        lyricsFormat: lyricsVal.format,
+        lyricsFormat: getCloudMusicLyricsFormat(reserved.fileName),
       },
     });
     return await toCloudMusicTrackDto(updated);

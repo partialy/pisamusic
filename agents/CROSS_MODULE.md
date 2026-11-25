@@ -39,6 +39,8 @@
 - PC 自动升级使用 `electron-updater` 的 generic feed，服务端公开 `/api/config/desktop-updates/win32/x64/latest.yml` 和同目录文件下载入口；自动更新资源统一存储在 `file_records` 表，由后台上传 `latest.yml`、安装包 EXE 和可选 blockmap 后启用，不要手写 `latest.yml`。
 - Android 首页第二个 Tab 固定为“云盘”，PC 桌面端左侧导航在“收藏”与“我的”之间固定为“云盘”Tab；双端均通过外层 `server` 的 `/api/cloud-music/*` 浏览、搜索和播放独立 `cloud` 音源；列表分页固定每页 20 条，音质只有 `cloud:default`。`active` 可播放，`disabled` 只允许搜索和查看；客户端实际播放、切歌和下载前即时获取签名 URL，不把临时 URL 写入收藏、歌单、分享、播放状态或持久缓存。云盘歌曲支持一起听，使用 `source=cloud` 与稳定 UUID 作为歌曲身份，各设备独立签发播放地址，房间歌曲及队列不得携带临时播放 URL 或本地路径；LOCAL 音源仍禁止一起听。
 
+- 云盘投稿附件沿用七牛直传和后台审核。封面确认时以服务端识别的图片类型为准，歌词支持 LRC、TXT、KRC、YRC。播放 KRC 时，客户端通过 `lyrics-url?includeText=1` 获取服务端解码的逐字歌词，响应保留原有签名地址。见[云盘投稿接口](../server/apidoc/cloudMusic/submit.md)和[歌词取链接口](../server/apidoc/cloudMusic/getLyricsUrl.md)。
+
 ## 扫码、音乐分享与一起听
 
 - 一起听二维码统一编码 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`；Android App 与 `yixi/` 桌面端同时识别 `pisamusic://scan` Scheme。官网 `server/frontend/public/scan/` 负责浏览器唤起、复制房间号及安装后继续加入引导，`public/download/` 只按 Windows / Android 设备类型跳转官网并推荐对应下载项，不直接下载安装包；有效邀请参数需要贯穿下载页并可返回 `/scan/` 继续加入。

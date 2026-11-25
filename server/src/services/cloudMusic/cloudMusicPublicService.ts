@@ -1,4 +1,3 @@
-import path from "node:path";
 import {
   readCloudMusicTrack,
   readVisibleCloudMusicSummary,
@@ -9,7 +8,9 @@ import { readFileRecordById } from "../../db/configStore";
 import {
   CLOUD_MUSIC_DEFAULT_COVER_PATH,
   createCloudMusicAssetUrl,
+  getCloudMusicLyricsFormat,
 } from "../cloudMusicAssets";
+import { readCloudMusicLyricsText } from "./cloudMusicLyricsService";
 import {
   findCurrentAsset,
   toCloudMusicPublicTrack,
@@ -113,7 +114,7 @@ export async function getPublicCoverRedirect(uuid: string): Promise<string> {
     : CLOUD_MUSIC_DEFAULT_COVER_PATH;
 }
 
-export async function getPublicLyricsUrl(uuid: string): Promise<CloudMusicLyricsUrlResponse> {
+export async function getPublicLyricsUrl(uuid: string, includeText = false): Promise<CloudMusicLyricsUrlResponse> {
   const track = await readCloudMusicTrack(uuid);
   if (!track || track.deletedAt !== null) {
     const err = new Error("曲目不存在");
@@ -148,14 +149,13 @@ export async function getPublicLyricsUrl(uuid: string): Promise<CloudMusicLyrics
   }
 
   const url = createCloudMusicAssetUrl(lyricsFile, 3600);
-  const format = track.lyricsFormat === "txt" || path.extname(lyricsFile.fileName).toLowerCase() === ".txt"
-    ? "txt"
-    : "lrc";
+  const format = getCloudMusicLyricsFormat(lyricsFile.fileName, track.lyricsFormat);
   return {
     uuid,
     source: "cloud",
     url,
     expiresAt: Date.now() + 3600 * 1000,
     format,
+    ...(includeText && format === "krc" ? { text: await readCloudMusicLyricsText(lyricsFile) } : {}),
   };
 }

@@ -24,6 +24,7 @@ import {
   createCloudMusicAssetUploadToken,
   createCloudMusicAssetUrl,
   deleteCloudMusicAsset,
+  getCloudMusicLyricsFormat,
   inferAssetMimeType,
   requireCloudMusicAssetExtension,
   statCloudMusicAsset,
@@ -207,8 +208,7 @@ export async function confirmAdminAsset(
     if (stat.fileSize > CLOUD_MUSIC_LYRICS_MAX_SIZE) {
       throw new Error("歌词文件超过大小限制 (2MB)");
     }
-    const ext = path.extname(reserved.fileName).slice(1).toLowerCase();
-    const lyricsFormat = ext === "txt" ? "txt" : "lrc";
+    const lyricsFormat = getCloudMusicLyricsFormat(reserved.fileName);
     const updated = await confirmCloudMusicAsset({
       fileRecordId: reserved.fileRecordId,
       hash: stat.hash,

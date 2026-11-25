@@ -17,6 +17,8 @@
 | :--- | :--- | :--- | :--- |
 | `uuid` | `string` | 是 | 网盘曲目 UUID |
 
+可选查询参数 `includeText=1` 用于读取 KRC 歌词文本，签名下载地址仍会返回。
+
 ### 请求示例
 
 ```http
@@ -53,4 +55,5 @@ GET /api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101/lyrics-url
 
 | 字段名 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `format` | `"lrc" \| "txt"` | 歌词格式；在原有响应字段上新增，旧客户端可忽略。 |
+| `format` | `"lrc" \| "txt" \| "krc" \| "yrc"` | 歌词格式。 |
+| `text` | `string` | 仅在 `includeText=1` 且格式为 `krc` 时返回。二进制 KRC 会解码成逐字歌词文本。 |

@@ -372,6 +372,13 @@ export async function statQiniuObject(bucket: string, key: string): Promise<Qini
   return (await statQiniuObjectInSpace("release", bucket, key));
 }
 
+export async function updateQiniuObjectMimeType(bucket: string, key: string, mimeType: string): Promise<void> {
+  assertReleaseBucket(bucket);
+  const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
+  const result = await bucketManager.changeMime(bucket, key, mimeType);
+  if (result.resp.statusCode !== 200) throw new Error(`七牛更新文件类型失败：HTTP ${result.resp.statusCode}`);
+}
+
 export async function statQiniuObjectInSpace(space: QiniuSpace, bucket: string, key: string): Promise<QiniuObjectStat> {
   if (!key.trim()) throw new Error("七牛对象 Key 不能为空");
   const config = getSpaceConfig(space);
@@ -407,20 +414,24 @@ export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds?: number):
     ? ttlSeconds
     : configManager.get("storage.releaseDownloadUrlTtlSeconds", DEFAULT_RELEASE_DOWNLOAD_TTL_SECONDS);
   const { baseUrl } = getSpaceConfig("release");
-  const deadline = Math.floor(Date.now() / 1000) + actualTtl;
-  const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
-  return bucketManager.privateDownloadUrl(baseUrl, key, deadline);
+  return signQiniuDownloadUrl(baseUrl, key, actualTtl);
 }
 
-export function createPrivateQiniuDownloadUrlForBucket(bucket: string, key: string, ttlSeconds?: number): string {
-  assertReleaseBucket(bucket);
+export function createPrivateQiniuDownloadUrlForBucket(bucket: string, key: string, ttlSeconds?: number, preferOrigin = false): string {
+  const { domain, baseUrl } = assertReleaseBucket(bucket);
   const actualTtl = ttlSeconds !== undefined
     ? ttlSeconds
     : configManager.get("storage.releaseDownloadUrlTtlSeconds", DEFAULT_RELEASE_DOWNLOAD_TTL_SECONDS);
   if (!Number.isSafeInteger(actualTtl) || actualTtl <= 0 || actualTtl > 86400) {
     throw new Error("七牛临时下载有效期不正确");
   }
-  return createPrivateQiniuDownloadUrl(key, Math.trunc(actualTtl));
+  return signQiniuDownloadUrl(preferOrigin ? domain || baseUrl : baseUrl, key, actualTtl);
+}
+
+function signQiniuDownloadUrl(baseUrl: string, key: string, ttlSeconds: number): string {
+  const deadline = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
+  return bucketManager.privateDownloadUrl(baseUrl, key, deadline);
 }
 
 export function createReleaseDownloadUrl(key: string, ttlSeconds?: number): string {

@@ -10,7 +10,7 @@
 { "text": "[00:00.500]歌词\n", "format": "lrc", "fileName": "歌曲.lrc" }
 ```
 
-`text` 是当前歌词对象中的 UTF-8 原文，保留空白与时间/metadata 标签，不作时间轴补全。`format` 为已上传文件的扩展格式 `lrc/txt`；是否真正带时间轴以文本内容为准，历史 `.lrc` 文件也可能仅含纯文本。
+`text` 是解码后的歌词文本，保留空白和时间标签。支持 UTF-8、带 BOM 的 UTF-16、GB18030 与二进制 KRC。`format` 为 `lrc`、`txt`、`krc` 或 `yrc`。是否带时间轴以文本内容为准。
 
 管理员可查看 disabled、pending 等非删除曲目；仅读取 `isCurrent=true`、`state=uploaded` 且未删除的歌词资产及有效文件记录。曲目或歌词不存在返回 404；下载、格式、大小校验失败返回 502。响应设置 `Cache-Control: no-store`。
 

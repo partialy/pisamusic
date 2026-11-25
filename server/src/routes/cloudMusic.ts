@@ -142,7 +142,7 @@ cloudMusicRouter.get("/tracks/:uuid/cover", async (req, res) => {
 cloudMusicRouter.get("/tracks/:uuid/lyrics-url", async (req, res) => {
   try {
     const { uuid } = req.params;
-    const lyricsInfo = (await getPublicLyricsUrl(uuid));
+    const lyricsInfo = await getPublicLyricsUrl(uuid, req.query.includeText === "1");
     res.json(ok(lyricsInfo));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"

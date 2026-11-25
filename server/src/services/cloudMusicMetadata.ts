@@ -6,8 +6,6 @@ import {
   CLOUD_MUSIC_AUDIO_MAX_SIZE,
   CLOUD_MUSIC_COVER_MAX_SIZE,
   CLOUD_MUSIC_DEFAULT_COVER_PATH,
-  CLOUD_MUSIC_LYRICS_MAX_SIZE,
-  coverMimeTypeForExtension,
   detectCoverMimeType,
   requireCloudMusicAssetExtension,
   type CloudMusicCoverMimeType,
@@ -23,7 +21,7 @@ export type MetadataExtractInput = {
 
 export type CloudMusicExtractedCover = {
   data: Buffer;
-  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  mimeType: CloudMusicCoverMimeType;
 };
 
 export type CloudMusicExtractedMetadata = {
@@ -41,19 +39,6 @@ export type CloudMusicExtractedMetadata = {
   metadata: Record<string, string | number | boolean | null | string[]>;
   warnings: string[];
   embeddedCover: CloudMusicExtractedCover | null;
-};
-
-export type CloudMusicCoverValidation = {
-  mimeType: CloudMusicCoverMimeType;
-};
-
-export type CloudMusicCoverValidationInput = MetadataExtractInput & {
-  expectedMimeType: string;
-};
-
-export type CloudMusicLyricsValidation = {
-  format: string;
-  characterCount: number;
 };
 
 function requireExpectedSize(expectedSize: number, maxSize: number): void {
@@ -100,48 +85,57 @@ export function validateCloudMusicSignedUrl(signedUrl: string): string {
   return url.toString();
 }
 
-async function withDownloadedTempFile<T>(
-  input: MetadataExtractInput,
+export async function readCloudMusicDownload(
+  input: Pick<MetadataExtractInput, "signedUrl" | "expectedSize">,
   maxSize: number,
-  reader: (tempPath: string) => Promise<T>,
-): Promise<T> {
+  onChunk: (chunk: Uint8Array) => void | Promise<void>,
+  timeoutMs: number,
+): Promise<void> {
   requireExpectedSize(input.expectedSize, maxSize);
   const signedUrl = validateCloudMusicSignedUrl(input.signedUrl);
-  await mkdir(TEMP_DIRECTORY, { recursive: true });
-  const tempPath = path.join(TEMP_DIRECTORY, `${randomUUID()}${safeTempExtension(input.fileName)}`);
   const abortController = new AbortController();
-  let fileHandle: Awaited<ReturnType<typeof open>> | null = null;
+  const timer = setTimeout(() => abortController.abort(), timeoutMs);
   try {
-    const response = await fetch(signedUrl, { signal: abortController.signal, redirect: "error" });
+    const response = await fetch(signedUrl, {
+      signal: abortController.signal,
+      redirect: "error",
+      headers: { "Accept-Encoding": "identity" },
+    });
     if (!response.ok) throw new Error(`临时下载失败：HTTP ${response.status}`);
-    const contentLengthHeader = response.headers.get("content-length");
-    if (!contentLengthHeader || !/^\d+$/.test(contentLengthHeader)) throw new Error("临时下载缺少有效 Content-Length");
-    const contentLength = Number(contentLengthHeader);
-    if (!Number.isSafeInteger(contentLength) || contentLength !== input.expectedSize || contentLength > maxSize) {
-      throw new Error("临时下载 Content-Length 与预期不一致");
-    }
     if (!response.body) throw new Error("临时下载响应没有文件内容");
 
-    fileHandle = await open(tempPath, "wx");
     const streamReader = response.body.getReader();
     let received = 0;
     while (true) {
       const { done, value } = await streamReader.read();
       if (done) break;
       received += value.byteLength;
-      if (received > input.expectedSize || received > maxSize) {
-        abortController.abort();
-        throw new Error("临时下载累计字节超过限制");
-      }
-      await fileHandle.write(value);
+      if (received > input.expectedSize) throw new Error("临时下载累计字节超过限制");
+      await onChunk(value);
     }
     if (received !== input.expectedSize) throw new Error("临时下载累计字节与预期不一致");
-    await fileHandle.close();
-    fileHandle = null;
+  } finally {
+    clearTimeout(timer);
+    abortController.abort();
+  }
+}
+
+async function withDownloadedTempFile<T>(
+  input: MetadataExtractInput,
+  maxSize: number,
+  reader: (tempPath: string) => Promise<T>,
+): Promise<T> {
+  await mkdir(TEMP_DIRECTORY, { recursive: true });
+  const tempPath = path.join(TEMP_DIRECTORY, `${randomUUID()}${safeTempExtension(input.fileName)}`);
+  const fileHandle = await open(tempPath, "wx");
+  try {
+    try {
+      await readCloudMusicDownload(input, maxSize, (chunk) => fileHandle.writeFile(chunk), 300_000);
+    } finally {
+      await fileHandle.close();
+    }
     return await reader(tempPath);
   } finally {
-    abortController.abort();
-    if (fileHandle) await fileHandle.close().catch(() => undefined);
     await rm(tempPath, { force: true }).catch(() => undefined);
   }
 }
@@ -181,12 +175,8 @@ export async function extractCloudMusicMetadata(input: MetadataExtractInput): Pr
       try {
         const data = Buffer.from(picture.data);
         const detectedMimeType = detectCoverMimeType(data);
-        const declaredMimeType = String(picture.format ?? "").split(";", 1)[0].trim().toLowerCase();
-        const normalizedDeclaredMimeType = declaredMimeType === "image/jpg" ? "image/jpeg" : declaredMimeType;
-        if (!detectedMimeType || detectedMimeType !== normalizedDeclaredMimeType) {
-          throw new Error("内嵌封面 MIME 与文件头不一致");
-        }
-        if (data.byteLength <= 0 || data.byteLength > CLOUD_MUSIC_COVER_MAX_SIZE) {
+        if (!detectedMimeType) throw new Error("无法识别内嵌封面图片");
+        if (data.byteLength > CLOUD_MUSIC_COVER_MAX_SIZE) {
           throw new Error("内嵌封面超过 10 MiB");
         }
         embeddedCover = { data, mimeType: detectedMimeType };
@@ -230,30 +220,11 @@ export async function extractCloudMusicMetadata(input: MetadataExtractInput): Pr
   }));
 }
 
-export async function validateCloudMusicCover(input: CloudMusicCoverValidationInput): Promise<CloudMusicCoverValidation> {
-  const expectedMimeType = input.expectedMimeType.split(";", 1)[0].trim().toLowerCase();
-  const extensionMimeType = coverMimeTypeForExtension(input.fileName);
-  if (expectedMimeType !== extensionMimeType) throw new Error("封面预登记 MIME 与扩展名不一致");
+export async function readCloudMusicCoverMimeType(input: MetadataExtractInput): Promise<CloudMusicCoverMimeType> {
   return (await withDownloadedTempFile(input, CLOUD_MUSIC_COVER_MAX_SIZE, async (tempPath) => {
     const data = await readFile(tempPath);
     const mimeType = detectCoverMimeType(data);
-    if (!mimeType) throw new Error("封面文件头不支持，仅允许 JPEG、PNG、WebP");
-    if (mimeType !== expectedMimeType) throw new Error("封面文件头与预登记 MIME 不一致");
-    return { mimeType };
-  }));
-}
-
-export async function validateCloudMusicLyrics(input: MetadataExtractInput): Promise<CloudMusicLyricsValidation> {
-  requireCloudMusicAssetExtension("lyrics", input.fileName);
-  return (await withDownloadedTempFile(input, CLOUD_MUSIC_LYRICS_MAX_SIZE, async (tempPath) => {
-    const data = await readFile(tempPath);
-    let text: string;
-    try {
-      text = new TextDecoder("utf-8", { fatal: true }).decode(data).replace(/^\uFEFF/, "");
-    } catch {
-      throw new Error("歌词不是有效的 UTF-8 编码");
-    }
-    const ext = path.extname(input.fileName).slice(1).toLowerCase();
-    return { format: ext || "txt", characterCount: text.length };
+    if (!mimeType) throw new Error("无法识别封面图片，支持 JPEG、PNG、WebP、GIF、BMP、AVIF");
+    return mimeType;
   }));
 }

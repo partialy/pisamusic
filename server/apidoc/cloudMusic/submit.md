@@ -96,6 +96,8 @@
 
 客户端将文件直传至七牛云成功后调用此接口通知服务端。当 `kind === 'audio'` 时，服务端将自动提取音频 ID3 元数据（歌名、歌手、专辑、时长、内置封面），并返回解析后的最新 Track DTO。
 
+服务端用七牛对象大小确认上传完成，优先从配置的源站读取音频和封面，按实际读取字节数校验完整性。封面按文件内容识别 JPEG、PNG、WebP、GIF、BMP、AVIF，并同步七牛对象及文件记录的 MIME。歌词支持 LRC、TXT、KRC、YRC，确认阶段只登记资产，歌词内容在后台审核时读取。
+
 - **Method**: `POST`
 - **Path**: `/api/cloud-music/submit/:uuid/assets/:kind/complete`
 - **Path 参数**:
