@@ -85,7 +85,6 @@
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="8dp"
                 android:visibility="gone"
-                tools:visibility="visible"
                 app:cardBackgroundColor="@color/home_mini_player_bg"
                 app:cardCornerRadius="14dp"
                 app:cardElevation="0dp"
@@ -95,22 +94,7 @@
                     android:id="@+id/drawerGridTopContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-                        <include layout="@layout/item_drawer_grid_entry" />
-                    </LinearLayout>
-
-                </LinearLayout>
+                    android:orientation="vertical" />
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
@@ -132,163 +116,221 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical">
 
-            <LinearLayout
-                android:id="@+id/drawerImportPlaylistsRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:paddingVertical="10dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:contentDescription="@string/drawer_import_playlists"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                        <LinearLayout
+                            android:id="@+id/drawerImportPlaylistsRow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:contentDescription="@string/drawer_import_playlists"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:minHeight="48dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="10dp">
 
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_login_24"
-                    app:tint="@color/colorOnBgNormal" />
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:id="@+id/drawerImportPlaylistsIcon"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_marginEnd="14dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                android:scaleType="fitCenter"
+                                app:srcCompat="@drawable/ic_login_24"
+                                app:tint="@color/colorOnBgNormal" />
 
-                <TextView
-                    android:id="@+id/drawerImportPlaylistsTitle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:layout_weight="1"
-                    android:text="@string/drawer_import_playlists"
-                    android:textColor="@color/colorOnBgNormal"
-                    android:textSize="14sp" />
+                            <TextView
+                                android:id="@+id/drawerImportPlaylistsTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:text="@string/drawer_import_playlists"
+                                android:textColor="@color/colorOnBgNormal"
+                                android:textSize="14sp" />
 
-                <TextView
-                    android:id="@+id/drawerKgSourceTag"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp" />
+                            <TextView
+                                android:id="@+id/drawerKgSourceTag"
+                                android:layout_width="16dp"
+                                android:layout_height="16dp" />
 
-                <TextView
-                    android:id="@+id/drawerWySourceTag"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="6dp" />
+                            <TextView
+                                android:id="@+id/drawerWySourceTag"
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_marginStart="6dp" />
 
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_marginStart="6dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_chevron_right_24"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="6dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                app:srcCompat="@drawable/ic_chevron_right_24"
+                                app:tint="@color/text_secondary" />
+                        </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/drawerLinkImportRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:paddingVertical="10dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:contentDescription="@string/drawer_link_import"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                        <LinearLayout
+                            android:id="@+id/drawerLinkImportRow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:contentDescription="@string/drawer_link_import"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:minHeight="48dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="10dp">
 
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_link_24"
-                    app:tint="@color/colorOnBgNormal" />
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:id="@+id/drawerLinkImportIcon"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_marginEnd="14dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                android:scaleType="fitCenter"
+                                app:srcCompat="@drawable/ic_link_24"
+                                app:tint="@color/colorOnBgNormal" />
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:text="@string/drawer_link_import"
-                    android:textColor="@color/colorOnBgNormal"
-                    android:textSize="14sp" />
+                            <TextView
+                                android:id="@+id/drawerLinkImportTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:text="@string/drawer_link_import"
+                                android:textColor="@color/colorOnBgNormal"
+                                android:textSize="14sp" />
 
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_marginStart="6dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_chevron_right_24"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="6dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                app:srcCompat="@drawable/ic_chevron_right_24"
+                                app:tint="@color/text_secondary" />
+                        </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/drawerSleepTimerRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:paddingVertical="10dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                        <LinearLayout
+                            android:id="@+id/drawerSleepTimerRow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:contentDescription="@string/drawer_sleep_timer"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:minHeight="48dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="10dp">
 
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_alarm_24"
-                    app:tint="@color/colorOnBgNormal" />
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:id="@+id/drawerSleepTimerIcon"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_marginEnd="14dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                android:scaleType="fitCenter"
+                                app:srcCompat="@drawable/ic_alarm_24"
+                                app:tint="@color/colorOnBgNormal" />
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:layout_weight="1"
-                    android:text="@string/drawer_sleep_timer"
-                    android:textColor="@color/colorOnBgNormal"
-                    android:textSize="14sp" />
+                            <TextView
+                                android:id="@+id/drawerSleepTimerTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:text="@string/drawer_sleep_timer"
+                                android:textColor="@color/colorOnBgNormal"
+                                android:textSize="14sp" />
 
-                <TextView
-                    android:id="@+id/drawerSleepTimerRemaining"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:visibility="gone"
-                    tools:text="09:42"
-                    tools:visibility="visible" />
+                            <TextView
+                                android:id="@+id/drawerSleepTimerRemaining"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="13sp"
+                                android:visibility="gone"
+                                tools:text="09:42"
+                                tools:visibility="visible" />
 
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_marginStart="6dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_chevron_right_24"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
-                    </LinearLayout>
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="6dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                app:srcCompat="@drawable/ic_chevron_right_24"
+                                app:tint="@color/text_secondary" />
+                        </LinearLayout>
 
-                    <LinearLayout
-                        android:id="@+id/drawerQuickActionsContainer"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                        <LinearLayout
+                            android:id="@+id/drawerThemeRow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:contentDescription="@string/drawer_theme_appearance"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:minHeight="48dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="10dp">
 
-                        <include layout="@layout/item_drawer_quick_action" />
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:id="@+id/drawerThemeIcon"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_marginEnd="14dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                android:scaleType="fitCenter"
+                                app:srcCompat="@drawable/ic_sider_theme_24"
+                                app:tint="@color/colorOnBgNormal" />
 
-                        <include layout="@layout/item_drawer_quick_action" />
+                            <TextView
+                                android:id="@+id/drawerThemeTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:text="@string/drawer_theme_appearance"
+                                android:textColor="@color/colorOnBgNormal"
+                                android:textSize="14sp" />
 
-                        <include layout="@layout/item_drawer_quick_action" />
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:id="@+id/drawerThemeModeIcon"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_marginStart="8dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                app:srcCompat="@drawable/ic_sider_theme_auto_24"
+                                app:tint="@color/colorOnBgSecond" />
+
+                            <androidx.appcompat.widget.AppCompatImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="6dp"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                app:srcCompat="@drawable/ic_chevron_right_24"
+                                app:tint="@color/text_secondary" />
+                        </LinearLayout>
                     </LinearLayout>
 
                     <LinearLayout
@@ -296,25 +338,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:visibility="gone"
-                        tools:visibility="visible">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:paddingStart="16dp"
-                            android:paddingTop="4dp"
-                            android:paddingEnd="16dp"
-                            android:paddingBottom="4dp"
-                            android:text="动态分组"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            tools:ignore="HardcodedText" />
-
-                        <include layout="@layout/item_drawer_dynamic_row" />
-
-                        <include layout="@layout/item_drawer_dynamic_row" />
-                    </LinearLayout>
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -326,7 +350,6 @@
                 android:layout_marginTop="10dp"
                 android:layout_marginEnd="8dp"
                 android:visibility="gone"
-                tools:visibility="visible"
                 app:cardBackgroundColor="@color/home_mini_player_bg"
                 app:cardCornerRadius="14dp"
                 app:cardElevation="0dp"
@@ -336,22 +359,7 @@
                     android:id="@+id/drawerGridBottomContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-
-                        <include layout="@layout/item_drawer_grid_entry" />
-                    </LinearLayout>
-                </LinearLayout>
+                    android:orientation="vertical" />
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

@@ -6,6 +6,7 @@ data class AndroidStartupRequest(
     val device: DeviceReportRequest,
     val agreementVersion: Long? = null,
     val unreadMessageLimit: Int = 20,
+    val sidebarMenuSchemaVersion: Int = 2,
 )
 
 data class AndroidStartupResponse(

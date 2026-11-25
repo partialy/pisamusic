@@ -1,21 +1,11 @@
 package cn.partialy.pm.ui.drawer
 
-import android.content.Intent
-import android.view.ViewGroup
-import android.widget.LinearLayout
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.AppActivityTransitions
-import cn.partialy.pm.activity.setting.SettingAnnouncementsActivity
-import cn.partialy.pm.activity.setting.SettingCheckUpdateActivity
-import cn.partialy.pm.databinding.ItemDrawerQuickActionBinding
+import cn.partialy.pm.databinding.MainDrawerContentBinding
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.utils.SettingsPrefs
@@ -23,50 +13,48 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** 侧栏快捷入口与主题选择，页面跳转及弹层均等待侧栏收起。 */
+/** 侧栏「主题外观」内置入口控制器，负责模式图标刷新与主题选择弹窗。 */
 class DrawerQuickActions(
     private val activity: FragmentActivity,
     private val closeDrawer: () -> Unit,
 ) {
-    private val rows = mutableListOf<ItemDrawerQuickActionBinding>()
-    private var themeRow: ItemDrawerQuickActionBinding? = null
-    private var updateRow: ItemDrawerQuickActionBinding? = null
+    private var binding: MainDrawerContentBinding? = null
     private var actionJob: Job? = null
     private var destroyed = false
 
-    fun bind(container: LinearLayout) {
+    fun bind(drawerBinding: MainDrawerContentBinding) {
         if (destroyed) return
-        clearRows()
-        container.removeAllViews()
-        themeRow = addRow(container, R.drawable.ic_sider_theme_24, R.string.drawer_theme_appearance) {
-            showThemePicker()
-        }
-        addRow(container, R.drawable.ic_sider_announcement_24, R.string.announcement_system_title) {
-            openPage(SettingAnnouncementsActivity::class.java)
-        }
-        updateRow = addRow(container, R.drawable.ic_sider_update_24, R.string.check_update) {
-            openPage(SettingCheckUpdateActivity::class.java)
+        binding = drawerBinding
+        drawerBinding.drawerThemeRow.setOnClickListener {
+            if (destroyed || actionJob?.isActive == true) return@setOnClickListener
+            actionJob = activity.lifecycleScope.launch {
+                closeDrawer()
+                // 与 MainActivity 当前最大 220ms 的抽屉收起动画对齐。
+                delay(DRAWER_CLOSE_DURATION_MS)
+                if (destroyed || activity.isFinishing || activity.isDestroyed ||
+                    !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                ) {
+                    return@launch
+                }
+                showThemePicker()
+            }
         }
         refresh()
     }
 
     fun refresh() {
         if (destroyed) return
+        val b = binding ?: return
         val mode = SettingsPrefs.getThemeMode(activity)
         val (icon, description) = when (mode) {
             SettingsPrefs.ThemeMode.Light -> R.drawable.ic_sider_sun_24 to R.string.settings_theme_light
             SettingsPrefs.ThemeMode.Dark -> R.drawable.ic_sider_moon_24 to R.string.settings_theme_dark
             SettingsPrefs.ThemeMode.System -> R.drawable.ic_sider_theme_auto_24 to R.string.settings_theme_system
         }
-        themeRow?.apply {
-            modeIcon.setImageResource(icon)
-            modeIcon.isVisible = true
-            root.contentDescription = "${activity.getString(R.string.drawer_theme_appearance)}，${activity.getString(description)}"
-        }
-        updateRow?.apply {
-            actionValue.text = BuildConfig.VERSION_NAME
-            actionValue.isVisible = true
-        }
+        b.drawerThemeModeIcon.setImageResource(icon)
+        val titleText = b.drawerThemeTitle.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: activity.getString(R.string.drawer_theme_appearance)
+        b.drawerThemeRow.contentDescription = "$titleText，${activity.getString(description)}"
     }
 
     fun destroy() {
@@ -74,32 +62,8 @@ class DrawerQuickActions(
         // 通用选择器在协程取消时自动 dismiss，不保留宿主已销毁的 Dialog。
         actionJob?.cancel()
         actionJob = null
-        clearRows()
-    }
-
-    private fun addRow(
-        container: LinearLayout,
-        @DrawableRes icon: Int,
-        @StringRes title: Int,
-        action: suspend () -> Unit,
-    ): ItemDrawerQuickActionBinding {
-        val row = ItemDrawerQuickActionBinding.inflate(activity.layoutInflater, container, false)
-        row.actionIcon.setImageResource(icon)
-        row.actionTitle.setText(title)
-        row.root.setOnClickListener {
-            if (destroyed || actionJob?.isActive == true) return@setOnClickListener
-            actionJob = activity.lifecycleScope.launch {
-                closeDrawer()
-                // 与 MainActivity 当前最大 220ms 的抽屉收起动画对齐。
-                delay(DRAWER_CLOSE_DURATION_MS)
-                if (destroyed || activity.isFinishing || activity.isDestroyed ||
-                    !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@launch
-                action()
-            }
-        }
-        container.addView(row.root)
-        rows += row
-        return row
+        binding?.drawerThemeRow?.setOnClickListener(null)
+        binding = null
     }
 
     private suspend fun showThemePicker() {
@@ -125,21 +89,6 @@ class DrawerQuickActions(
         SettingsPrefs.setThemeMode(activity, mode)
         refresh()
         AppCompatDelegate.setDefaultNightMode(SettingsPrefs.toNightMode(mode))
-    }
-
-    private fun openPage(page: Class<out android.app.Activity>) {
-        activity.startActivity(Intent(activity, page))
-        AppActivityTransitions.applyForward(activity)
-    }
-
-    private fun clearRows() {
-        rows.forEach {
-            it.root.setOnClickListener(null)
-            (it.root.parent as? ViewGroup)?.removeView(it.root)
-        }
-        rows.clear()
-        themeRow = null
-        updateRow = null
     }
 
     private companion object {

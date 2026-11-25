@@ -477,13 +477,15 @@ class MainActivity : BaseDownloadActivity() {
             SleepTimerBottomSheet.show(this, sleepTimerManager)
         }
         drawerQuickActions = DrawerQuickActions(this, ::closeMainDrawer).apply {
-            bind(inflated.drawerQuickActionsContainer)
+            bind(inflated)
         }
         drawerDynamicMenusController = DrawerDynamicMenusController(
             activity = this,
             binding = inflated,
             repository = sidebarMenuRepository,
             closeDrawer = ::closeMainDrawer,
+            openScan = ::startDrawerQrScan,
+            openDiscover = ::showDiscoverContent,
         ).apply {
             render(sidebarMenuRepository.state.value)
         }

@@ -110,7 +110,7 @@ interface SystemApiService {
     suspend fun getDiscover(): DiscoverResponse
 
     @GET("api/config/sidebar-menu")
-    suspend fun getSidebarMenu(): SidebarMenuResponse
+    suspend fun getSidebarMenu(@Query("schemaVersion") schemaVersion: Int = 2): SidebarMenuResponse
 
     @GET("api/config/agreement")
     suspend fun getAgreement(): AgreementResponse

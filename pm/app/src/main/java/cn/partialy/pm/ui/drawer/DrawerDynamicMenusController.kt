@@ -1,81 +1,160 @@
 package cn.partialy.pm.ui.drawer
 
+import android.app.Activity
+import android.content.Intent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Space
 import android.widget.TextView
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.AccountProfileActivity
+import cn.partialy.pm.activity.AppActivityTransitions
+import cn.partialy.pm.activity.DataSettingsActivity
+import cn.partialy.pm.activity.DownloadSettingsActivity
+import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.FullscreenWebContentActivity
+import cn.partialy.pm.activity.LoginActivity
+import cn.partialy.pm.activity.PlaybackSettingsActivity
+import cn.partialy.pm.activity.SettingsActivity
 import cn.partialy.pm.activity.WebContentActivity
+import cn.partialy.pm.activity.setting.SettingAboutActivity
+import cn.partialy.pm.activity.setting.SettingAnnouncementsActivity
+import cn.partialy.pm.activity.setting.SettingCheckUpdateActivity
 import cn.partialy.pm.databinding.ItemDrawerDynamicRowBinding
 import cn.partialy.pm.databinding.ItemDrawerGridEntryBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
+import cn.partialy.pm.model.SidebarBuiltinItemDto
 import cn.partialy.pm.model.SidebarMenuItemDto
+import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.ui.dialog.AppShareBottomSheet
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * 渲染侧栏动态下发区域（现有列表底部分段横栏 + 顶部/底部九宫格），并处理点击跳转与一次性红点消除。
+ * 渲染侧栏内置固定项配置、多区块动态横栏、四宫格入口，并处理网页与 App 原生页面跳转。
  */
 class DrawerDynamicMenusController(
     private val activity: FragmentActivity,
     private val binding: MainDrawerContentBinding,
     private val repository: SidebarMenuRepository,
     private val closeDrawer: () -> Unit,
+    private val openScan: () -> Unit,
+    private val openDiscover: () -> Unit,
 ) {
     private var clickJob: Job? = null
     private var destroyed = false
 
     fun render(state: SidebarMenuUiState) {
         if (destroyed) return
-        renderListSection(state)
+        renderBuiltinItems(state)
+        renderListSections(state)
         renderGridSection(state)
     }
 
-    private fun renderListSection(state: SidebarMenuUiState) {
+    private fun renderBuiltinItems(state: SidebarMenuUiState) {
+        applyBuiltinRow(
+            rowView = binding.drawerImportPlaylistsRow,
+            iconView = binding.drawerImportPlaylistsIcon,
+            titleView = binding.drawerImportPlaylistsTitle,
+            item = state.findBuiltin(SidebarBuiltinKeys.IMPORT_PLAYLISTS),
+            defaultTitleResId = R.string.drawer_import_playlists,
+            defaultIconResId = R.drawable.ic_login_24,
+        )
+        applyBuiltinRow(
+            rowView = binding.drawerLinkImportRow,
+            iconView = binding.drawerLinkImportIcon,
+            titleView = binding.drawerLinkImportTitle,
+            item = state.findBuiltin(SidebarBuiltinKeys.LINK_IMPORT),
+            defaultTitleResId = R.string.drawer_link_import,
+            defaultIconResId = R.drawable.ic_link_24,
+        )
+        applyBuiltinRow(
+            rowView = binding.drawerSleepTimerRow,
+            iconView = binding.drawerSleepTimerIcon,
+            titleView = binding.drawerSleepTimerTitle,
+            item = state.findBuiltin(SidebarBuiltinKeys.SLEEP_TIMER),
+            defaultTitleResId = R.string.drawer_sleep_timer,
+            defaultIconResId = R.drawable.ic_alarm_24,
+        )
+        applyBuiltinRow(
+            rowView = binding.drawerThemeRow,
+            iconView = binding.drawerThemeIcon,
+            titleView = binding.drawerThemeTitle,
+            item = state.findBuiltin(SidebarBuiltinKeys.THEME),
+            defaultTitleResId = R.string.drawer_theme_appearance,
+            defaultIconResId = R.drawable.ic_sider_theme_24,
+        )
+    }
+
+    private fun applyBuiltinRow(
+        rowView: View,
+        iconView: ImageView,
+        titleView: TextView,
+        item: SidebarBuiltinItemDto,
+        @StringRes defaultTitleResId: Int,
+        @DrawableRes defaultIconResId: Int,
+    ) {
+        rowView.isVisible = item.enabled
+        if (!item.enabled) return
+        val displayName = item.name.trim().ifEmpty { activity.getString(defaultTitleResId) }
+        titleView.text = displayName
+        if (rowView !== binding.drawerThemeRow) {
+            rowView.contentDescription = displayName
+        }
+        SidebarIconBinder.bindBuiltinIcon(iconView, item, defaultIconResId)
+    }
+
+    private fun renderListSections(state: SidebarMenuUiState) {
         val container = binding.drawerDynamicListSectionContainer
         container.removeAllViews()
-        if (!state.hasListItems) {
+        if (!state.hasListSections) {
             container.isVisible = false
             return
         }
         container.isVisible = true
 
-        val sectionTitle = state.listSection.title.trim()
-        if (sectionTitle.isNotEmpty()) {
-            val header = TextView(activity).apply {
-                text = sectionTitle
-                textSize = 12f
-                setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
-                setPadding(dp(16), dp(4), dp(16), dp(4))
+        state.listSections.forEach { section ->
+            if (!section.enabled || section.items.isEmpty()) return@forEach
+            val sectionTitle = section.title.trim()
+            if (sectionTitle.isNotEmpty()) {
+                val header = TextView(activity).apply {
+                    text = sectionTitle
+                    textSize = 12f
+                    setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
+                    setPadding(dp(16), dp(4), dp(16), dp(4))
+                }
+                container.addView(header)
+            } else {
+                container.addView(createInsetDivider())
             }
-            container.addView(header)
-        } else {
-            container.addView(createInsetDivider())
-        }
 
-        state.listSection.items.forEach { item ->
-            val row = ItemDrawerDynamicRowBinding.inflate(activity.layoutInflater, container, false)
-            SidebarIconBinder.bindListIcon(row.itemIcon, item)
-            row.itemTitle.text = item.name
+            section.items.forEach { item ->
+                val row = ItemDrawerDynamicRowBinding.inflate(activity.layoutInflater, container, false)
+                SidebarIconBinder.bindListIcon(row.itemIcon, item)
+                row.itemTitle.text = item.name
 
-            val showRedDot = state.shouldShowRedDot(item)
-            val showSubtitleText = item.badgeType == SidebarMenuUiState.BADGE_TEXT && item.subtitleText.isNotBlank()
-            row.itemSubtitleText.isVisible = showSubtitleText && !showRedDot
-            if (showSubtitleText) {
-                row.itemSubtitleText.text = item.subtitleText
+                val showRedDot = state.shouldShowRedDot(item)
+                val showSubtitleText =
+                    item.badgeType == SidebarMenuUiState.BADGE_TEXT && item.subtitleText.isNotBlank()
+                row.itemSubtitleText.isVisible = showSubtitleText && !showRedDot
+                if (showSubtitleText) {
+                    row.itemSubtitleText.text = item.subtitleText
+                }
+                row.itemRedDot.isVisible = showRedDot
+
+                row.root.setOnClickListener { onItemClick(item) }
+                container.addView(row.root)
             }
-            row.itemRedDot.isVisible = showRedDot
-
-            row.root.setOnClickListener { onItemClick(item) }
-            container.addView(row.root)
         }
     }
 
@@ -126,6 +205,10 @@ class DrawerDynamicMenusController(
     private fun onItemClick(item: SidebarMenuItemDto) {
         if (destroyed || clickJob?.isActive == true) return
         repository.markItemClicked(item)
+        if (item.openType == SidebarMenuUiState.OPEN_APP_ACTION && item.actionKey == ACTION_SCAN) {
+            openScan()
+            return
+        }
         clickJob = activity.lifecycleScope.launch {
             closeDrawer()
             delay(DRAWER_CLOSE_DURATION_MS)
@@ -134,12 +217,40 @@ class DrawerDynamicMenusController(
             ) {
                 return@launch
             }
-            if (item.openType == OPEN_TYPE_FULLSCREEN_WEB) {
-                FullscreenWebContentActivity.start(activity, item.url)
-            } else {
-                WebContentActivity.start(activity, item.url, item.name)
+            when (item.openType) {
+                SidebarMenuUiState.OPEN_APP_ACTION -> dispatchAppAction(item.actionKey)
+                SidebarMenuUiState.OPEN_FULLSCREEN_WEB -> FullscreenWebContentActivity.start(activity, item.url)
+                else -> WebContentActivity.start(activity, item.url, item.name)
             }
         }
+    }
+
+    private fun dispatchAppAction(actionKey: String) {
+        when (actionKey) {
+            "discover" -> openDiscover()
+            "announcements" -> openActivity(SettingAnnouncementsActivity::class.java)
+            "check_update" -> openActivity(SettingCheckUpdateActivity::class.java)
+            "feedback" -> FeedbackActivity.start(activity)
+            "settings" -> SettingsActivity.start(activity)
+            "login" -> LoginActivity.start(activity)
+            "profile" -> {
+                if (AccountSessionStore.read(activity).loggedIn) {
+                    AccountProfileActivity.start(activity)
+                } else {
+                    LoginActivity.start(activity)
+                }
+            }
+            "about" -> openActivity(SettingAboutActivity::class.java)
+            "share_app" -> AppShareBottomSheet.show(activity)
+            "data_management" -> DataSettingsActivity.start(activity)
+            "download_settings" -> DownloadSettingsActivity.start(activity)
+            "playback_settings" -> PlaybackSettingsActivity.start(activity)
+        }
+    }
+
+    private fun openActivity(page: Class<out Activity>) {
+        activity.startActivity(Intent(activity, page))
+        AppActivityTransitions.applyForward(activity)
     }
 
     fun destroy() {
@@ -165,6 +276,6 @@ class DrawerDynamicMenusController(
 
     private companion object {
         const val DRAWER_CLOSE_DURATION_MS = 220L
-        const val OPEN_TYPE_FULLSCREEN_WEB = "fullscreen_web"
+        const val ACTION_SCAN = "scan"
     }
 }

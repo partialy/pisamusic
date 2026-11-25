@@ -1,6 +1,7 @@
 package cn.partialy.pm.ui.drawer
 
 import android.content.Context
+import cn.partialy.pm.model.SidebarBuiltinItemDto
 import cn.partialy.pm.model.SidebarGridSectionDto
 import cn.partialy.pm.model.SidebarListSectionDto
 import cn.partialy.pm.model.SidebarMenuConfigDto
@@ -39,7 +40,7 @@ private class AppConfigSidebarMenuCache(context: Context) : SidebarMenuCache {
             key = KEY_MENU_CONFIG,
             valueJson = json,
             namespace = NAMESPACE,
-            schemaVersion = 1,
+            schemaVersion = 2,
         )
     }
 
@@ -63,7 +64,7 @@ private class AppConfigSidebarMenuCache(context: Context) : SidebarMenuCache {
             key = KEY_DISMISSED_BADGES,
             valueJson = array.toString(),
             namespace = NAMESPACE,
-            schemaVersion = 1,
+            schemaVersion = 2,
         )
     }
 
@@ -74,15 +75,35 @@ private class AppConfigSidebarMenuCache(context: Context) : SidebarMenuCache {
     }
 }
 
+object SidebarBuiltinKeys {
+    const val IMPORT_PLAYLISTS = "import_playlists"
+    const val LINK_IMPORT = "link_import"
+    const val SLEEP_TIMER = "sleep_timer"
+    const val THEME = "theme"
+
+    val ORDERED = listOf(IMPORT_PLAYLISTS, LINK_IMPORT, SLEEP_TIMER, THEME)
+
+    fun defaultItems(): List<SidebarBuiltinItemDto> = ORDERED.map { key ->
+        SidebarBuiltinItemDto(
+            key = key,
+            enabled = true,
+            name = "",
+            iconType = "default",
+            iconValue = "",
+        )
+    }
+}
+
 data class SidebarMenuUiState(
     val isLocalMode: Boolean = false,
-    val listSection: SidebarListSectionDto = SidebarListSectionDto(),
+    val builtinItems: List<SidebarBuiltinItemDto> = SidebarBuiltinKeys.defaultItems(),
+    val listSections: List<SidebarListSectionDto> = emptyList(),
     val gridSection: SidebarGridSectionDto = SidebarGridSectionDto(),
     val dismissedBadgeKeys: Set<String> = emptySet(),
     val updatedAt: Long = 0L,
 ) {
-    val hasListItems: Boolean
-        get() = !isLocalMode && listSection.enabled && listSection.items.isNotEmpty()
+    val hasListSections: Boolean
+        get() = !isLocalMode && listSections.any { it.enabled && it.items.isNotEmpty() }
 
     val hasGridItems: Boolean
         get() = !isLocalMode && gridSection.enabled && gridSection.items.isNotEmpty()
@@ -91,7 +112,11 @@ data class SidebarMenuUiState(
         get() {
             if (isLocalMode) return false
             val visibleItems = buildList {
-                if (hasListItems) addAll(listSection.items)
+                if (hasListSections) {
+                    listSections.forEach { sec ->
+                        if (sec.enabled) addAll(sec.items)
+                    }
+                }
                 if (hasGridItems) addAll(gridSection.items)
             }
             return visibleItems.any { item ->
@@ -99,6 +124,11 @@ data class SidebarMenuUiState(
                     badgeKey(item) !in dismissedBadgeKeys
             }
         }
+
+    fun findBuiltin(key: String): SidebarBuiltinItemDto {
+        return builtinItems.firstOrNull { it.key == key }
+            ?: SidebarBuiltinItemDto(key = key, enabled = true, name = "", iconType = "default", iconValue = "")
+    }
 
     fun shouldShowRedDot(item: SidebarMenuItemDto): Boolean {
         return when (item.badgeType) {
@@ -113,6 +143,8 @@ data class SidebarMenuUiState(
         const val BADGE_TEXT = "text"
         const val BADGE_DOT_ONCE = "dot_once"
         const val BADGE_DOT_ALWAYS = "dot_always"
+        const val OPEN_APP_ACTION = "app_action"
+        const val OPEN_FULLSCREEN_WEB = "fullscreen_web"
 
         fun badgeKey(item: SidebarMenuItemDto): String = "${item.id}:${item.badgeVersion}"
     }
@@ -167,23 +199,64 @@ class SidebarMenuRepository(
     private fun loadCachedConfig(): SidebarMenuConfigDto {
         val json = cache.readConfigJson()?.takeIf { it.isNotBlank() } ?: return SidebarMenuConfigDto()
         return runCatching {
-            gson.fromJson(json, SidebarMenuConfigDto::class.java) ?: SidebarMenuConfigDto()
+            val parsed = gson.fromJson(json, SidebarMenuConfigDto::class.java) ?: return@runCatching SidebarMenuConfigDto()
+            normalizeConfig(parsed)
         }.getOrDefault(SidebarMenuConfigDto())
     }
 
+    private fun isValidItem(item: SidebarMenuItemDto): Boolean {
+        if (item.id.isBlank() || item.name.isBlank()) return false
+        return if (item.openType == SidebarMenuUiState.OPEN_APP_ACTION) {
+            item.actionKey.isNotBlank()
+        } else {
+            item.url.isNotBlank()
+        }
+    }
+
     private fun normalizeConfig(raw: SidebarMenuConfigDto): SidebarMenuConfigDto {
-        val listItems = raw.listSection.items
-            .filter { it.id.isNotBlank() && it.name.isNotBlank() && it.url.isNotBlank() }
+        val rawBuiltinByKey = raw.builtinItems.associateBy { it.key }
+        val builtinItems = SidebarBuiltinKeys.ORDERED.map { key ->
+            val found = rawBuiltinByKey[key]
+            if (found == null) {
+                SidebarBuiltinItemDto(key = key, enabled = true, name = "", iconType = "default", iconValue = "")
+            } else {
+                found.copy(
+                    name = found.name.trim(),
+                    iconType = found.iconType.ifBlank { "default" },
+                    iconValue = found.iconValue.trim(),
+                )
+            }
+        }
+
+        val sourceSections = if (raw.listSections.isNotEmpty()) {
+            raw.listSections
+        } else if (raw.listSection.enabled && raw.listSection.items.isNotEmpty()) {
+            listOf(raw.listSection.copy(id = raw.listSection.id.ifBlank { "default" }))
+        } else {
+            emptyList()
+        }
+
+        val listSections = sourceSections
             .sortedBy { it.sortOrder }
+            .mapNotNull { sec ->
+                if (!sec.enabled) return@mapNotNull null
+                val validItems = sec.items.filter(::isValidItem).sortedBy { it.sortOrder }
+                if (validItems.isEmpty()) return@mapNotNull null
+                sec.copy(
+                    enabled = true,
+                    title = sec.title.trim(),
+                    items = validItems,
+                )
+            }
+
         val gridItems = raw.gridSection.items
-            .filter { it.id.isNotBlank() && it.name.isNotBlank() && it.url.isNotBlank() }
+            .filter(::isValidItem)
             .sortedBy { it.sortOrder }
+
         return SidebarMenuConfigDto(
-            listSection = raw.listSection.copy(
-                enabled = raw.listSection.enabled && listItems.isNotEmpty(),
-                title = raw.listSection.title.trim(),
-                items = listItems,
-            ),
+            schemaVersion = raw.schemaVersion.coerceAtLeast(2),
+            builtinItems = builtinItems,
+            listSections = listSections,
             gridSection = raw.gridSection.copy(
                 enabled = raw.gridSection.enabled && gridItems.isNotEmpty(),
                 position = if (raw.gridSection.position == "bottom") "bottom" else "top",
@@ -194,19 +267,30 @@ class SidebarMenuRepository(
     }
 
     private fun buildUiState(): SidebarMenuUiState {
-        val effectiveList = if (localMode || !cachedConfig.listSection.enabled) {
-            SidebarListSectionDto()
-        } else {
-            cachedConfig.listSection
+        if (localMode) {
+            return SidebarMenuUiState(
+                isLocalMode = true,
+                builtinItems = SidebarBuiltinKeys.defaultItems(),
+                listSections = emptyList(),
+                gridSection = SidebarGridSectionDto(),
+                dismissedBadgeKeys = dismissedKeys,
+                updatedAt = cachedConfig.updatedAt,
+            )
         }
-        val effectiveGrid = if (localMode || !cachedConfig.gridSection.enabled) {
+        val effectiveBuiltins = if (cachedConfig.builtinItems.isNotEmpty()) {
+            cachedConfig.builtinItems
+        } else {
+            SidebarBuiltinKeys.defaultItems()
+        }
+        val effectiveGrid = if (!cachedConfig.gridSection.enabled) {
             SidebarGridSectionDto()
         } else {
             cachedConfig.gridSection
         }
         return SidebarMenuUiState(
-            isLocalMode = localMode,
-            listSection = effectiveList,
+            isLocalMode = false,
+            builtinItems = effectiveBuiltins,
+            listSections = cachedConfig.listSections,
             gridSection = effectiveGrid,
             dismissedBadgeKeys = dismissedKeys,
             updatedAt = cachedConfig.updatedAt,

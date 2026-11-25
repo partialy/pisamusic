@@ -3,10 +3,12 @@ package cn.partialy.pm.ui.drawer
 import android.content.Context
 import android.content.res.ColorStateList
 import android.widget.ImageView
+import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.ImageViewCompat
 import cn.partialy.pm.R
+import cn.partialy.pm.model.SidebarBuiltinItemDto
 import cn.partialy.pm.model.SidebarMenuItemDto
 import coil.ImageLoader
 import coil.decode.SvgDecoder
@@ -15,7 +17,7 @@ import java.nio.ByteBuffer
 import java.util.Locale
 
 /**
- * 统一绑定侧栏横栏/九宫格图标：支持 none、preset、svg（含 currentColor 主题替换）与远程 image。
+ * 统一绑定侧栏内置项、横栏及四宫格图标：支持 default、none、preset、svg（含 currentColor 主题替换）与远程 image。
  */
 object SidebarIconBinder {
 
@@ -34,50 +36,76 @@ object SidebarIconBinder {
     }
 
     fun bindListIcon(imageView: ImageView, item: SidebarMenuItemDto) {
-        bindInternal(imageView, item, hideWhenMissing = true)
+        bindIconSpec(
+            imageView = imageView,
+            iconType = item.iconType,
+            iconValue = item.iconValue,
+            fallbackResId = R.drawable.ic_link_24,
+            hideWhenMissing = true,
+        )
     }
 
     fun bindGridIcon(imageView: ImageView, item: SidebarMenuItemDto) {
-        bindInternal(imageView, item, hideWhenMissing = false)
+        bindIconSpec(
+            imageView = imageView,
+            iconType = item.iconType,
+            iconValue = item.iconValue,
+            fallbackResId = R.drawable.ic_link_24,
+            hideWhenMissing = false,
+        )
     }
 
-    private fun bindInternal(
+    fun bindBuiltinIcon(
         imageView: ImageView,
-        item: SidebarMenuItemDto,
+        item: SidebarBuiltinItemDto,
+        @DrawableRes defaultResId: Int,
+    ) {
+        if (item.iconType.isBlank() || item.iconType == "default") {
+            applyTintedDrawable(imageView, defaultResId)
+            return
+        }
+        bindIconSpec(
+            imageView = imageView,
+            iconType = item.iconType,
+            iconValue = item.iconValue,
+            fallbackResId = defaultResId,
+            hideWhenMissing = item.iconType == "none",
+        )
+    }
+
+    private fun bindIconSpec(
+        imageView: ImageView,
+        iconType: String,
+        iconValue: String,
+        @DrawableRes fallbackResId: Int,
         hideWhenMissing: Boolean,
     ) {
         val context = imageView.context
-        when (item.iconType) {
-            "none" -> {
-                if (hideWhenMissing) {
-                    imageView.setImageDrawable(null)
-                    imageView.isVisible = false
-                } else {
-                    applyTintedDrawable(imageView, R.drawable.ic_link_24)
-                }
+        val applyMissing = {
+            if (hideWhenMissing) {
+                imageView.setImageDrawable(null)
+                imageView.isVisible = false
+            } else {
+                applyTintedDrawable(imageView, fallbackResId)
             }
+        }
+
+        when (iconType) {
+            "none" -> applyMissing()
 
             "preset" -> {
-                val resId = SidebarPresetIconRegistry.resolve(item.iconValue)
+                val resId = SidebarPresetIconRegistry.resolve(iconValue)
                 if (resId != null) {
                     applyTintedDrawable(imageView, resId)
-                } else if (hideWhenMissing) {
-                    imageView.setImageDrawable(null)
-                    imageView.isVisible = false
                 } else {
-                    applyTintedDrawable(imageView, R.drawable.ic_link_24)
+                    applyMissing()
                 }
             }
 
             "svg" -> {
-                val rawSvg = item.iconValue.trim()
+                val rawSvg = iconValue.trim()
                 if (rawSvg.isEmpty()) {
-                    if (hideWhenMissing) {
-                        imageView.setImageDrawable(null)
-                        imageView.isVisible = false
-                    } else {
-                        applyTintedDrawable(imageView, R.drawable.ic_link_24)
-                    }
+                    applyMissing()
                     return
                 }
                 imageView.isVisible = true
@@ -89,28 +117,16 @@ object SidebarIconBinder {
                     .data(buffer)
                     .target(
                         onSuccess = { drawable -> imageView.setImageDrawable(drawable) },
-                        onError = {
-                            if (hideWhenMissing) {
-                                imageView.setImageDrawable(null)
-                                imageView.isVisible = false
-                            } else {
-                                applyTintedDrawable(imageView, R.drawable.ic_link_24)
-                            }
-                        },
+                        onError = { applyMissing() },
                     )
                     .build()
                 imageLoader(context).enqueue(request)
             }
 
             "image" -> {
-                val url = item.iconValue.trim()
+                val url = iconValue.trim()
                 if (url.isEmpty()) {
-                    if (hideWhenMissing) {
-                        imageView.setImageDrawable(null)
-                        imageView.isVisible = false
-                    } else {
-                        applyTintedDrawable(imageView, R.drawable.ic_link_24)
-                    }
+                    applyMissing()
                     return
                 }
                 imageView.isVisible = true
@@ -119,31 +135,17 @@ object SidebarIconBinder {
                     .data(url)
                     .target(
                         onSuccess = { drawable -> imageView.setImageDrawable(drawable) },
-                        onError = {
-                            if (hideWhenMissing) {
-                                imageView.setImageDrawable(null)
-                                imageView.isVisible = false
-                            } else {
-                                applyTintedDrawable(imageView, R.drawable.ic_link_24)
-                            }
-                        },
+                        onError = { applyMissing() },
                     )
                     .build()
                 imageLoader(context).enqueue(request)
             }
 
-            else -> {
-                if (hideWhenMissing) {
-                    imageView.setImageDrawable(null)
-                    imageView.isVisible = false
-                } else {
-                    applyTintedDrawable(imageView, R.drawable.ic_link_24)
-                }
-            }
+            else -> applyMissing()
         }
     }
 
-    private fun applyTintedDrawable(imageView: ImageView, resId: Int) {
+    private fun applyTintedDrawable(imageView: ImageView, @DrawableRes resId: Int) {
         imageView.isVisible = true
         val tint = ContextCompat.getColor(imageView.context, R.color.colorOnBgNormal)
         ImageViewCompat.setImageTintList(imageView, ColorStateList.valueOf(tint))

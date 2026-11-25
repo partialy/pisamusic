@@ -10,6 +10,7 @@ object SidebarPresetIconRegistry {
 
     private val icons: Map<String, Int> = mapOf(
         "link" to R.drawable.ic_link_24,
+        "login" to R.drawable.ic_login_24,
         "alarm" to R.drawable.ic_alarm_24,
         "theme" to R.drawable.ic_sider_theme_24,
         "feedback" to R.drawable.ic_sider_feedback_24,
@@ -17,6 +18,13 @@ object SidebarPresetIconRegistry {
         "update" to R.drawable.ic_sider_update_24,
         "settings" to R.drawable.ic_settings_24,
         "scan" to R.drawable.ic_scan_qrcode_24,
+        "about" to R.drawable.ic_info_24,
+        "share" to R.drawable.ic_share_24,
+        "download" to R.drawable.ic_download_24,
+        "audio_quality" to R.drawable.ic_audio_quality_24,
+        "play" to R.drawable.ic_play_24,
+        "library" to R.drawable.ic_library_24,
+        "history" to R.drawable.ic_history_recent_24,
     )
 
     @DrawableRes
