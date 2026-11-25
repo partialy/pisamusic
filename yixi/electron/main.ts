@@ -16,6 +16,7 @@ import { setupPersistenceIpc } from "./ipc/persistenceIpc";
 import { setupSystemIpc } from "./ipc/systemIpc";
 import { setupDirectMessageIpc } from "./ipc/directMessageIpc";
 import { setupWindowIpc } from "./ipc/windowIpc";
+import { attachDiscoverGuestPolicy, setupDiscoverIpc } from "./ipc/discoverIpc";
 import { PlayerTray } from "./tray/playerTray";
 import { logger } from "./utils/logger";
 import { setupUtilsIpc } from "./ipc/utilsIpc";
@@ -129,11 +130,13 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: false,
+      webviewTag: true,
       devTools: process.env.NODE_ENV === "development",
       sandbox: true,
       backgroundThrottling: true,
     },
   });
+  attachDiscoverGuestPolicy(mainWindow);
   lowPowerManager?.attachMainWindow(mainWindow);
   mainWindow.webContents.on("render-process-gone", clearLocalPlaybackReservations);
   mainWindow.webContents.on("destroyed", clearLocalPlaybackReservations);
@@ -188,6 +191,7 @@ function createMainWindow() {
 
 function setupAppIpc() {
   setupWindowIpc(() => mainWindow);
+  setupDiscoverIpc(() => mainWindow);
   setupLogIpc();
   setupSystemIpc();
   setupDirectMessageIpc();

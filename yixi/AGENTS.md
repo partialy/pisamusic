@@ -300,11 +300,13 @@
 ## 首页公告与热门歌曲规则补充
 
 - 首页公告位于 `src/components/home/HomeAnnouncementCard.vue`，通过 preload 暴露的 `system:get-announcements` 读取外层 `server/` 公告，不要恢复旧的 `mainAPI.getHomeData()` 公告占位接口；`AppAnnouncementAutoPopup.vue` 在 `MainLayout` 级别负责每次 App 会话的最新公告自动弹窗，主界面加载后等待 2 秒再请求和展示。
-- 公告使用 `content.schemaVersion=1` 的结构化内容；首页始终展示服务端最新 3 条文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部只显示“我知道了”和条件性的“前往”，正文滚动条隐藏但滚动保留；显示状态必须复用一起听的 `NModal` 默认居中缩放与遮罩淡入淡出过渡：组件常驻挂载并从 `show=false` 切至 `true`，且显式传 `internal-appear=true` 以覆盖设置 Tab 的首次挂载时机，关闭时等 `after-leave` 后再清空公告数据，确保入场、离场和遮罩动画完整。
+- 公告使用 `content.schemaVersion=1` 的结构化内容；文字块支持独立颜色、粗体、斜体，首页展示服务端返回的最新 3 条文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部只显示“我知道了”和条件性的“前往”，正文滚动条隐藏但滚动保留；显示状态必须复用一起听的 `NModal` 默认居中缩放与遮罩淡入淡出过渡：组件常驻挂载并从 `show=false` 切至 `true`，且显式传 `internal-appear=true` 以覆盖设置 Tab 的首次挂载时机，关闭时等 `after-leave` 后再清空公告数据，确保入场、离场和遮罩动画完整。
 - 设置页 `/setting?tab=announcements` 提供全部公告列表和同一详情弹窗；右上角设置下拉菜单的“查看公告”必须进入该地址。普通查看列表不改变已读状态。
-- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；只有“我知道了”或成功“前往”执行确认，IPC 写入必须传普通字符串数组，不得把 Vue `ref`/Proxy 直接传给 preload；`showEveryTime=false` 的公告确认后不再自动弹出，`showEveryTime=true` 不写入长期已读，并在新的 App 会话再次自动弹出。
+- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；只有“我知道了”、成功“前往”或高亮的 App 页面跳转执行确认，IPC 写入必须传普通字符串数组，不得把 Vue `ref`/Proxy 直接传给 preload；`showEveryTime=false` 的公告确认后不再自动弹出，`showEveryTime=true` 不写入长期已读，并在新的 App 会话再次自动弹出。
 - 公告确认或成功前往后，renderer 通过 `system:mark-announcement-read` 请求 main 侧异步提交加密已读回执；main 侧只使用设备上报维护的 30 天 `messageToken` 作为 `x-pm-device-token`，未登录时保持匿名，回执失败不阻塞交互。公告列表、预览和关闭弹窗不改变服务端已读状态。
-- 公告 HTTPS 链接和 `pisamusic://` 协议动作统一走 main 侧 preload IPC；HTTPS 的 `mode: "window"` 使用 Electron 新窗口、`mode: "external"` 使用系统外部浏览器，renderer 不直接使用 Electron `shell`。
+- 公告协议版本通过 `announcementVersion=2` 声明。启动快照从设备上报取得本机版本，独立请求带上 `appVersion`、`type=pc`，兼容历史 V1 公告。自动弹窗按 `waitSeconds` 显示确认倒计时，“前往”和手动打开的详情可立即操作。
+- 公告 HTTPS 链接和 `pisamusic://` 协议动作走 main 侧 preload IPC。V2 支持系统浏览器和独立应用网页窗口，后者可隐藏顶栏，按 Esc 可关闭无顶栏窗口。V1 的 `gotoUrl` 走原网页窗口。App 页面动作只允许发现和设置，通过 renderer 路由执行。
+- 左侧菜单末尾的「发现」与公告发现动作均进入 `/discover`。main 从 `/api/config/discover` 获取地址，`USE_LOCAL_FILE` 复用 Android 内置 HTML。沙箱来宾视图通过一次性地址校验和独立会话隔离，页面离开时卸载，加载失败可重试。
 - 首页热门歌曲通过 `music:top-songs` 调用 KG `/top/song`，由 main 侧读取 runtime `kgServer` 并使用 `requestSignedGateway()`；renderer 使用 `src/utils/api/musicAPI.ts` 的 `getTopSongs()`，不要直接持有服务端地址。
 - 首页右侧热门歌曲卡片展示热门歌曲预览并提供“查看更多”进入 `/recommend/songs?type=kg-top`；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。
 - 首页 WY 内容包括“网友精选碟”(`/top/playlist`)、“WY推荐歌曲”(`/personalized/newsong`) 和 “WY推荐歌单”(`/personalized`)；统一在 main 侧读取 runtime `wyServer` 并通过 `music:*` IPC 暴露，renderer 不直接请求真实服务地址。

@@ -38,6 +38,7 @@ import { useRoute, useRouter } from "vue-router";
 import { NIcon, NImage, NLayout, NLayoutSider, NMenu, NSpace, type MenuOption } from "naive-ui";
 import {
   Cloud,
+  Compass,
   Heart,
   Home,
   ListMusic,
@@ -67,6 +68,7 @@ const refreshVersionMap = reactive<Record<string, number>>({});
 const contentScrollMap = new Map<string, number>();
 const NON_CACHED_VIEWS = [
   "CloudSubmitPlaceholderView",
+  "Discover",
   "ProfileView",
   "EditProfileView",
   "debugger",
@@ -113,6 +115,7 @@ const routeToMenuKey = (path: string) => {
   if (path.startsWith("/kg")) return "kg";
   if (path.startsWith("/wy")) return "wy";
   if (path.startsWith("/setting")) return "setting";
+  if (path === "/discover") return "discover";
   if (path.startsWith("/debugger")) return "debugger";
   return "home";
 };
@@ -134,6 +137,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     items.push({ label: "dev page", key: "debugger", icon: renderMenuIcon(Wrench) });
   }
 
+  items.push({ label: "发现", key: "discover", icon: renderMenuIcon(Compass) });
   return items;
 });
 
@@ -177,6 +181,7 @@ function handleChangeMenu(key: string) {
     kg: "/kg",
     wy: "/wy",
     setting: "/setting",
+    discover: "/discover",
     debugger: "/debugger",
   };
   router.push(pathMap[key] || "/");

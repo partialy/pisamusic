@@ -48,8 +48,7 @@
     <HomeAnnouncementDetailModal
       :show="detailVisible"
       :announcement="detailNotice"
-      @confirmed="handleNoticeConfirmed"
-      @goto="handleNoticeGoto"
+      :confirm="handleNoticeConfirmed"
       @after-leave="clearDetailNotice" />
   </section>
 </template>
@@ -123,23 +122,9 @@ function openNoticeDetail(notice: Announcement) {
   detailVisible.value = true;
 }
 
-function handleNoticeConfirmed() {
-  const notice = detailNotice.value;
-  detailVisible.value = false;
-  if (notice) void confirmNotice(notice);
-}
-
-async function handleNoticeGoto() {
-  const notice = detailNotice.value;
-  const url = notice?.gotoUrl?.trim();
-  if (!url) return;
-  try {
-    await window.electronAPI.openUrl({ url, mode: "window" });
-    detailVisible.value = false;
-    if (notice) await confirmNotice(notice);
-  } catch (error) {
-    window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
-  }
+async function handleNoticeConfirmed(notice: Announcement) {
+  if (detailNotice.value?.id === notice.id) detailVisible.value = false;
+  await confirmNotice(notice);
 }
 
 function clearDetailNotice() {

@@ -48,12 +48,9 @@ const windowIpc = {
   openDevTools: () => ipcRenderer.send("window:dev-tools"),
   openUrl: (payload: { url: string; mode?: "window" | "external" }) =>
     ipcRenderer.invoke("window:open-url", cloneIpcPayload(payload)),
-  openAnnouncementAction: (action: {
-    type: "url" | "protocol";
-    url?: string;
-    value?: string;
-    openMode?: "browser" | "app";
-  }) => ipcRenderer.invoke("window:open-announcement-action", cloneIpcPayload(action)),
+  openAnnouncementAction: (action: import("../src/types/announcement").AnnouncementWebAction) =>
+    ipcRenderer.invoke("window:open-announcement-action", cloneIpcPayload(action)),
+  getDiscoverPage: () => ipcRenderer.invoke("discover:get-page"),
   onHideWindow: (cb: () => void) => on("window:hide", cb),
   onWindowMaximized: (callback: () => void) => on("window:maximized", callback),
   onWindowUnmaximized: (callback: () => void) => on("window:unmaximized", callback),

@@ -37,6 +37,7 @@ const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
 const BOOTSTRAP_CACHE_KEY = "desktop-bootstrap-cache";
 const STARTUP_AGREEMENT_SETTING_KEY = "startup-user-agreement";
 const STARTUP_SNAPSHOT_TTL_MS = 30_000;
+const ANNOUNCEMENT_VERSION = 2;
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -157,6 +158,7 @@ export async function executeDesktopStartup(options: { signal?: AbortSignal } = 
     token: session.loggedIn && session.token ? session.token : null,
     body: {
       device: buildDesktopDeviceReport(),
+      announcementVersion: ANNOUNCEMENT_VERSION,
       ...(agreementVersion !== undefined ? { agreementVersion } : {}),
       unreadMessageLimit: 20,
     },
@@ -286,7 +288,12 @@ export async function getAnnouncements(options: { forceRefresh?: boolean } = {})
   ) {
     return [...startupSnapshot.announcements];
   }
-  const response = await requestSystem<Announcement[]>("/api/config/announcements");
+  const query = new URLSearchParams({
+    announcementVersion: String(ANNOUNCEMENT_VERSION),
+    appVersion: getAppVersion(),
+    type: "pc",
+  });
+  const response = await requestSystem<Announcement[]>(`/api/config/announcements?${query}`);
   return unwrapResponse(response);
 }
 

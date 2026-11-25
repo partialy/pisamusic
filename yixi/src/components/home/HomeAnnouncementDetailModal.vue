@@ -19,52 +19,60 @@
           <span
             v-if="block.type === 'text'"
             class="announcement-text"
-            :class="{ bold: block.bold }">{{ block.text }}</span>
+            :class="{ bold: block.bold, italic: block.italic }"
+            :style="block.color ? { color: resolveAnnouncementColor(block.color) } : undefined">{{ block.text }}</span>
 
           <span v-else-if="block.type === 'image'" class="announcement-image-line">
             <img v-if="block.url" :src="block.url" :alt="block.alt || '公告图片'" class="announcement-image" />
             <span v-else class="announcement-image-placeholder">图片暂不可用（{{ block.alt || block.fileId }}）</span>
           </span>
 
-          <span
+          <component
+            :is="block.action.type === 'none' ? 'span' : 'button'"
             v-else
+            :type="block.action.type !== 'none' ? 'button' : undefined"
+            :disabled="block.action.type !== 'none' && executingAction"
             class="announcement-highlight"
             :class="{
               actionable: block.action.type !== 'none',
-              'link-action': block.action.type === 'url' || block.action.type === 'protocol',
+              'link-action': block.action.type === 'url' || block.action.type === 'protocol' || block.action.type === 'page',
             }"
             :style="{ color: resolveAnnouncementColor(block.color) }"
             :title="block.action.type !== 'none' ? block.action.label : undefined"
             @click="handleHighlightAction(block)">
             {{ block.text }}<span v-if="block.action.type === 'copy'" class="announcement-action-mark">⧉</span>
-          </span>
+          </component>
         </template>
       </div>
     </div>
 
     <template #footer>
       <n-button
-        v-if="announcement?.showGotoButton && announcement?.gotoUrl"
+        v-if="gotoAction.type !== 'none' || legacyGotoUrl"
         secondary
         type="primary"
-        @click="emit('goto')">
+        :loading="executingAction"
+        @click="handleGoto">
         前往
       </n-button>
-      <n-button type="primary" @click="emit('confirmed')">
-        {{ announcement?.confirmText || "我知道了" }}
+      <n-button type="primary" :disabled="remaining > 0 || executingAction" @click="handleConfirm">
+        {{ confirmLabel }}
       </n-button>
     </template>
   </AppModal>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { NButton } from "naive-ui";
 import { Megaphone } from "lucide-vue-next";
 import AppModal from "@/components/common/AppModal.vue";
+import type { AnnouncementAction } from "@/types/announcement";
 import {
   resolveAnnouncementColor,
   normalizeAnnouncementContent,
+  parseAnnouncementAction,
   type Announcement,
   type AnnouncementBlock,
 } from "./homeAnnouncement";
@@ -74,28 +82,102 @@ defineOptions({ name: "HomeAnnouncementDetailModal" });
 const props = defineProps<{
   show: boolean;
   announcement: Announcement | null;
+  automatic?: boolean;
+  confirm: (notice: Announcement) => Promise<void>;
 }>();
 
 const emit = defineEmits<{
-  confirmed: [];
-  goto: [];
   afterLeave: [];
 }>();
 
+const router = useRouter();
+const executingAction = ref(false);
+const remaining = ref(0);
 const content = computed(() => normalizeAnnouncementContent(props.announcement?.content));
+const confirmLabel = computed(() => {
+  const label = props.announcement?.confirmText || "我知道了";
+  return remaining.value > 0 ? `${label}（${remaining.value}）` : label;
+});
+const gotoAction = computed(() => {
+  const action = parseAnnouncementAction(props.announcement?.gotoAction);
+  return props.announcement?.showGotoButton && (action.type === "url" || action.type === "page")
+    ? action
+    : { type: "none" as const };
+});
+const legacyGotoUrl = computed(() => props.announcement?.showGotoButton
+  ? props.announcement.gotoUrl?.trim()
+  : undefined);
 
-async function handleHighlightAction(block: AnnouncementBlock) {
-  if (block.type !== "highlight" || block.action.type === "none") return;
-  try {
-    if (block.action.type === "copy") {
-      await navigator.clipboard.writeText(block.action.value);
-      window.$message?.success("已复制");
-      return;
+watch(
+  () => [props.show, props.announcement?.id, props.automatic, props.announcement?.waitSeconds] as const,
+  ([show, , automatic, waitSeconds], _, onCleanup) => {
+    const seconds = show && automatic && typeof waitSeconds === "number" && Number.isSafeInteger(waitSeconds) && waitSeconds > 0
+      ? waitSeconds
+      : 0;
+    remaining.value = seconds;
+    if (seconds === 0) return;
+    const deadline = performance.now() + seconds * 1000;
+    const timer = window.setInterval(() => {
+      remaining.value = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
+      if (remaining.value === 0) window.clearInterval(timer);
+    }, 100);
+    onCleanup(() => window.clearInterval(timer));
+  },
+  { immediate: true },
+);
+
+async function handleConfirm() {
+  const notice = props.announcement;
+  if (notice && props.show && remaining.value === 0 && !executingAction.value) await props.confirm(notice);
+}
+
+async function executeAction(action: Exclude<AnnouncementAction, { type: "none" }>) {
+  if (action.type === "copy") {
+    await navigator.clipboard.writeText(action.value);
+    window.$message?.success("已复制");
+  } else if (action.type === "page") {
+    const target = action.page === "discover" ? "/discover" : "/setting";
+    if (router.currentRoute.value.fullPath !== target && await router.push(target)) {
+      throw new Error("无法打开目标页面");
     }
-    await window.electronAPI.openAnnouncementAction(block.action);
+  } else if (!await window.electronAPI.openAnnouncementAction(action)) {
+    throw new Error("无法打开公告链接");
+  }
+}
+
+async function runAction(open: () => Promise<unknown>, confirmOnSuccess: boolean) {
+  const notice = props.announcement;
+  if (!notice || !props.show || executingAction.value) return;
+  const confirm = props.confirm;
+  executingAction.value = true;
+  try {
+    await open();
+    if (confirmOnSuccess) await confirm(notice);
   } catch (error) {
     window.$message?.error(error instanceof Error ? error.message : "公告操作失败");
+  } finally {
+    executingAction.value = false;
   }
+}
+
+function handleGoto() {
+  const action = gotoAction.value;
+  const legacyUrl = legacyGotoUrl.value;
+  if (action.type !== "none") {
+    void runAction(() => executeAction(action), true);
+  } else if (legacyUrl) {
+    void runAction(async () => {
+      if (!await window.electronAPI.openUrl({ url: legacyUrl, mode: "window" })) {
+        throw new Error("无法打开公告链接");
+      }
+    }, true);
+  }
+}
+
+function handleHighlightAction(block: AnnouncementBlock) {
+  if (block.type !== "highlight" || block.action.type === "none") return;
+  const action = block.action;
+  void runAction(() => executeAction(action), action.type === "page");
 }
 </script>
 
@@ -140,6 +222,10 @@ async function handleHighlightAction(block: AnnouncementBlock) {
   font-weight: 700;
 }
 
+.announcement-text.italic {
+  font-style: italic;
+}
+
 .announcement-image-line {
   display: block;
   margin: 14px 0;
@@ -165,6 +251,15 @@ async function handleHighlightAction(block: AnnouncementBlock) {
 
 .announcement-highlight {
   font-weight: 600;
+}
+
+button.announcement-highlight {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  white-space: inherit;
 }
 
 .announcement-highlight.link-action {
