@@ -55,15 +55,12 @@ class DrawerDynamicMenusController(
                 text = sectionTitle
                 textSize = 12f
                 setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
-                setPadding(dp(16), dp(10), dp(16), dp(2))
+                setPadding(dp(16), dp(12), dp(16), dp(4))
             }
             container.addView(header)
         }
 
-        state.listSection.items.forEachIndexed { index, item ->
-            if (index > 0) {
-                container.addView(createInsetDivider())
-            }
+        state.listSection.items.forEach { item ->
             val row = ItemDrawerDynamicRowBinding.inflate(activity.layoutInflater, container, false)
             SidebarIconBinder.bindListIcon(row.itemIcon, item)
             row.itemTitle.text = item.name

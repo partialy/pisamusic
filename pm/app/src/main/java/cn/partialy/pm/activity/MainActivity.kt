@@ -460,6 +460,10 @@ class MainActivity : BaseDownloadActivity() {
             closeMainDrawer()
         }
         inflated.drawerScanButton.setOnClickListener { startDrawerQrScan() }
+        inflated.drawerFeedbackButton.setOnClickListener {
+            FeedbackActivity.start(this)
+            closeMainDrawer()
+        }
         inflated.drawerImportPlaylistsRow.setOnClickListener {
             closeMainDrawer()
             ThirdPartyAccountsActivity.start(this)

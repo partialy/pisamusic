@@ -7,7 +7,7 @@
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
-    android:minHeight="52dp"
+    android:minHeight="48dp"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
     android:paddingVertical="10dp">
@@ -56,6 +56,7 @@
     <androidx.appcompat.widget.AppCompatImageView
         android:layout_width="20dp"
         android:layout_height="20dp"
+        android:layout_marginStart="6dp"
         android:contentDescription="@null"
         android:importantForAccessibility="no"
         app:srcCompat="@drawable/ic_chevron_right_24"

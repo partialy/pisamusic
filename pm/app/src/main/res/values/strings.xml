@@ -273,6 +273,7 @@
     <string name="drawer_account_login_now">立即登录</string>
     <string name="drawer_account_open_profile">登录或查看系统账号资料</string>
     <string name="drawer_settings">设置</string>
+    <string name="drawer_feedback">反馈</string>
     <string name="drawer_import_playlists">导入歌单</string>
     <string name="drawer_import_playlists_login_required">登录后可导入歌单</string>
     <string name="drawer_not_logged_in">未登录</string>
