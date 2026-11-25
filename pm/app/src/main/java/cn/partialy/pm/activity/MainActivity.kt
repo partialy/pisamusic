@@ -477,7 +477,7 @@ class MainActivity : BaseDownloadActivity() {
             SleepTimerBottomSheet.show(this, sleepTimerManager)
         }
         drawerQuickActions = DrawerQuickActions(this, ::closeMainDrawer).apply {
-            bind(inflated.drawerFixedActionsContainer)
+            bind(inflated.drawerQuickActionsContainer)
         }
         drawerDynamicMenusController = DrawerDynamicMenusController(
             activity = this,

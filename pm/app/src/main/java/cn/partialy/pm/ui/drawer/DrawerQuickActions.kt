@@ -37,6 +37,7 @@ class DrawerQuickActions(
     fun bind(container: LinearLayout) {
         if (destroyed) return
         clearRows()
+        container.removeAllViews()
         themeRow = addRow(container, R.drawable.ic_sider_theme_24, R.string.drawer_theme_appearance) {
             showThemePicker()
         }

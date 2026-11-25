@@ -47,7 +47,6 @@ class DrawerDynamicMenusController(
             return
         }
         container.isVisible = true
-        container.addView(createInsetDivider())
 
         val sectionTitle = state.listSection.title.trim()
         if (sectionTitle.isNotEmpty()) {
@@ -55,9 +54,11 @@ class DrawerDynamicMenusController(
                 text = sectionTitle
                 textSize = 12f
                 setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
-                setPadding(dp(16), dp(12), dp(16), dp(4))
+                setPadding(dp(16), dp(4), dp(16), dp(4))
             }
             container.addView(header)
+        } else {
+            container.addView(createInsetDivider())
         }
 
         state.listSection.items.forEach { item ->
@@ -96,7 +97,7 @@ class DrawerDynamicMenusController(
         val targetContainer = if (isBottom) bottomContainer else topContainer
         targetCard.isVisible = true
 
-        state.gridSection.items.chunked(3).forEach { rowItems ->
+        state.gridSection.items.chunked(4).forEach { rowItems ->
             val rowLayout = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -112,7 +113,7 @@ class DrawerDynamicMenusController(
                 cell.root.setOnClickListener { onItemClick(item) }
                 rowLayout.addView(cell.root)
             }
-            repeat(3 - rowItems.size) {
+            repeat(4 - rowItems.size) {
                 val spacer = Space(activity).apply {
                     layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
                 }

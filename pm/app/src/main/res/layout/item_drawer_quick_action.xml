@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
@@ -18,7 +19,8 @@
         android:layout_height="22dp"
         android:contentDescription="@null"
         android:importantForAccessibility="no"
-        app:tint="@color/colorOnBgNormal" />
+        app:tint="@color/colorOnBgNormal"
+        tools:src="@drawable/ic_sider_theme_24" />
 
     <TextView
         android:id="@+id/actionTitle"
@@ -29,7 +31,8 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="@color/colorOnBgNormal"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        tools:text="外观主题" />
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/modeIcon"
