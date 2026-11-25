@@ -192,6 +192,7 @@ function getWordLyricFormat(source: Song["source"], rawLyric: string): WordLyric
   if (!rawLyric.trim()) return null;
   if (source === "kg") return "krc";
   if (source === "wy") return "yrc";
+  if (source === "cloud") return /^\s*\[\d+,\d+\]\(\d+,\d+,\d+\)/m.test(rawLyric) ? "yrc" : "krc";
   return null;
 }
 

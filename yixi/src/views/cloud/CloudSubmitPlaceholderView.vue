@@ -92,7 +92,7 @@
             <input
               ref="coverInputRef"
               type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/*"
+              :accept="coverFileTypes"
               class="hidden-input"
               @change="handleCoverSelect"
             />
@@ -112,7 +112,7 @@
             <input
               ref="lyricsInputRef"
               type="file"
-              accept=".lrc,.txt"
+              :accept="lyricsFileTypes"
               class="hidden-input"
               @change="handleLyricsSelect"
             />
@@ -121,7 +121,7 @@
             </div>
             <div class="attach-info">
               <span class="attach-label">歌词文件（选填）</span>
-              <span class="attach-value">{{ lyricsFile ? lyricsFile.name : "支持 .lrc 或 .txt 格式" }}</span>
+              <span class="attach-value">{{ lyricsFile ? lyricsFile.name : "支持 LRC、TXT、KRC、YRC" }}</span>
             </div>
             <n-button v-if="lyricsFile" quaternary circle size="small" @click.stop="lyricsFile = null">
               <template #icon><n-icon :component="X" /></template>
@@ -168,7 +168,7 @@
               <input
                 ref="replaceCoverInputRef"
                 type="file"
-                accept=".jpg,.jpeg,.png,.webp,image/*"
+                :accept="coverFileTypes"
                 class="hidden-input"
                 @change="handleReplaceCoverSelect"
               />
@@ -239,7 +239,7 @@
                 <input
                   ref="replaceLyricsInputRef"
                   type="file"
-                  accept=".lrc,.txt"
+                  :accept="lyricsFileTypes"
                   class="hidden-input"
                   @change="handleReplaceLyricsSelect"
                 />
@@ -416,7 +416,7 @@
             <input
               ref="modalCoverInputRef"
               type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/*"
+              :accept="coverFileTypes"
               class="hidden-input"
               @change="handleModalCoverSelect"
             />
@@ -426,7 +426,7 @@
             <input
               ref="modalLyricsInputRef"
               type="file"
-              accept=".lrc,.txt"
+              :accept="lyricsFileTypes"
               class="hidden-input"
               @change="handleModalLyricsSelect"
             />
@@ -515,6 +515,8 @@ const activeTab = ref<"submit" | "history">("submit");
 const stage = ref<"select" | "edit" | "success">("select");
 
 // 文件选择
+const coverFileTypes = "image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif";
+const lyricsFileTypes = ".lrc,.txt,.krc,.yrc";
 const audioFile = ref<File | null>(null);
 const coverFile = ref<File | null>(null);
 const lyricsFile = ref<File | null>(null);

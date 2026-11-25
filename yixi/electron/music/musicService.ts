@@ -357,14 +357,15 @@ async function fetchCloudLyrics(uuid: string): Promise<MusicLyricResult> {
   if (!uuid) return emptyLyrics();
   try {
     const lyricsInfo = await getCloudMusicLyricsUrl(uuid);
-    if (!lyricsInfo.url) return emptyLyrics();
-    const response = await fetch(lyricsInfo.url);
-    if (!response.ok) return emptyLyrics();
-    const text = await response.text();
-    return {
-      krc: "",
-      lrc: text || "",
-    };
+    let text = lyricsInfo.text;
+    if (text === undefined) {
+      if (!lyricsInfo.url) return emptyLyrics();
+      const response = await fetch(lyricsInfo.url);
+      if (!response.ok) return emptyLyrics();
+      text = await response.text();
+    }
+    if (lyricsInfo.format === "krc" || lyricsInfo.format === "yrc") return { krc: text, lrc: "" };
+    return { krc: "", lrc: text };
   } catch {
     return emptyLyrics();
   }

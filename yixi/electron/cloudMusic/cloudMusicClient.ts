@@ -66,7 +66,7 @@ export async function getCloudMusicLyricsUrl(uuid: string): Promise<CloudMusicRe
   if (!cleanUuid) {
     throw new Error("曲目 UUID 不能为空");
   }
-  const response = await requestSystem<CloudMusicResourceUrl>(`/api/cloud-music/tracks/${encodeURIComponent(cleanUuid)}/lyrics-url`);
+  const response = await requestSystem<CloudMusicResourceUrl>(`/api/cloud-music/tracks/${encodeURIComponent(cleanUuid)}/lyrics-url?includeText=1`);
   return unwrapResponse(response);
 }
 

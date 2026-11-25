@@ -1,5 +1,7 @@
 import type { Song } from "./song";
 
+type CloudMusicLyricsFormat = "lrc" | "txt" | "krc" | "yrc";
+
 export interface CloudMusicSummary {
   total: number;
   latestUpdatedAt: number | null;
@@ -22,7 +24,7 @@ export interface CloudMusicTrackDto {
     url: string;
   };
   lyrics: {
-    format: "lrc" | "txt";
+    format: CloudMusicLyricsFormat;
     fileName: string;
   } | null;
   createdAt: number;
@@ -49,7 +51,8 @@ export interface CloudMusicResourceUrl {
   source: "cloud";
   url: string;
   expiresAt: number;
-  format?: "lrc" | "txt";
+  format?: CloudMusicLyricsFormat;
+  text?: string;
 }
 
 export interface CloudMusicAssetUploadTicket {

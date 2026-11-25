@@ -64,14 +64,14 @@ export async function createSubmitSession(files: {
       ? {
           fileName: files.cover.name,
           fileSize: files.cover.size,
-          mimeType: files.cover.type || "image/jpeg",
+          mimeType: files.cover.type || "application/octet-stream",
         }
       : undefined,
     lyrics: files.lyrics
       ? {
           fileName: files.lyrics.name,
           fileSize: files.lyrics.size,
-          mimeType: files.lyrics.type || "text/plain",
+          mimeType: files.lyrics.type || "application/octet-stream",
         }
       : undefined,
   };
@@ -137,7 +137,7 @@ export async function replaceSubmitCover(
   const reserveInput: CloudMusicAssetReserveRequest = {
     fileName: file.name,
     fileSize: file.size,
-    mimeType: file.type || "image/jpeg",
+    mimeType: file.type || "application/octet-stream",
     kind: "cover-uploaded",
   };
 
@@ -166,7 +166,7 @@ export async function replaceSubmitLyrics(
   const reserveInput: CloudMusicAssetReserveRequest = {
     fileName: file.name,
     fileSize: file.size,
-    mimeType: file.type || "text/plain",
+    mimeType: file.type || "application/octet-stream",
     kind: "lyrics",
   };
 
