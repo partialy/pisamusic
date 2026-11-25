@@ -23,7 +23,7 @@ export default function CloudMusicLyricsModal({ uuid, onClose }: { uuid: string;
     });
     return () => { active = false; };
   }, [uuid, attempt]);
-  const timed = data && detectLyricsFormat(data.text) === "lrc";
+  const timed = data && (detectLyricsFormat(data.text) === "lrc" || /^\s*\[\d+,\d+\][<(]\d+,\d+,\d+[>)]/m.test(data.text));
   return (
     <Modal open centered title="歌词原文" width={800} onCancel={onClose} footer={<Button onClick={onClose}>关闭</Button>}>
       {loading && <div className="py-8 text-center"><Spin tip="读取歌词原文..." /></div>}

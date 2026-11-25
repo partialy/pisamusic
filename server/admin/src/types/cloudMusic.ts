@@ -55,7 +55,7 @@ export type CloudMusicTrack = {
   trackNo: number | null;
   playable: boolean;
   cover: { source: "uploaded" | "embedded" | "default"; url: string };
-  lyrics: null | { format: "lrc" | "txt"; fileName: string };
+  lyrics: null | { format: CloudMusicLyricsFormat; fileName: string };
   audioFile: CloudMusicFileInfo | null;
   createdAt: number;
   updatedAt: number;
@@ -128,7 +128,8 @@ export type CloudMusicResourceUrls = {
   lyricsExpiresAt: number | null;
 };
 
-export type CloudMusicLyricsText = { text: string; format: "lrc" | "txt"; fileName: string };
+type CloudMusicLyricsFormat = "lrc" | "txt" | "krc" | "yrc";
+export type CloudMusicLyricsText = { text: string; format: CloudMusicLyricsFormat; fileName: string };
 
 export type CloudMusicTempSummary = {
   total: { count: number; bytes: number };

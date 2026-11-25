@@ -20,6 +20,7 @@
 - 歌曲 / 歌单分享记录使用独立 `/api/admin/shares`，支持类型、分享人关键词、有效性筛选和预览 / 复制扫码链接；只支持标记失效，保留历史。
 - 网盘音乐管理支持批量上传与全局后台队列（`CloudMusicUploadQueueContext`，并发 3，关闭弹窗或切换菜单不中断，支持查看任务进度、失败重试与列表联动刷新）：第一步在浏览器本地通过 `music-metadata` 解析音频标签、时长、内嵌封面与内嵌歌词（支持同时选入同名外置歌词/封面图片自动配对）；第二步采用左右主从分栏逐项设置歌名、歌手、专辑、时长、状态、封面及在线编辑歌词文本（支持顶部一键批量填充歌手/专辑/状态）；第三步入队后自动执行会话创建、七牛直传、服务端 `stat` 轻量确认及正式状态落库。
 - 网盘歌词转换集中于 `utils/cloudMusicLyrics.ts`：优先保留 native 原始 LRC（含 offset、多时间标签），其次使用 `timeStampFormat=milliseconds` 的 `syncText`，不将 `common.lyrics.text` 的去时间轴文本覆盖同步歌词；MPEG 帧时间戳不猜单位。文件扩展名按实际时间标签自动判定 LRC/TXT，无时间轴明确显示纯文本。编辑弹窗通过 `GET /api/admin/cloud-music/:uuid/lyrics` 懒加载当前已上传歌词原文，提供只读查看、复制和失败重试；不直接请求任意 URL。聚焦样本检查 `node server/admin/scripts/verify-cloud-music-lyrics.mjs`。
+- 用户投稿的 KRC/YRC 在同一个歌词原文弹窗查看，二进制 KRC 由服务端解码，弹窗根据歌词内容识别逐字时间轴。
 - 版本发布（Android / PC）统一采用单上传按钮多选自动匹配 + 全局后台发布队列（`ReleasePublishQueueContext`，关闭弹窗或切换菜单不中断，支持查看任务进度、失败重试与列表联动刷新）：新建打开自动读取当前平台最新版本号递增预填（统一保留 `v` 前缀）；Android 优先匹配第一个 `.apk`（无 `.apk` 时兜底 `.aab`）；PC 强制匹配并暂存 `latest.yml`、`.exe` 和 `.blockmap`（缺项报错并暂存已选文件，选入 `latest.yml` 时解析其 `version` 忽略前导 `v` 比对，不一致时以 `v` 前缀格式绝对覆盖并提示检查）；点击保存入队后再并发直传七牛并自动执行启用/发布。编辑模式支持通过 `GET /api/admin/desktop-updates/assets` 回显已有 PC 资产，仅重选对应槽位时覆盖替换。版本历史列表采用 `GET /api/admin/update-history` 分页与平台筛选，支持「导出记录」下载全部有效历史的 JSON 或 CSV。
 - 文件管理增加用户歌单封面（playlist-cover）用途/标签/引用展示，pending可筛选；封面有引用或未满七天宽限期时禁止删除，不强制清引用。文件管理允许删除被版本引用的对象；界面应反映接口返回的删除状态与引用清理结果。完整删除发布历史仅允许非当前版本，当前版本须先发布替代版本。
 - App 推广图标保存才切换引用，当前图标禁止删除；二维码地址仅允许本站 HTTPS `/app-share/`，不允许手填 code。
