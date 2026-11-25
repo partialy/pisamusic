@@ -31,6 +31,7 @@
 - 单元测试：`.\gradlew.bat testDebugUnitTest`
 - 清理：`.\gradlew.bat clean`
 - macOS / Linux 可使用 `./gradlew ...`
+- 构建使用 JDK 17、Gradle 8.13、AGP 8.13.2、Kotlin 2.3.10，`compileSdk = 36`。Hilt 注解处理走 KSP2，启用独立聚合任务以便增量处理，处理器类路径的 Kotlin 元数据读取器跟随编译器版本。Glide 使用常规 API，无需注解处理器。
 - 构建资源默认在 `gradle.properties` 配置：Gradle / Kotlin daemon 堆上限各 4GB、Gradle Metaspace 上限 1GB，开启项目间并行和本地构建缓存，worker 上限 8；这些是上限而非预分配。当前为单 `app` 模块，项目间并行收益有限；低内存设备可通过用户级 Gradle 配置覆盖，日常构建不要先执行 `clean`，以保留增量输出。
 
 后端环境：

@@ -1,14 +1,16 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
-    kotlin("kapt")
-    id("kotlinx-serialization")
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
     namespace = "cn.partialy.pm"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "cn.partialy.pm"
@@ -43,9 +45,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         buildConfig = true
         viewBinding = true
@@ -53,9 +52,16 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
-    kapt {
-        correctErrorTypes = true
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
+}
+
+hilt {
+    enableAggregatingTask = true
 }
 
 dependencies {
@@ -80,7 +86,6 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.glide)
     implementation(libs.androidx.palette.ktx)
-    kapt(libs.compiler)
 
     // 网络请求
     implementation(libs.retrofit)
@@ -109,7 +114,9 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
+    // Hilt 聚合任务继承 KSP 的处理器依赖，使用当前编译器对应的 Kotlin 元数据读取器。
+    ksp(libs.kotlin.metadata.jvm)
 
     // 音频标签
     implementation(libs.jaudiotagger)

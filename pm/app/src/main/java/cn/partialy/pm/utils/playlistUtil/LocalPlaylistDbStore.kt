@@ -492,7 +492,7 @@ internal class LocalPlaylistDbStore(context: Context) {
         val mapped = localTracks.restore(song)
         helper.writableDatabase.execSQL(
             "UPDATE local_playlist_songs SET sort_version=? WHERE account_id=? AND playlist_id=? AND song_type=? AND song_id=?",
-            arrayOf(version,account.current(),playlistId,mapped.type.name,mapped.id))
+            arrayOf<Any>(version,account.current(),playlistId,mapped.type.name,mapped.id))
     }
 
     fun markParentDeleted(db: SQLiteDatabase = helper.writableDatabase, playlistId: String) {
