@@ -69,8 +69,8 @@ class CloudMusicSubmissionRepository @Inject constructor(
 
         val extension = displayName.substringAfterLast('.', "")
             .lowercase(Locale.ROOT)
-        if (extension !in kind.allowedExtensions) {
-            throw CloudMusicSubmissionException.InvalidFile(kind.unsupportedExtensionMessage)
+        if (kind == CloudMusicSubmissionFileKind.AUDIO && extension !in AUDIO_EXTENSIONS) {
+            throw CloudMusicSubmissionException.InvalidFile("音频仅支持 MP3、FLAC、WAV、OGG、M4A、AAC")
         }
 
         val size = metadata.second
@@ -419,20 +419,6 @@ class CloudMusicSubmissionRepository @Inject constructor(
         tickets.firstOrNull { it.kind == kind }
             ?: throw CloudMusicSubmissionException.Api(-1, message)
 
-    private val CloudMusicSubmissionFileKind.allowedExtensions: Set<String>
-        get() = when (this) {
-            CloudMusicSubmissionFileKind.AUDIO -> AUDIO_EXTENSIONS
-            CloudMusicSubmissionFileKind.COVER -> COVER_EXTENSIONS
-            CloudMusicSubmissionFileKind.LYRICS -> LYRICS_EXTENSIONS
-        }
-
-    private val CloudMusicSubmissionFileKind.unsupportedExtensionMessage: String
-        get() = when (this) {
-            CloudMusicSubmissionFileKind.AUDIO -> "音频仅支持 MP3、FLAC、WAV、OGG、M4A、AAC"
-            CloudMusicSubmissionFileKind.COVER -> "封面仅支持 JPG、JPEG、PNG、WEBP"
-            CloudMusicSubmissionFileKind.LYRICS -> "歌词仅支持 LRC、TXT"
-        }
-
     private val String.defaultMimeType: String
         get() = when (this) {
             "mp3" -> "audio/mpeg"
@@ -444,7 +430,8 @@ class CloudMusicSubmissionRepository @Inject constructor(
             "jpg", "jpeg" -> "image/jpeg"
             "png" -> "image/png"
             "webp" -> "image/webp"
-            else -> "text/plain"
+            "lrc", "txt", "yrc" -> "text/plain"
+            else -> "application/octet-stream"
         }
 
     private companion object {
@@ -455,8 +442,6 @@ class CloudMusicSubmissionRepository @Inject constructor(
         const val MAX_PAGE_SIZE = 100
         const val MAX_DURATION_MS = 86_400_000L
         val AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "ogg", "m4a", "aac")
-        val COVER_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
-        val LYRICS_EXTENSIONS = setOf("lrc", "txt")
     }
 }
 

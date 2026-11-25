@@ -543,7 +543,7 @@ class CloudMusicSubmissionActivity : BaseActivity() {
     }
 
     private fun openLyricsPicker() {
-        lyricsPicker.launch(arrayOf("text/plain", "text/*", "application/octet-stream"))
+        lyricsPicker.launch(arrayOf("*/*"))
     }
 
     private fun updateHeaderTabState(

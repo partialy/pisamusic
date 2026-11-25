@@ -56,4 +56,5 @@ data class CloudMusicSignedResourceDto(
     val url: String = "",
     val expiresAt: Long = 0L,
     val format: String? = null,
+    val text: String? = null,
 )

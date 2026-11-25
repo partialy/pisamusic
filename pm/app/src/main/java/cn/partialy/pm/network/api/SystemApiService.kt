@@ -302,6 +302,7 @@ interface SystemApiService {
     @GET("api/cloud-music/tracks/{uuid}/lyrics-url")
     suspend fun getCloudMusicLyricsUrl(
         @Path("uuid") uuid: String,
+        @Query("includeText") includeText: Int = 1,
     ): CloudMusicEnvelope<CloudMusicSignedResourceDto>
 
     @POST("api/cloud-music/submit/upload-sessions")

@@ -79,6 +79,7 @@ class CloudMusicRepository @Inject constructor(
 
     /** 已签发歌词资源只能以 HTTPS 通过无 AES/网关 header 的专用 client 拉取。 */
     suspend fun fetchLyricsText(resource: CloudMusicSignedResource): String {
+        resource.text?.let { return it }
         val url = resource.url.toHttpUrlOrNull()
             ?.takeIf { it.isHttps }
             ?: throw CloudMusicApiException(-1, "网盘歌词地址必须为 HTTPS")
@@ -132,6 +133,7 @@ class CloudMusicRepository @Inject constructor(
         url = url,
         expiresAt = expiresAt,
         format = format,
+        text = text,
     )
 
     private suspend fun <T> apiCall(fallback: String, block: suspend () -> CloudMusicEnvelope<T>): CloudMusicEnvelope<T> {
@@ -169,6 +171,7 @@ data class CloudMusicSignedResource(
     val url: String,
     val expiresAt: Long,
     val format: String?,
+    val text: String? = null,
 )
 
 class CloudMusicApiException(

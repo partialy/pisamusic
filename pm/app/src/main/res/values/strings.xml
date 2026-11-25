@@ -409,10 +409,10 @@
     <string name="cloud_music_submission_cover_title">封面图片</string>
     <string name="cloud_music_submission_cover_hint">(选填，选择后可点击预览)</string>
     <string name="cloud_music_submission_upload_cover">添加封面</string>
-    <string name="cloud_music_submission_cover_formats_hint">支持 JPG、PNG、WEBP 格式</string>
+    <string name="cloud_music_submission_cover_formats_hint">选择图片作为封面</string>
     <string name="cloud_music_submission_lyrics_title">歌词文件</string>
     <string name="cloud_music_submission_lyrics_hint">(选填)</string>
-    <string name="cloud_music_submission_lyrics_formats_hint">支持 LRC、TXT 歌词文件</string>
+    <string name="cloud_music_submission_lyrics_formats_hint">支持 LRC、TXT、KRC、YRC 歌词文件</string>
     <string name="cloud_music_submission_optional_not_selected">未选择，将优先使用音频内的信息</string>
     <string name="cloud_music_submission_select_cover">选择封面</string>
     <string name="cloud_music_submission_select_lyrics">点击选择歌词文件</string>
