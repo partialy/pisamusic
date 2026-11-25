@@ -110,13 +110,21 @@ function migrateAnnouncements(db: DatabaseSync) {
         show_goto_button    INTEGER NOT NULL DEFAULT 0,
         goto_url            TEXT,
         sort_order          INTEGER NOT NULL DEFAULT 0,
-        enabled             INTEGER NOT NULL DEFAULT 1
+        enabled             INTEGER NOT NULL DEFAULT 1,
+        announcement_version INTEGER NOT NULL DEFAULT 1,
+        delivery_json       TEXT
       );
     `);
     return;
   }
   if (!cols.has("enabled")) {
     db.exec(`ALTER TABLE announcements ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`);
+  }
+  if (!cols.has("announcement_version")) {
+    db.exec("ALTER TABLE announcements ADD COLUMN announcement_version INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!cols.has("delivery_json")) {
+    db.exec("ALTER TABLE announcements ADD COLUMN delivery_json TEXT");
   }
 }
 

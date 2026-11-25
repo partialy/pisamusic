@@ -128,7 +128,11 @@ interface SystemApiService {
     suspend fun getDynamicConfig(@Query("id") id: String): DynamicConfigResponse
 
     @GET("api/config/announcements")
-    suspend fun getAnnouncements(): AnnouncementResponse
+    suspend fun getAnnouncements(
+        @Query("announcementVersion") announcementVersion: Int,
+        @Query("appVersion") appVersion: String,
+        @Query("type") type: String,
+    ): AnnouncementResponse
 
     @POST("api/announcements/{id}/read")
     suspend fun markAnnouncementRead(

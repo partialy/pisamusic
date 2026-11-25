@@ -325,12 +325,11 @@
 
 ## 公告模块规范
 
-- 公告数据模型使用结构化 `AnnouncementContent`（`schemaVersion=1`，含 `Text`、`Image`、`Highlight` 区块），全面替代旧 HTML 字符串拼接；图片由 Coil 异步加载。
-- 高亮动作（`AnnouncementAction`）支持复制（`copy`）、链接（`url`，https 校验，支持系统浏览器/应用内打开）与内置协议（`protocol`，pisamusic 协议校验）；高亮文本仅 `url` 和 `protocol` 显示下划线，`copy` 动作复用现有 `ic_copy_24` 图标无下划线。
-- App 启动与首页公告展示保留底部弹窗（`BottomSheetDialog` + `layout_announcement_bottom_sheet.xml`），由 `AnnouncementContentRenderer` 进行原生富文本渲染，隐藏滚动条但保留滚动。
-- 启动时仅弹出最新一条未读公告，若公告属于每次弹出类型（`showEveryTime=true`）也同样弹出；确认或前往后写入已读（`!showEveryTime`），不再连续弹出多条。
-- 首页顶部不显示额外公告卡片列表；设置页保持原有原生列表单页结构。
-- 公告确认或成功前往后，客户端通过 `SystemRepository` 异步调用加密 `POST /api/announcements/:id/read`；请求必须使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，未登录时保持匿名用户。回执失败不得阻塞公告交互；本地 `showEveryTime` 弹出状态仍按原有设置保存。
+- 冷启动声明 `announcementVersion=2`，首页和设置手动拉取同时携带 `appVersion` 与 `type=mobile`，契约见[公告与专属消息](../agents/CROSS_MODULE.md#公告与专属消息)。
+- `AnnouncementContent`（`schemaVersion=1`）由 `AnnouncementContentRenderer` 原生渲染。文本块支持粗体、颜色、斜体叠加，图片由 Coil 异步加载。
+- 前往支持系统浏览器、复用侧栏容器的应用内网页（可选顶栏）、发现与设置页。高亮块还支持复制和内置协议，导航类高亮带下划线，复制用独立图标。已发布的 `gotoUrl` 继续可读，外部网页使用 HTTPS。
+- 启动仅弹出第一条未读或每次展示的公告，从 Sheet 显示起按单调时钟计算 `waitSeconds`，只限制确认按钮。前往立即可点，手动打开可立即关闭。成功前往或高亮跳 App 页执行确认，失败保留弹窗。
+- `SystemRepository` 持久化启动自动弹出的非 `showEveryTime` 的确认 ID，并独立于页面生命周期调用加密已读接口。请求使用设备上报维护的 `messageToken` 作为 `x-pm-device-token`，未登录时保持匿名。
 
 ## 专属消息模块规范
 

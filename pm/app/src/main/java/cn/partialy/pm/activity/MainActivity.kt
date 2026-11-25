@@ -203,7 +203,8 @@ class MainActivity : BaseDownloadActivity() {
         ).also { coordinator ->
             coordinator.startIfNeeded(
                 savedInstanceState = savedInstanceState,
-                skipStartupNotices = intent.getStringExtra(EXTRA_SETTINGS_ACTION) == ACTION_SETTINGS_ANNOUNCEMENTS,
+                skipStartupNotices = intent.getStringExtra(EXTRA_SETTINGS_ACTION) == ACTION_SETTINGS_ANNOUNCEMENTS ||
+                    intent.getBooleanExtra(EXTRA_OPEN_DISCOVER, false),
             )
         }
 
@@ -222,6 +223,7 @@ class MainActivity : BaseDownloadActivity() {
 
         startService(Intent(this, MusicService::class.java))
 
+        handlePendingDiscover(intent)
         handlePendingSettingsAction(intent)
         handlePendingScanLink(intent)
         showLocalModeNoticeIfNeeded()
@@ -231,6 +233,7 @@ class MainActivity : BaseDownloadActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         applyLocalModeFromIntent(intent)
+        handlePendingDiscover(intent)
         handlePendingSettingsAction(intent)
         handlePendingScanLink(intent)
         showLocalModeNoticeIfNeeded()
@@ -253,6 +256,12 @@ class MainActivity : BaseDownloadActivity() {
         binding.root.post {
             PmMessage.warning(this, R.string.main_local_mode_entered)
         }
+    }
+
+    private fun handlePendingDiscover(intent: Intent) {
+        if (!intent.getBooleanExtra(EXTRA_OPEN_DISCOVER, false)) return
+        intent.removeExtra(EXTRA_OPEN_DISCOVER)
+        showDiscoverContent()
     }
 
     private fun handlePendingSettingsAction(intent: Intent?) {
@@ -864,35 +873,24 @@ class MainActivity : BaseDownloadActivity() {
             if (!response.success || response.code != 0) return
             response.data
         }
-        if (all.isEmpty()) return
-
-        val prefs = getSharedPreferences(APP_NOTICE_PREFS, Context.MODE_PRIVATE)
-        val readIds = prefs.getStringSet(KEY_READ_ANNOUNCEMENT_IDS, emptySet()) ?: emptySet()
-        val unread = all.filter { it.showEveryTime || !readIds.contains(it.id) }
-        if (unread.isEmpty()) return
-
-        // 规则 1：首页公告只弹出最新一条未读的公告，若公告是每次弹出的类型那么也要弹出
-        val latest = unread.first()
-        val confirmed = showPublicInformationDialog(latest)
-        if (confirmed && !latest.showEveryTime) {
-            val nextReadIds = (prefs.getStringSet(KEY_READ_ANNOUNCEMENT_IDS, emptySet()) ?: emptySet()).toMutableSet()
-            nextReadIds.add(latest.id)
-            prefs.edit().putStringSet(KEY_READ_ANNOUNCEMENT_IDS, nextReadIds).apply()
-        }
+        val readIds = systemRepository.confirmedAnnouncementIds()
+        val latest = all.firstOrNull { it.showEveryTime || it.id !in readIds } ?: return
+        showPublicInformationDialog(latest, automatic = true)
     }
 
-    private suspend fun showPublicInformationDialog(item: AnnouncementItem): Boolean = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+    private suspend fun showPublicInformationDialog(
+        item: AnnouncementItem,
+        automatic: Boolean = false,
+    ): Unit = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
         val sheet = AnnouncementDetailBottomSheet.show(
             activity = this,
             item = item,
-            dismissible = false,
+            automatic = automatic,
             onConfirmed = {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    systemRepository.markAnnouncementRead(item.id)
-                }
-                if (cont.isActive) cont.resume(true, onCancellation = null)
+                systemRepository.confirmAnnouncement(item, rememberLocally = automatic)
+                if (cont.isActive) cont.resume(Unit, onCancellation = null)
             },
-            onCancelled = { if (cont.isActive) cont.resume(false, onCancellation = null) },
+            onCancelled = { if (cont.isActive) cont.resume(Unit, onCancellation = null) },
         )
         cont.invokeOnCancellation { sheet.dismiss() }
     }
@@ -923,8 +921,18 @@ class MainActivity : BaseDownloadActivity() {
         const val ACTION_SETTINGS_CHECK_UPDATE = "check_update"
         const val ACTION_SETTINGS_ABOUT = "about"
 
-        private const val APP_NOTICE_PREFS = "app_notice_prefs"
-        private const val KEY_READ_ANNOUNCEMENT_IDS = "read_announcement_ids"
+        private const val EXTRA_OPEN_DISCOVER = "cn.partialy.pm.extra.OPEN_DISCOVER"
+
+        fun openDiscover(activity: Activity) {
+            if (activity is MainActivity) {
+                activity.showDiscoverContent()
+                return
+            }
+            activity.startActivity(Intent(activity, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(EXTRA_OPEN_DISCOVER, true)
+            })
+        }
 
         fun start(
             context: Context,

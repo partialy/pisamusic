@@ -9,6 +9,14 @@
 - **需要鉴权**：否
 - **加密模式**：明文白名单路径
 
+## 查询参数
+
+| 参数 | 默认 | 筛选规则 |
+| --- | --- | --- |
+| `announcementVersion` | 1 | 正整数，接收该协议版本及以下的启用公告 |
+| `appVersion` | 全部版本 | 如 v2.2.2，兼容 v 前缀，按语义版本比较 |
+| `type` | all | all、mobile、pc；指定端同时接收平台为 all 的公告 |
+
 ---
 
 ## 响应数据
@@ -54,5 +62,14 @@
 | `showEveryTime` | `boolean` | 是否每次启动都强制弹窗提醒 |
 | `showGotoButton` | `boolean` | 是否显示跳转链接按钮 |
 | `gotoUrl` | `string` | 点击跳转按钮后打开的外链 URL |
+| `announcementVersion` | `number` | 公告协议版本，历史为 1，新建为 2 |
+| `platform` | `all / mobile / pc` | 投放平台 |
+| `versionRule` | `object` | App 版本规则 |
+| `waitSeconds` | `number` | 自动弹出确认按钮的等待秒数，非负整数，默认 0 |
+| `gotoAction` | `object / null` | 前往动作，历史公告可继续使用 gotoUrl |
 
-文字块可选 `bold: true`。高亮颜色可使用 `neutral`、`primary`、`info`、`success`、`warning`、`danger` 或十六进制颜色（`#RGB`、`#RRGGBB`、`#RRGGBBAA`）；有动作的高亮文本在客户端显示为带下划线的可操作文本。
+版本规则采用 mode 字段。all 表示不限，current 使用 versions 中按 mobile、pc 固化的具体版本，specified 使用 versions 数组，gte 和 lte 使用 version 作为含边界的基线。
+
+前往动作支持 type=url，配合 openMode=browser 或 app。应用内可用 showHeaderBar 控制顶栏，默认显示。type=page 配合 page=discover 或 settings，也可以用作高亮块动作。
+
+文字块支持 bold、italic 和 color。文字颜色可选 neutral、primary、info、success、warning、danger 或 CSS 十六进制色值。

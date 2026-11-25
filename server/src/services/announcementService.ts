@@ -1,3 +1,5 @@
+import { getAppDb } from "../db/appDb";
+import { matchesAnnouncement, readAnnouncementQuery } from "./announcementDelivery";
 import { randomUUID } from "node:crypto";
 import {
   createAnnouncementImageFileRecord,
@@ -19,7 +21,7 @@ import {
   type AnnouncementImageUploadTokenInput,
   type QiniuUploadTokenInfo,
 } from "./qiniuReleaseFiles";
-import { getAnnouncementImageFileIds, parseAnnouncementContent, type AnnouncementContent } from "./announcementContent";
+import { getAnnouncementImageFileIds, type AnnouncementContent } from "./announcementContent";
 
 export type AnnouncementImageRecord = {
   fileId: string;
@@ -103,16 +105,27 @@ export async function readHydratedAnnouncements(options: { enabledOnly?: boolean
   return Promise.all((await readAnnouncements(options)).map(hydrateAnnouncement));
 }
 
+export async function readPublicAnnouncements(input: Record<string, unknown>, startup = false): Promise<Announcement[]> {
+  const query = readAnnouncementQuery(input, startup);
+  const announcements = await readAnnouncements({ enabledOnly: true, maxVersion: query.announcementVersion });
+  return Promise.all(announcements.filter((item) => matchesAnnouncement(item, query)).map(hydrateAnnouncement));
+}
+
 export async function reconcileAnnouncementImages(announcementId: string, content: AnnouncementContent): Promise<FileRecordInfo[]> {
   (await validateAnnouncementImages(content));
   return (await reconcileAnnouncementImageReferences(announcementId, getAnnouncementImageFileIds(content)));
 }
 
-export async function saveManagedAnnouncement(announcement: Announcement): Promise<Announcement> {
-  (await validateAnnouncementImages(announcement.content));
-  const saved = (await saveAnnouncement(announcement));
-  const removed = (await reconcileAnnouncementImages(announcement.id, announcement.content));
-  void (await cleanupUnreferencedAnnouncementImages(removed));
+export async function saveManagedAnnouncement(
+  announcement: Announcement,
+  expectedVersion: number | null,
+): Promise<Announcement> {
+  const { saved, removed } = await getAppDb().transaction(async () => {
+    const saved = await saveAnnouncement(announcement, expectedVersion);
+    const removed = await reconcileAnnouncementImages(announcement.id, announcement.content);
+    return { saved, removed };
+  });
+  await cleanupUnreferencedAnnouncementImages(removed);
   return hydrateAnnouncement(saved);
 }
 
@@ -134,8 +147,4 @@ export async function cleanupUnreferencedAnnouncementImages(files: FileRecordInf
       // Keep an unreferenced record for the file-management page to retry later.
     }
   }
-}
-
-export function normalizeAnnouncementContent(input: unknown): AnnouncementContent {
-  return parseAnnouncementContent(input);
 }

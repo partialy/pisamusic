@@ -34,6 +34,7 @@ raw
 *.test.ts
 *.spec.ts
 !electron/sync/syncService.test.ts
+!src/components/home/homeAnnouncement.test.ts
 vitest.config.ts
 userData/
 

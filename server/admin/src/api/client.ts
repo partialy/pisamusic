@@ -166,9 +166,10 @@ export async function fetchAnnouncements(): Promise<Announcement[]> {
   return body.data;
 }
 
-export async function saveAnnouncement(payload: Announcement): Promise<Announcement> {
-  const res = await fetchWithAuth(payload.id ? `/api/admin/announcements/${encodeURIComponent(payload.id)}` : "/api/admin/announcements", {
-    method: payload.id ? "PUT" : "POST",
+export async function saveAnnouncement(payload: Announcement, isNew: boolean): Promise<Announcement> {
+  const path = isNew ? "/api/admin/announcements" : `/api/admin/announcements/${encodeURIComponent(payload.id)}`;
+  const res = await fetchWithAuth(path, {
+    method: isNew ? "POST" : "PUT",
     body: JSON.stringify(payload),
   });
   const body = await parseJson<Announcement>(res);

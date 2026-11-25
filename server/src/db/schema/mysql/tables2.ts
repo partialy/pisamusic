@@ -439,12 +439,25 @@ export const tables2: readonly SchemaTable[] = [
         "nullable": false,
         "sqliteType": "INTEGER",
         "default": "1"
+      },
+      {
+        "name": "announcement_version",
+        "type": "BIGINT",
+        "nullable": false,
+        "sqliteType": "INTEGER",
+        "default": "1"
+      },
+      {
+        "name": "delivery_json",
+        "type": "LONGTEXT",
+        "nullable": true,
+        "sqliteType": "TEXT"
       }
     ],
     "primaryKey": [
       "id"
     ],
-    "createSql": "CREATE TABLE `announcements` (\n  `id` VARCHAR(191) NOT NULL,\n  `content_json` LONGTEXT NOT NULL,\n  `time` LONGTEXT NOT NULL,\n  `publisher` LONGTEXT NOT NULL,\n  `confirm_text` LONGTEXT NOT NULL,\n  `show_every_time` BIGINT NOT NULL DEFAULT 0,\n  `show_goto_button` BIGINT NOT NULL DEFAULT 0,\n  `goto_url` LONGTEXT NULL,\n  `sort_order` BIGINT NOT NULL DEFAULT 0,\n  `enabled` BIGINT NOT NULL DEFAULT 1,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
+    "createSql": "CREATE TABLE `announcements` (\n  `id` VARCHAR(191) NOT NULL,\n  `content_json` LONGTEXT NOT NULL,\n  `time` LONGTEXT NOT NULL,\n  `publisher` LONGTEXT NOT NULL,\n  `confirm_text` LONGTEXT NOT NULL,\n  `show_every_time` BIGINT NOT NULL DEFAULT 0,\n  `show_goto_button` BIGINT NOT NULL DEFAULT 0,\n  `goto_url` LONGTEXT NULL,\n  `sort_order` BIGINT NOT NULL DEFAULT 0,\n  `enabled` BIGINT NOT NULL DEFAULT 1,\n  `announcement_version` BIGINT NOT NULL DEFAULT 1,\n  `delivery_json` LONGTEXT NULL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
     "foreignSql": []
   },
   {

@@ -3,6 +3,8 @@ package cn.partialy.pm.announcement
 import com.google.gson.annotations.JsonAdapter
 import cn.partialy.pm.model.AnnouncementItem
 
+const val ANNOUNCEMENT_VERSION = 2
+
 @JsonAdapter(AnnouncementContentAdapter::class)
 data class AnnouncementContent(
     val schemaVersion: Int = 1,
@@ -13,6 +15,8 @@ sealed interface AnnouncementBlock {
     data class Text(
         val text: String,
         val bold: Boolean = false,
+        val color: String? = null,
+        val italic: Boolean = false,
     ) : AnnouncementBlock
 
     data class Image(
@@ -40,6 +44,7 @@ sealed interface AnnouncementAction {
         val label: String = "打开",
         val url: String,
         val openMode: OpenMode = OpenMode.BROWSER,
+        val showHeaderBar: Boolean = true,
     ) : AnnouncementAction {
         enum class OpenMode {
             BROWSER,
@@ -50,6 +55,16 @@ sealed interface AnnouncementAction {
                     return if (value.equals("app", ignoreCase = true)) APP else BROWSER
                 }
             }
+        }
+    }
+
+    data class Page(
+        val page: Destination,
+        val label: String = "打开",
+    ) : AnnouncementAction {
+        enum class Destination(val wireName: String) {
+            DISCOVER("discover"),
+            SETTINGS("settings"),
         }
     }
 

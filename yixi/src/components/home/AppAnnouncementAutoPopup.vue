@@ -2,8 +2,8 @@
   <HomeAnnouncementDetailModal
     :show="announcementVisible"
     :announcement="announcement"
-    @confirmed="handleConfirmed"
-    @goto="handleGoto"
+    :confirm="handleConfirmed"
+    automatic
     @after-leave="clearAnnouncement" />
 </template>
 
@@ -82,23 +82,9 @@ async function confirmAnnouncement(notice: Announcement) {
   await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, nextConfirmedIds, 1);
 }
 
-async function handleConfirmed() {
-  const notice = announcement.value;
-  announcementVisible.value = false;
-  if (notice) await confirmAnnouncement(notice);
-}
-
-async function handleGoto() {
-  const notice = announcement.value;
-  const url = notice?.gotoUrl?.trim();
-  if (!notice || !url) return;
-  try {
-    await window.electronAPI.openUrl({ url, mode: "window" });
-    announcementVisible.value = false;
-    await confirmAnnouncement(notice);
-  } catch (error) {
-    window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
-  }
+async function handleConfirmed(notice: Announcement) {
+  if (announcement.value?.id === notice.id) announcementVisible.value = false;
+  await confirmAnnouncement(notice);
 }
 
 function clearAnnouncement() {

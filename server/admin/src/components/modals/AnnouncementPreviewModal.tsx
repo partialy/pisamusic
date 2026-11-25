@@ -1,6 +1,13 @@
 import { Button, Modal, Space, Tag, Typography, message } from "antd";
 import { CopyOutlined, LinkOutlined, NotificationOutlined } from "@ant-design/icons";
-import type { Announcement, AnnouncementColor, AnnouncementContent } from "../../types/config";
+import type { Announcement, AnnouncementContent } from "../../types/config";
+import {
+  announcementColorHex,
+  announcementPageLabels,
+  announcementPlatformLabels,
+  describeAnnouncementGoto,
+  describeAnnouncementVersion,
+} from "../../utils/announcementPresentation";
 
 const { Text } = Typography;
 
@@ -9,19 +16,6 @@ type Props = {
   open: boolean;
   onClose: () => void;
 };
-
-const highlightColors: Record<string, string> = {
-  neutral: "#475569",
-  primary: "#4f46e5",
-  info: "#0284c7",
-  success: "#059669",
-  warning: "#d97706",
-  danger: "#e11d48",
-};
-
-function colorHex(color: AnnouncementColor): string {
-  return color.startsWith("#") ? color : highlightColors[color] ?? highlightColors.info;
-}
 
 function blockCount(content: AnnouncementContent): string {
   const images = content.blocks.filter((block) => block.type === "image").length;
@@ -39,6 +33,8 @@ async function copyText(value: string) {
 }
 
 export default function AnnouncementPreviewModal({ announcement, open, onClose }: Props) {
+  const gotoDescription = describeAnnouncementGoto(announcement);
+  const waitSeconds = announcement.waitSeconds ?? 0;
   return (
     <Modal
       open={open}
@@ -61,10 +57,27 @@ export default function AnnouncementPreviewModal({ announcement, open, onClose }
           </div>
         </div>
 
+        <div className="mb-3 flex flex-wrap gap-1">
+          <Tag>V{announcement.announcementVersion ?? 1}</Tag>
+          <Tag>{announcementPlatformLabels[announcement.platform ?? "all"]}</Tag>
+          <Tag className="max-w-full whitespace-normal break-words">{describeAnnouncementVersion(announcement.versionRule)}</Tag>
+          {waitSeconds > 0 && <Tag>自动弹出等待 {waitSeconds} 秒</Tag>}
+        </div>
         <div className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
           {announcement.content.blocks.map((block, index) => {
             if (block.type === "text") {
-              return <span key={index} className={block.bold ? "font-bold" : undefined}>{block.text}</span>;
+              return (
+                <span
+                  key={index}
+                  style={{
+                    color: block.color ? announcementColorHex(block.color) : undefined,
+                    fontWeight: block.bold ? 700 : undefined,
+                    fontStyle: block.italic ? "italic" : undefined,
+                  }}
+                >
+                  {block.text}
+                </span>
+              );
             }
             if (block.type === "image") {
               return <span key={index} className="my-3 block">
@@ -80,16 +93,17 @@ export default function AnnouncementPreviewModal({ announcement, open, onClose }
               <span
                 key={index}
                 className={`font-medium ${action.type !== "none" ? "cursor-pointer underline decoration-1 underline-offset-2" : ""}`}
-                style={{ color: colorHex(block.color) }}
-                title={action.type !== "none" ? action.label : undefined}
+                style={{ color: announcementColorHex(block.color) }}
+                title={action.type === "page" ? announcementPageLabels[action.page] : action.type !== "none" ? action.label : undefined}
                 onClick={() => {
                   if (action.type === "copy") void copyText(action.value);
+                  else if (action.type === "page") message.info(`打开 App ${announcementPageLabels[action.page]}页`);
                   else if (action.type !== "none") message.info("预览模式不会打开跳转地址");
                 }}
               >
                 {block.text}
                 {action.type === "copy" && <CopyOutlined className="ml-1 text-xs" />}
-                {action.type === "url" && <LinkOutlined className="ml-1 text-xs" />}
+                {(action.type === "url" || action.type === "page") && <LinkOutlined className="ml-1 text-xs" />}
               </span>
             );
           })}
@@ -98,11 +112,11 @@ export default function AnnouncementPreviewModal({ announcement, open, onClose }
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <Tag color="blue">预览模式</Tag>
           <Space>
-            {announcement.showGotoButton && announcement.gotoUrl && <Button size="small">前往</Button>}
+            {gotoDescription && <Button size="small" onClick={() => message.info(gotoDescription)}>前往</Button>}
             <Button size="small" type="primary">{announcement.confirmText || "我知道了"}</Button>
           </Space>
         </div>
-        {announcement.showGotoButton && announcement.gotoUrl && <Text type="secondary" className="mt-2 block text-right text-[11px]">前往地址：{announcement.gotoUrl}</Text>}
+        {gotoDescription && <Text type="secondary" className="mt-2 block break-all text-right text-[11px]">{gotoDescription}</Text>}
       </div>
     </Modal>
   );

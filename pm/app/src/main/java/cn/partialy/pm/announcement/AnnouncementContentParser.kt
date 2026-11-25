@@ -1,6 +1,5 @@
 package cn.partialy.pm.announcement
 
-import android.graphics.Color
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
@@ -8,10 +7,10 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonSerializer
 import java.lang.reflect.Type
+import java.net.URI
 import java.util.regex.Pattern
 
-private val HEX_COLOR_PATTERN = Pattern.compile("^#[0-9a-fA-F]{3,8}$")
-private val HTTPS_URL_PATTERN = Pattern.compile("^https://\\S+$", Pattern.CASE_INSENSITIVE)
+private val HEX_COLOR_PATTERN = Pattern.compile("^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 private val PISA_PROTOCOL_PATTERN = Pattern.compile(
     "^pisamusic://[A-Za-z0-9][A-Za-z0-9._~:/?#\\[\\]@!$&'()*+,;=%-]*$",
     Pattern.CASE_INSENSITIVE,
@@ -27,8 +26,8 @@ private val COLOR_PRESET_MAP = mapOf(
 )
 
 fun isAllowedAnnouncementUrl(value: String): Boolean {
-    val trimmed = value.trim()
-    return trimmed.isNotEmpty() && HTTPS_URL_PATTERN.matcher(trimmed).matches()
+    val uri = runCatching { URI(value.trim()) }.getOrNull() ?: return false
+    return uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank() && uri.userInfo == null
 }
 
 fun isAllowedAnnouncementProtocol(value: String): Boolean {
@@ -37,7 +36,8 @@ fun isAllowedAnnouncementProtocol(value: String): Boolean {
 }
 
 fun shouldUnderlineAnnouncementAction(action: AnnouncementAction): Boolean {
-    return action is AnnouncementAction.Url || action is AnnouncementAction.Protocol
+    return action is AnnouncementAction.Url || action is AnnouncementAction.Protocol ||
+        action is AnnouncementAction.Page
 }
 
 fun resolveAnnouncementColor(color: String?, defaultColor: Int): Int {
@@ -46,31 +46,10 @@ fun resolveAnnouncementColor(color: String?, defaultColor: Int): Int {
     val hex = COLOR_PRESET_MAP[trimmed] ?: trimmed
     if (!HEX_COLOR_PATTERN.matcher(hex).matches()) return defaultColor
     return try {
-        var s = hex
-        if (s.startsWith("#")) s = s.substring(1)
-        when (s.length) {
-            3 -> {
-                val r = s.substring(0, 1).repeat(2).toInt(16)
-                val g = s.substring(1, 2).repeat(2).toInt(16)
-                val b = s.substring(2, 3).repeat(2).toInt(16)
-                (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-            }
-            4 -> {
-                val a = s.substring(0, 1).repeat(2).toInt(16)
-                val r = s.substring(1, 2).repeat(2).toInt(16)
-                val g = s.substring(2, 3).repeat(2).toInt(16)
-                val b = s.substring(3, 4).repeat(2).toInt(16)
-                (a shl 24) or (r shl 16) or (g shl 8) or b
-            }
-            6 -> {
-                val rgb = s.toLong(16)
-                (0xFF000000L or rgb).toInt()
-            }
-            8 -> {
-                s.toLong(16).toInt()
-            }
-            else -> defaultColor
-        }
+        val digits = hex.drop(1)
+        val rgba = if (digits.length <= 4) digits.map { "$it$it" }.joinToString("") else digits
+        val androidHex = if (rgba.length == 8) rgba.takeLast(2) + rgba.take(6) else "FF$rgba"
+        androidHex.toLong(16).toInt()
     } catch (_: Exception) {
         defaultColor
     }
@@ -79,27 +58,37 @@ fun resolveAnnouncementColor(color: String?, defaultColor: Int): Int {
 fun parseAnnouncementAction(json: JsonElement?): AnnouncementAction {
     if (json == null || !json.isJsonObject) return AnnouncementAction.None
     val obj = json.asJsonObject
-    val type = obj.get("type")?.asString?.trim().orEmpty()
-    val label = obj.get("label")?.asString?.trim()?.ifEmpty { null } ?: "打开"
+    val type = obj.string("type")?.trim().orEmpty()
+    val label = obj.string("label")?.trim()?.takeIf(String::isNotEmpty)
 
     return when (type.lowercase()) {
         "copy" -> {
-            val value = obj.get("value")?.asString.orEmpty()
-            if (value.isNotEmpty()) AnnouncementAction.Copy(label = label.ifEmpty { "复制" }, value = value) else AnnouncementAction.None
+            val value = obj.string("value").orEmpty()
+            if (value.isNotEmpty()) AnnouncementAction.Copy(label = label ?: "复制", value = value) else AnnouncementAction.None
         }
         "url" -> {
-            val url = obj.get("url")?.asString?.trim().orEmpty()
+            val url = obj.string("url")?.trim().orEmpty()
             if (isAllowedAnnouncementUrl(url)) {
-                val openMode = AnnouncementAction.Url.OpenMode.fromString(obj.get("openMode")?.asString)
-                AnnouncementAction.Url(label = label, url = url, openMode = openMode)
+                AnnouncementAction.Url(
+                    label = label ?: "打开",
+                    url = url,
+                    openMode = AnnouncementAction.Url.OpenMode.fromString(obj.string("openMode")),
+                    showHeaderBar = obj.boolean("showHeaderBar") ?: true,
+                )
             } else {
                 AnnouncementAction.None
             }
         }
+        "page" -> {
+            val page = AnnouncementAction.Page.Destination.entries.firstOrNull {
+                it.wireName == obj.string("page")
+            }
+            if (page != null) AnnouncementAction.Page(page, label ?: "打开") else AnnouncementAction.None
+        }
         "protocol" -> {
-            val value = obj.get("value")?.asString?.trim().orEmpty()
+            val value = obj.string("value")?.trim().orEmpty()
             if (isAllowedAnnouncementProtocol(value)) {
-                AnnouncementAction.Protocol(label = label, value = value)
+                AnnouncementAction.Protocol(label = label ?: "打开", value = value)
             } else {
                 AnnouncementAction.None
             }
@@ -111,23 +100,27 @@ fun parseAnnouncementAction(json: JsonElement?): AnnouncementAction {
 fun parseAnnouncementBlock(json: JsonElement?): AnnouncementBlock? {
     if (json == null || !json.isJsonObject) return null
     val obj = json.asJsonObject
-    val type = obj.get("type")?.asString?.trim().orEmpty()
+    val type = obj.string("type")?.trim().orEmpty()
 
     return when (type.lowercase()) {
         "text" -> {
-            val text = obj.get("text")?.asString
+            val text = obj.string("text")
             if (!text.isNullOrEmpty()) {
-                val bold = obj.get("bold")?.asBoolean ?: false
-                AnnouncementBlock.Text(text = text, bold = bold)
+                AnnouncementBlock.Text(
+                    text = text,
+                    bold = obj.boolean("bold") ?: false,
+                    color = obj.string("color")?.trim(),
+                    italic = obj.boolean("italic") ?: false,
+                )
             } else {
                 null
             }
         }
         "image" -> {
-            val fileId = obj.get("fileId")?.asString?.trim().orEmpty()
+            val fileId = obj.string("fileId")?.trim().orEmpty()
             if (fileId.isNotEmpty()) {
-                val alt = obj.get("alt")?.asString?.trim()?.ifEmpty { "公告图片" } ?: "公告图片"
-                val rawUrl = obj.get("url")?.asString?.trim().orEmpty()
+                val alt = obj.string("alt")?.trim()?.ifEmpty { "公告图片" } ?: "公告图片"
+                val rawUrl = obj.string("url")?.trim().orEmpty()
                 val url = if (isAllowedAnnouncementUrl(rawUrl)) rawUrl else null
                 AnnouncementBlock.Image(fileId = fileId, alt = alt, url = url)
             } else {
@@ -135,8 +128,8 @@ fun parseAnnouncementBlock(json: JsonElement?): AnnouncementBlock? {
             }
         }
         "highlight" -> {
-            val text = obj.get("text")?.asString
-            val color = obj.get("color")?.asString?.trim().orEmpty()
+            val text = obj.string("text")
+            val color = obj.string("color")?.trim().orEmpty()
             if (!text.isNullOrEmpty() && color.isNotEmpty()) {
                 val action = parseAnnouncementAction(obj.get("action"))
                 AnnouncementBlock.Highlight(color = color, text = text, action = action)
@@ -169,6 +162,7 @@ fun parseAnnouncementContent(raw: AnnouncementContent): AnnouncementContent {
                         is AnnouncementAction.Url -> if (isAllowedAnnouncementUrl(action.url)) action else AnnouncementAction.None
                         is AnnouncementAction.Protocol -> if (isAllowedAnnouncementProtocol(action.value)) action else AnnouncementAction.None
                         is AnnouncementAction.Copy -> if (action.value.isNotEmpty()) action else AnnouncementAction.None
+                        is AnnouncementAction.Page -> action
                         AnnouncementAction.None -> AnnouncementAction.None
                     }
                     block.copy(action = sanitizedAction)
@@ -195,6 +189,20 @@ fun announcementPreview(content: AnnouncementContent): String {
     }
     val result = sb.toString().replace("\r\n", "\n").trim()
     return result.ifEmpty { "暂无公告" }
+}
+
+private fun JsonObject.string(key: String): String? =
+    get(key)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+
+private fun JsonObject.boolean(key: String): Boolean? =
+    get(key)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asBoolean
+
+class AnnouncementActionAdapter : JsonDeserializer<AnnouncementAction> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?,
+    ): AnnouncementAction = parseAnnouncementAction(json)
 }
 
 class AnnouncementContentAdapter : JsonDeserializer<AnnouncementContent>, JsonSerializer<AnnouncementContent> {
@@ -241,6 +249,8 @@ class AnnouncementContentAdapter : JsonDeserializer<AnnouncementContent>, JsonSe
                     blockObj.addProperty("type", "text")
                     blockObj.addProperty("text", block.text)
                     if (block.bold) blockObj.addProperty("bold", true)
+                    if (block.italic) blockObj.addProperty("italic", true)
+                    block.color?.let { blockObj.addProperty("color", it) }
                 }
                 is AnnouncementBlock.Image -> {
                     blockObj.addProperty("type", "image")
@@ -265,6 +275,12 @@ class AnnouncementContentAdapter : JsonDeserializer<AnnouncementContent>, JsonSe
                             actionObj.addProperty("label", a.label)
                             actionObj.addProperty("url", a.url)
                             actionObj.addProperty("openMode", if (a.openMode == AnnouncementAction.Url.OpenMode.APP) "app" else "browser")
+                            if (!a.showHeaderBar) actionObj.addProperty("showHeaderBar", false)
+                        }
+                        is AnnouncementAction.Page -> {
+                            actionObj.addProperty("type", "page")
+                            actionObj.addProperty("label", a.label)
+                            actionObj.addProperty("page", a.page.wireName)
                         }
                         is AnnouncementAction.Protocol -> {
                             actionObj.addProperty("type", "protocol")

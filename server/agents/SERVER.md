@@ -122,3 +122,8 @@
 - Schema v8 新增 `sidebar_menu_config`（`id=1` 单行配置 JSON）与 `sidebar_menu_icon_uploads`（七牛上传会话）两张表（SQLite `sidebarMenuSchema.ts`、MySQL 5.7 `mysql/sidebarMenus.ts`、增量迁移 `sidebarMenuMigration.ts`），同步纳入 `runner.ts` 与 `migrationEngine.ts` 复制/恢复校验。
 - 存储与业务边界：`db/sidebarMenuStore.ts` → `services/sidebarMenuService.ts` → `routes/adminSidebarMenu.ts`（管理端 `/api/admin/sidebar-menu*`）与 `routes/config.ts`（客户端 `GET /api/config/sidebar-menu?schemaVersion=2` + `services/startupService.ts` `executeAndroidStartup` 并行聚合返回 `sidebarMenu`）。配置兼容旧版单区块结构并升级为 `builtinItems`（4 个内置固定项显隐/改名/改图标）+ 有序多区块 `listSections` + 四宫格 `gridSection`，同时通过 `schemaVersion >= 2` 隔离旧客户端（`< 2` 返回空壳防崩溃）。
 - 图标支持 `default`（仅内置项）、`none`、`image`（七牛上传 `file_records.usage_type='sidebar-menu-icon'` 并维护 `referenced_by` 删除保护，或 HTTPS 直链）、`svg`（剥离脚本与外部引用的安全 `<svg>` 源码）与 `preset`（预置图标 key）；入口支持 `web` / `fullscreen_web` 与 13 项 `app_action` 原生跳转；一次性红点通过 `badgeVersion` 控制重新触发语义。
+
+## 公告投放（Schema v9）
+
+- 公告协议版本由服务端管理，历史为 1，新建为 2。SQLite 与 MySQL 5.7 增量补齐公告协议及投放配置，保留公告 ID、图片引用和历史回执。
+- 公开 GET 和双端冷启动共用投放判断，按请求支持的公告协议上限、App 版本和平台过滤。管理端保存及升级规则见[公告 API](../apidoc/config/getAnnouncements.md)。

@@ -32,8 +32,7 @@
     <HomeAnnouncementDetailModal
       :show="detailVisible"
       :announcement="selectedAnnouncement"
-      @confirmed="handleConfirmed"
-      @goto="handleGoto"
+      :confirm="handleConfirmed"
       @after-leave="clearSelectedAnnouncement" />
   </section>
 </template>
@@ -99,23 +98,9 @@ function openDetail(notice: Announcement) {
   detailVisible.value = true;
 }
 
-async function handleConfirmed() {
-  const notice = selectedAnnouncement.value;
-  detailVisible.value = false;
-  if (notice) await confirmAnnouncement(notice);
-}
-
-async function handleGoto() {
-  const notice = selectedAnnouncement.value;
-  const url = notice?.gotoUrl?.trim();
-  if (!notice || !url) return;
-  try {
-    await window.electronAPI.openUrl({ url, mode: "window" });
-    detailVisible.value = false;
-    await confirmAnnouncement(notice);
-  } catch (error) {
-    window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
-  }
+async function handleConfirmed(notice: Announcement) {
+  if (selectedAnnouncement.value?.id === notice.id) detailVisible.value = false;
+  await confirmAnnouncement(notice);
 }
 
 function clearSelectedAnnouncement() {

@@ -28,6 +28,7 @@
 - “验证码记录”位于用户管理下方，支持多维筛选、分页和删除；保留 email / phone、用途与发送 / 验证 / 过期 / 失败状态语义。
 - 反馈与故障上报使用 `pending / processed` 两态；故障页支持 Android `play_url`、PC `desktop_network` 与崩溃 `app_crash` 筛选、详情、JSON / ZIP 导出和级联删除。
 - 一起听后台支持在线 / 历史列表详情与在线房间安全解散，不影响普通用户接口契约。专属消息硬删除不提供客户端撤回语义；公告停用不删除历史及回执。
+- 「系统公告」支持按手机端 / PC / 全部平台和 App 版本投放。当前版本在保存时锁定发布版本，常规编辑保留快照，可手动重新选择。新公告为 V2，V1 使用新增选项时先确认升级。列表与预览显示投放条件、等待时间与前往动作，正文编辑器支持文字颜色、斜体和高亮块 App 页面跳转。共享规则见[跨模块契约](../../agents/CROSS_MODULE.md)。
 - 邮件 provider 默认含 `aliyun / 阿里云`、`resend / Resend`。端点批量替换只修改 hostname，保留协议、端口、路径，替换后仍须“保存端点”。
 - 服务发现的 API / realtime 地址须为纯 origin，仅 HTTPS（开发 localhost 可用 HTTP），不带认证信息、路径、query 或 hash；更新 feed 可含路径，但必须是无认证信息、query、hash 的 HTTPS URL，后端保存时也须校验。
 - 动态配置固定 `html / string / number / url`；运行时策略通过 `/api/admin/runtime-config` 维护。听歌等级配置按 `expectedVersion` 乐观并发整组提交，区间规则查阅[跨模块契约](../../agents/CROSS_MODULE.md)。
