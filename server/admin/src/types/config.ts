@@ -235,12 +235,25 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
 export type AnnouncementColorPreset = "neutral" | "primary" | "info" | "success" | "warning" | "danger";
 export type AnnouncementColor = AnnouncementColorPreset | (string & {});
 export type AnnouncementUrlOpenMode = "browser" | "app";
+export type AnnouncementPlatform = "all" | "mobile" | "pc";
+export type AnnouncementVersionRule =
+  | { mode: "all" }
+  | { mode: "current"; versions?: Partial<Record<Exclude<AnnouncementPlatform, "all">, string>> }
+  | { mode: "specified"; versions: string[] }
+  | { mode: "gte" | "lte"; version: string };
+
+export type AnnouncementPage = "discover" | "settings";
+export type AnnouncementPageAction = { type: "page"; page: AnnouncementPage; label?: string };
+export type AnnouncementGotoAction =
+  | { type: "url"; url: string; openMode: AnnouncementUrlOpenMode; showHeaderBar?: boolean; label?: string }
+  | AnnouncementPageAction;
 export type AnnouncementAction =
   | { type: "none" }
   | { type: "copy"; label: string; value: string }
   | { type: "url"; label: string; url: string; openMode: AnnouncementUrlOpenMode }
-  | { type: "protocol"; label: string; value: string };
-export type AnnouncementTextBlock = { type: "text"; text: string; bold?: boolean };
+  | { type: "protocol"; label: string; value: string }
+  | AnnouncementPageAction;
+export type AnnouncementTextBlock = { type: "text"; text: string; bold?: boolean; italic?: boolean; color?: AnnouncementColor };
 export type AnnouncementImageBlock = { type: "image"; fileId: string; alt: string; url?: string };
 export type AnnouncementHighlightBlock = {
   type: "highlight";
@@ -261,6 +274,11 @@ export type Announcement = {
   showGotoButton: boolean;
   gotoUrl?: string;
   enabled: boolean;
+  announcementVersion?: number;
+  platform?: AnnouncementPlatform;
+  versionRule?: AnnouncementVersionRule;
+  waitSeconds?: number;
+  gotoAction?: AnnouncementGotoAction | null;
 };
 
 export type AnnouncementReadUser = {

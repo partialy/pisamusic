@@ -1,14 +1,18 @@
+import { useState } from "react";
 import {
+  Alert,
   Button,
   Card,
   Input,
   Modal,
   Space,
   Switch,
+  Tag,
   Typography,
 } from "antd";
 import { NotificationOutlined } from "@ant-design/icons";
-import type { Announcement } from "../../types/config";
+import type { Announcement, AnnouncementContent, ReleaseConfig } from "../../types/config";
+import { AnnouncementDeliveryFields, AnnouncementGotoFields } from "../announcements/AnnouncementDeliveryFields";
 import { AnnouncementEditor } from "../ui/AnnouncementEditor";
 
 const { Text } = Typography;
@@ -16,20 +20,28 @@ const { Text } = Typography;
 type Props = {
   editing: Announcement;
   isNew: boolean;
-  themeColor: string;
+  releases: ReleaseConfig;
+  saving: boolean;
+  error?: string;
   onClose: () => void;
   onChange: (next: Announcement) => void;
+  onContentChange: (update: (content: AnnouncementContent) => AnnouncementContent) => void;
   onSave: () => void;
 };
 
 export default function NoticeModal({
   editing,
   isNew,
-  themeColor: _,
+  releases,
+  saving,
+  error,
   onClose,
   onChange,
+  onContentChange,
   onSave,
 }: Props) {
+  const [uploading, setUploading] = useState(false);
+  const busy = saving || uploading;
   return (
     <Modal
       open
@@ -40,24 +52,29 @@ export default function NoticeModal({
           <span className="font-bold text-slate-800">
             {isNew ? "发布新公告" : "编辑公告"}
           </span>
+          <Tag>V{editing.announcementVersion ?? 1}</Tag>
           {!isNew && (
             <span className="font-mono text-xs text-slate-400">({editing.id})</span>
           )}
         </Space>
       }
       width={900}
-      onCancel={onClose}
+      onCancel={busy ? undefined : onClose}
+      closable={!busy}
+      maskClosable={!busy}
+      keyboard={!busy}
       footer={[
-        <Button key="cancel" onClick={onClose}>
+        <Button key="cancel" disabled={busy} onClick={onClose}>
           取消
         </Button>,
-        <Button key="save" type="primary" onClick={onSave}>
+        <Button key="save" type="primary" disabled={uploading} loading={saving} onClick={onSave}>
           保存公告
         </Button>,
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      {error && <Alert className="mb-3" type="error" showIcon message={error} />}
+      <fieldset disabled={saving} className="min-w-0 space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -126,43 +143,19 @@ export default function NoticeModal({
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
-              <div>
-                <Text strong className="text-xs text-slate-700 block">
-                  展示前往外部链接按钮
-                </Text>
-                <span className="text-[11px] text-slate-400">
-                  弹窗额外提供前往跳转按钮
-                </span>
-              </div>
-              <Switch
-                checked={editing.showGotoButton}
-                onChange={(val) => onChange({ ...editing, showGotoButton: val })}
-              />
-            </div>
-
-            {editing.showGotoButton && (
-              <div className="pt-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  前往跳转地址 (URL)
-                </label>
-                <Input
-                  value={editing.gotoUrl ?? ""}
-                  onChange={(e) => onChange({ ...editing, gotoUrl: e.target.value })}
-                  placeholder="https://example.com"
-                  className="font-mono"
-                />
-              </div>
-            )}
+            <AnnouncementGotoFields announcement={editing} onChange={onChange} />
           </div>
         </Card>
+
+        <AnnouncementDeliveryFields announcement={editing} releases={releases} onChange={onChange} />
 
         <AnnouncementEditor
           announcementId={editing.id}
           value={editing.content}
-          onChange={(content) => onChange({ ...editing, content })}
+          onChange={onContentChange}
+          onUploadStateChange={setUploading}
         />
-      </div>
+      </fieldset>
     </Modal>
   );
 }

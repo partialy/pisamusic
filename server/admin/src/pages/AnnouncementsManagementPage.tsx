@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Modal } from "antd";
 import type { Announcement } from "../types/config";
+import { announcementGotoForSave, usesAnnouncementV2, validateAnnouncementDraft } from "../utils/announcementDraft";
 import { getCurrentPlus8Time } from "../utils/date";
 import {
   deleteAnnouncement as deleteAnnouncementApi,
@@ -12,10 +14,14 @@ import NoticeModal from "../components/modals/NoticeModal";
 
 export default function AnnouncementsManagementPage() {
   const { themeColor } = useAdminLayout();
-  const { announcements, setAnnouncements } = useAdminConfigWorkspace();
+  const { announcements, setAnnouncements, appConfigServer } = useAdminConfigWorkspace();
+  const [confirmModal, modalHolder] = Modal.useModal();
 
   const [editingNotice, setEditingNotice] = useState<Announcement | null>(null);
-  const [editingNoticeIndex, setEditingNoticeIndex] = useState(-1);
+  const [isNew, setIsNew] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const saveInProgress = useRef(false);
 
   const handleAddAnnouncement = () => {
     const plus8Time = getCurrentPlus8Time();
@@ -37,29 +43,57 @@ export default function AnnouncementsManagementPage() {
       showGotoButton: false,
       gotoUrl: "",
       enabled: true,
+      announcementVersion: 2,
+      platform: "all",
+      versionRule: { mode: "all" },
+      waitSeconds: 0,
     });
-    setEditingNoticeIndex(-1);
+    setIsNew(true);
+    setSaveError(undefined);
   };
 
   const handleEditAnnouncement = (index: number) => {
     setEditingNotice({ ...announcements[index] });
-    setEditingNoticeIndex(index);
+    setIsNew(false);
+    setSaveError(undefined);
   };
 
   const handleSaveAnnouncement = async () => {
-    if (!editingNotice) return;
+    if (!editingNotice || saveInProgress.current) return;
+    const validation = validateAnnouncementDraft(editingNotice);
+    setSaveError(validation);
+    if (validation) return;
+
+    saveInProgress.current = true;
+    setSaving(true);
     try {
-      const saved = await saveAnnouncementApi(editingNotice);
-      const next = [...announcements];
-      if (editingNoticeIndex === -1) {
-        next.unshift(saved);
-      } else {
-        next[editingNoticeIndex] = saved;
+      let announcementVersion = editingNotice.announcementVersion ?? 1;
+      if (announcementVersion === 1 && usesAnnouncementV2(editingNotice)) {
+        const confirmed = await confirmModal.confirm({
+          title: "升级为 V2 公告？",
+          content: "保存后，旧客户端将收不到这条公告。",
+          okText: "升级并保存",
+          cancelText: "返回编辑",
+        });
+        if (!confirmed) return;
+        announcementVersion = 2;
       }
-      setAnnouncements(next);
+
+      const previousAction = announcements.find((item) => item.id === editingNotice.id)?.gotoAction;
+      const saved = await saveAnnouncementApi({
+        ...editingNotice,
+        announcementVersion,
+        gotoAction: announcementGotoForSave(editingNotice, announcementVersion, previousAction),
+      }, isNew);
+      setAnnouncements((current) => isNew
+        ? [saved, ...current.filter((item) => item.id !== saved.id)]
+        : current.map((item) => item.id === saved.id ? saved : item));
       setEditingNotice(null);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "保存公告失败");
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "保存公告失败");
+    } finally {
+      saveInProgress.current = false;
+      setSaving(false);
     }
   };
 
@@ -78,6 +112,7 @@ export default function AnnouncementsManagementPage() {
 
   return (
     <>
+      {modalHolder}
       <AnnouncementsTab
         announcements={announcements}
         themeColor={themeColor}
@@ -89,10 +124,19 @@ export default function AnnouncementsManagementPage() {
       {editingNotice && (
         <NoticeModal
           editing={editingNotice}
-          isNew={editingNoticeIndex === -1}
-          themeColor={themeColor}
+          isNew={isNew}
+          releases={appConfigServer.releases}
+          saving={saving}
+          error={saveError}
           onClose={() => setEditingNotice(null)}
-          onChange={setEditingNotice}
+          onChange={(next) => {
+            setSaveError(undefined);
+            setEditingNotice(next);
+          }}
+          onContentChange={(update) => {
+            setSaveError(undefined);
+            setEditingNotice((current) => current && { ...current, content: update(current.content) });
+          }}
           onSave={handleSaveAnnouncement}
         />
       )}

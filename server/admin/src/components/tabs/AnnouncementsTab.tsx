@@ -22,6 +22,12 @@ import type { Announcement } from "../../types/config";
 import AnnouncementPreviewModal from "../modals/AnnouncementPreviewModal";
 import AnnouncementReadListModal from "../modals/AnnouncementReadListModal";
 
+import {
+  announcementPlatformLabels,
+  describeAnnouncementGoto,
+  describeAnnouncementVersion,
+} from "../../utils/announcementPresentation";
+
 const { Text } = Typography;
 
 function actionCount(announcement: Announcement): number {
@@ -127,21 +133,28 @@ export default function AnnouncementsTab({
       ),
     },
     {
-      title: "展示策略与动作",
+      title: "投放与展示",
       key: "policies",
-      width: 220,
-      render: (_, record) => (
-        <div className="flex flex-wrap gap-1">
-          {record.showEveryTime ? (
-            <Tag color="processing">每次展示</Tag>
-          ) : (
-            <Tag color="default">仅展示一次</Tag>
-          )}
-          {record.showGotoButton && (
-            <Tag color="success">含前往链接</Tag>
-          )}
-        </div>
-      ),
+      width: 250,
+      render: (_, record) => {
+        const version = describeAnnouncementVersion(record.versionRule);
+        const goto = describeAnnouncementGoto(record);
+        const waitSeconds = record.waitSeconds ?? 0;
+        return (
+          <div className="space-y-1">
+            <div className="flex flex-wrap gap-1">
+              <Tag>V{record.announcementVersion ?? 1}</Tag>
+              <Tag>{announcementPlatformLabels[record.platform ?? "all"]}</Tag>
+              <Tag color={record.showEveryTime ? "processing" : "default"}>
+                {record.showEveryTime ? "每次展示" : "仅展示一次"}
+              </Tag>
+              {waitSeconds > 0 && <Tag color="warning">等待 {waitSeconds} 秒</Tag>}
+              {goto && <Tooltip title={goto}><Tag color="success">含前往动作</Tag></Tooltip>}
+            </div>
+            <Text ellipsis={{ tooltip: version }} className="block max-w-[215px] text-xs text-slate-500">{version}</Text>
+          </div>
+        );
+      },
     },
     {
       title: "状态",
