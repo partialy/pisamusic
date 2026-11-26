@@ -26,7 +26,9 @@ data class SongDownloadQuotaDimension(
 data class SongDownloadQuotaSnapshot(
     val subjectType: String = "device",
     val subjectKey: String = "",
+    val isGuest: Boolean = false,
     val overrideEnabled: Boolean = false,
+    val extraRemaining: Long = 0L,
     val daily: SongDownloadQuotaDimension = SongDownloadQuotaDimension(),
     val weekly: SongDownloadQuotaDimension = SongDownloadQuotaDimension(),
     val monthly: SongDownloadQuotaDimension = SongDownloadQuotaDimension(),

@@ -91,3 +91,14 @@
       - 主进程客户端：`yixi/electron/system/systemClient.ts`（`submitFeedback` 补充附带可选账号 `Authorization` 与桌面端设备 `x-pm-device-token`；新增 `getMyFeedbackHistory` / `getMyFeedbackDetail` 请求方法）
       - 预加载与类型：`yixi/electron/preload.ts`、`yixi/electron/ipc/systemIpc.ts`、`yixi/src/types/electron.d.ts`
       - 设置页与弹窗/记录视图：`yixi/src/components/setting/about/AboutSetting.vue`、`yixi/src/components/about/AboutFeedbackDialog.vue`（增加「反馈记录」入口、记录列表展示处理状态/时间、详情查看、图片放大预览，不支持删除）
+
+---
+
+### 4. 下载配额弹窗适配（游客登录引导 & 额外次数）与客户端兑换入口预留
+
+- **状态**：`[ ] 部分完成`（双端配额弹窗已适配，兑换入口待后续 `app-h5` 页面开发后接入）
+- **配额弹窗已适配 (`[x]`)**：
+  - `pm/`：`pm/app/src/main/java/cn/partialy/pm/download/quota/SongDownloadQuotaModels.kt`、`pm/app/src/main/java/cn/partialy/pm/ui/dialog/SongDownloadQuotaDialog.kt`（解析并展示 `extraRemaining`，游客 `isGuest` 展示登录引导并支持点击「去登录」跳转 `LoginActivity`）
+  - `yixi/`：`yixi/src/types/download.ts`、`yixi/src/utils/downloadQuotaFormat.ts`、`yixi/src/components/download/DownloadQuotaExceededModal.vue`（展示 `extraRemaining`，游客展示提示并通过 `useAccountLoginDialog` 拉起登录弹窗）
+- **客户端兑换码 UI 入口 (`[ ] 待后续实现`)**：
+  - 服务端已提供 `POST /api/redemption-codes/redeem`，并已在 `server/app-h5/` 预留 `/h5/#/redeem` 等骨架路由，待后续 H5 页面实装后在两端接入。

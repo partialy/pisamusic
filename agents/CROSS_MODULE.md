@@ -65,5 +65,5 @@
 ## 歌曲下载统计与配额
 
 - 服务端 `POST /api/song-downloads/acquire` 与 `GET /api/song-downloads/quota` 均要求有效 `x-pm-device-token`（`401` 不降级）；已登录账号（`Authorization`）以 `user` 为主体跨端共享配额，未登录游客以 `device`（`<kind>:<deviceId>`）为主体独立配额。
-- 配额按北京时间（`Asia/Shanghai` UTC+8）计算：每日 00:00、每周一 00:00、每月 1 日 00:00 刷新周期计数，总次数不重置；全局默认通过 `runtime_configs`（`songDownload.default*Limit`，`-1` 表示不限制，初始日/周/月 `-1`、总数 `999999`）维护，并支持后台按单个用户/设备独立覆盖。
-- 客户端（PC `yixi` 与 Android `pm`）在用户选择音质并确认下载后，先本地过滤无效与已存在跳过项，仅当实际需新建任务数 `> 0` 时按批次请求 1 次 `/api/song-downloads/acquire`（携带 `clientBatchId` 幂等）；联网失败或配额不足均阻断入队，并在弹窗中展示受限维度实时余量。详情见[歌曲下载契约](../server/apidoc/songDownloads/overview.md)。
+- 配额按北京时间（`Asia/Shanghai` UTC+8）计算：每日 00:00、每周一 00:00、每月 1 日 00:00 刷新周期计数，总次数不重置；四档优先级为 `账号/设备独立覆盖 > 有效 VIP 隐藏档位(1..N) > 大众用户 > 游客设备`，并支持注册赠送及兑换码获得的永久额外次数 `extraRemaining`（常规不足时自动拼额度抵扣，且不计入日/周/月/总已用）。`vipLevel` 与内部档位名称禁止向前端/客户端用户 DTO 暴露。
+- 客户端（PC `yixi` 与 Android `pm`）在用户选择音质并确认下载后，先本地过滤无效与已存在跳过项，仅当实际需新建任务数 `> 0` 时按批次请求 1 次 `/api/song-downloads/acquire`（携带 `clientBatchId` 幂等）；联网失败或配额不足均阻断入队，并在弹窗中展示受限维度实时余量、额外次数余量以及游客模式登录引导按钮。用户端兑换入口 `POST /api/redemption-codes/redeem` 已在服务端就绪，客户端 UI 入口预留后续通过 `/h5/#/redeem` 接入。详情见[歌曲下载契约](../server/apidoc/songDownloads/overview.md)与[兑换码契约](../server/apidoc/redemption/overview.md)。
