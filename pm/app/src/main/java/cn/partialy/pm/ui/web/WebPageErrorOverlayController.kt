@@ -290,6 +290,11 @@ class WebPageErrorOverlayController(
         }
 
         @JavascriptInterface
+        fun verifyHostAccess(nonce: String?): String {
+            return WebHostBridgeSecurity.signChallenge(nonce)
+        }
+
+        @JavascriptInterface
         fun reload() {
             val ctrl = ref.get() ?: return
             ctrl.mainHandler.post { ctrl.handleRetryFromJs() }

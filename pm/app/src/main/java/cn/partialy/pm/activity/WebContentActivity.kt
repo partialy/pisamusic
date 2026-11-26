@@ -28,6 +28,7 @@ import cn.partialy.pm.databinding.ActivityWebContentBinding
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.web.WebHostBridgeSecurity
 import cn.partialy.pm.ui.web.WebPageErrorOverlayController
 import java.lang.ref.WeakReference
 
@@ -137,6 +138,7 @@ class WebContentActivity : BaseActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                injectAppThemeState()
                 errorOverlayController?.onMainPageFinished(url)
             }
 
@@ -199,6 +201,26 @@ class WebContentActivity : BaseActivity() {
     }
 
     internal fun isDarkMode(): Boolean = currentIsDarkMode()
+
+    private fun injectAppThemeState() {
+        if (!::binding.isInitialized) return
+        val dark = currentIsDarkMode()
+        val js = """
+            (function() {
+              if (typeof window.pmApplyAppTheme === 'function') {
+                window.pmApplyAppTheme($dark);
+              }
+              window.dispatchEvent(new CustomEvent('pmThemeChanged', {
+                detail: { isDark: $dark }
+              }));
+            })();
+        """.trimIndent()
+        binding.webContentWebView.post {
+            if (!isFinishing && !isDestroyed) {
+                binding.webContentWebView.evaluateJavascript(js, null)
+            }
+        }
+    }
 
     override fun onDestroy() {
         errorOverlayController?.destroy()
@@ -274,6 +296,9 @@ private class WebContentJsBridge(activity: WebContentActivity) {
 
     @JavascriptInterface
     fun isDarkMode(): Boolean = ref.get()?.isDarkMode() ?: false
+
+    @JavascriptInterface
+    fun verifyHostAccess(nonce: String?): String = WebHostBridgeSecurity.signChallenge(nonce)
 
     @JavascriptInterface
     fun setTitle(title: String?) {
