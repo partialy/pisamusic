@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { ACCOUNT_AVATAR_KEYS } from "../db/userStore";
 import {
+  batchAssignUserVip,
   deleteAdminUser,
   listAdminUserLibraryItems,
   listAdminUserSyncLogs,
   listAdminUsers,
   normalizeAdminAvatarKey,
   readAdminUserDetail,
+  resolveAdminUsersByIdentifiers,
   updateAdminUser,
   type AdminUserLibraryKind,
   type AdminUserLibraryStatus,
@@ -79,6 +81,14 @@ function normalizeUpdatePayload(body: unknown): { ok: true; value: AdminUserUpda
   }
   const hasVipEnabled = "vipEnabled" in body;
   const hasVipExpiresAt = "vipExpiresAt" in body;
+  const hasVipLevel = "vipLevel" in body;
+  if (hasVipLevel) {
+    const level = Number(body.vipLevel);
+    if (!Number.isInteger(level) || level < 1 || level > 1000) {
+      return { ok: false, msg: "VIP 等级必须是 1~1000 的整数" };
+    }
+    patch.vipLevel = level;
+  }
   if (hasVipEnabled || hasVipExpiresAt) {
     if (!hasVipEnabled || typeof body.vipEnabled !== "boolean") {
       return { ok: false, msg: "修改 VIP 权益时必须提供布尔类型的 VIP 开关" };
@@ -94,10 +104,23 @@ function normalizeUpdatePayload(body: unknown): { ok: true; value: AdminUserUpda
       patch.vipExpiresAt = null;
     }
   }
-  if (!("username" in patch) && !("email" in patch) && !("avatarKey" in patch) && !("vipEnabled" in patch)) {
+  if (!("username" in patch) && !("email" in patch) && !("avatarKey" in patch) && !("vipEnabled" in patch) && !("vipLevel" in patch)) {
     return { ok: false, msg: "没有可更新的用户字段" };
   }
   return { ok: true, value: patch };
+}
+
+function parseIdentifiersInput(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
+  }
+  if (typeof raw === "string") {
+    return raw
+      .split(/[\s,;，；\r\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 function normalizeLibraryKind(value: unknown): AdminUserLibraryKind | null {
@@ -119,6 +142,67 @@ adminUsersRouter.get("/", async (req, res) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取用户列表失败";
     return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminUsersRouter.post("/vip/resolve", async (req, res) => {
+  try {
+    if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
+    const identifiers = parseIdentifiersInput(req.body.identifiers ?? req.body.rawText);
+    if (!identifiers.length) return res.status(400).json(fail("请输入至少一个邮箱或用户 ID", 400));
+    if (identifiers.length > 500) return res.status(400).json(fail("单次最多查询 500 个标识", 400));
+    return res.json(ok(await resolveAdminUsersByIdentifiers(identifiers)));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "批量查询用户失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminUsersRouter.post("/vip/batch", async (req, res) => {
+  try {
+    if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
+    const userIds = Array.isArray(req.body.userIds)
+      ? req.body.userIds.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
+      : [];
+    if (!userIds.length || userIds.length > 500) {
+      return res.status(400).json(fail("userIds 必须包含 1 到 500 个用户 ID", 400));
+    }
+    const action = req.body.action === "revoke" ? "revoke" : "grant";
+    if (action === "revoke") {
+      return res.json(ok(await batchAssignUserVip({ userIds, action: "revoke" }), "已批量取消 VIP"));
+    }
+
+    const vipLevel = Number(req.body.vipLevel ?? 1);
+    if (!Number.isInteger(vipLevel) || vipLevel < 1 || vipLevel > 1000) {
+      return res.status(400).json(fail("VIP 等级必须是 1~1000 的整数", 400));
+    }
+    const mode = req.body.mode === "expires_at" ? "expires_at" : "duration_days";
+    if (mode === "duration_days") {
+      const durationDays = Number(req.body.durationDays);
+      if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 36500) {
+        return res.status(400).json(fail("赠送天数必须是 1~36500 的整数", 400));
+      }
+      return res.json(
+        ok(
+          await batchAssignUserVip({ userIds, action: "grant", vipLevel, durationDays }),
+          "已批量赋予 VIP",
+        ),
+      );
+    }
+
+    const expiresAt = Number(req.body.expiresAt);
+    if (!Number.isFinite(expiresAt) || !Number.isInteger(expiresAt) || expiresAt <= Date.now()) {
+      return res.status(400).json(fail("指定到期时间必须晚于当前时间", 400));
+    }
+    return res.json(
+      ok(
+        await batchAssignUserVip({ userIds, action: "grant", vipLevel, expiresAt }),
+        "已批量赋予 VIP",
+      ),
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "批量更新 VIP 失败";
+    return res.status(400).json(fail(message, 400));
   }
 });
 

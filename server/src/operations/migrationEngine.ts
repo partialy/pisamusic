@@ -100,28 +100,31 @@ export async function restoreTargetBackup(snapshotId:string,confirm:boolean):Pro
     validateCopySource(tables);
     const names = new Set(tables.map(table=>table.name));
     if (tables.length) {
-      const missing = MYSQL_TABLES.filter(table=>!["site_page_view_records","playlist_cover_resources","playlist_cover_refs","song_download_quota_states","song_download_batches","song_download_records","sidebar_menu_config","sidebar_menu_icon_uploads"].includes(table.name)&&!names.has(table.name));
+      const missing = MYSQL_TABLES.filter(table=>!["site_page_view_records","playlist_cover_resources","playlist_cover_refs","song_download_quota_states","song_download_batches","song_download_records","song_download_vip_tiers","song_download_extra_logs","redemption_codes","redemption_logs","sidebar_menu_config","sidebar_menu_icon_uploads"].includes(table.name)&&!names.has(table.name));
       if (missing.length) throw new Error(`备份业务结构不完整，禁止恢复：${missing.map(table=>table.name).join(",")}`);
       let version: number | undefined;
       if (names.has("schema_migrations")) {
         const ledger = source.prepare("SELECT version,status FROM schema_migrations ORDER BY version DESC LIMIT 1").get();
         version = Number(ledger?.version);
-        if (!ledger || ledger.status!=="applied" || ![1,2,3,4,5,6,7,8,SCHEMA_VERSION].includes(version)) throw new Error("备份 Schema 账本未完成或版本不支持，禁止恢复");
+        if (!ledger || ledger.status!=="applied" || ![1,2,3,4,5,6,7,8,9,SCHEMA_VERSION].includes(version)) throw new Error("备份 Schema 账本未完成或版本不支持，禁止恢复");
       }
       if (names.has("app_installation")) {
         const markers = source.prepare("SELECT id,transfer_status FROM app_installation").all();
         if (markers.length!==1 || Number(markers[0]?.id)!==1 || markers[0]?.transfer_status!=="ready") throw new Error("备份包含未完成复制或缺失安装标记，禁止恢复");
-        if (![2,3,4,5,6,7,8,SCHEMA_VERSION].includes(version!)) throw new Error("带安装标记的备份缺少当前完整 Schema 账本，禁止恢复");
+        if (![2,3,4,5,6,7,8,9,SCHEMA_VERSION].includes(version!)) throw new Error("带安装标记的备份缺少当前完整 Schema 账本，禁止恢复");
       } else if (version===SCHEMA_VERSION) throw new Error("当前版本备份缺失安装标记，禁止恢复");
-      if ([3,4,5,6,7,8,SCHEMA_VERSION].includes(version!) && !names.has("site_page_view_records")) throw new Error("v3 及以上备份缺少 PV 事件表，禁止恢复");
-      if ([5,6,7,8,SCHEMA_VERSION].includes(version!) && (!names.has("playlist_cover_resources") || !names.has("playlist_cover_refs"))) throw new Error("v5 及以上备份缺少封面资源表，禁止恢复");
-      if ([6,7,8,SCHEMA_VERSION].includes(version!) && (!names.has("song_download_quota_states") || !names.has("song_download_batches") || !names.has("song_download_records"))) throw new Error("v6 及以上备份缺少歌曲下载统计与配额表，禁止恢复");
-      if ([8,SCHEMA_VERSION].includes(version!) && (!names.has("sidebar_menu_config") || !names.has("sidebar_menu_icon_uploads"))) throw new Error("v8 及以上备份缺少侧栏菜单配置表，禁止恢复");
-      if (version === SCHEMA_VERSION) {
+      if ([3,4,5,6,7,8,9,SCHEMA_VERSION].includes(version!) && !names.has("site_page_view_records")) throw new Error("v3 及以上备份缺少 PV 事件表，禁止恢复");
+      if ([5,6,7,8,9,SCHEMA_VERSION].includes(version!) && (!names.has("playlist_cover_resources") || !names.has("playlist_cover_refs"))) throw new Error("v5 及以上备份缺少封面资源表，禁止恢复");
+      if ([6,7,8,9,SCHEMA_VERSION].includes(version!) && (!names.has("song_download_quota_states") || !names.has("song_download_batches") || !names.has("song_download_records"))) throw new Error("v6 及以上备份缺少歌曲下载统计与配额表，禁止恢复");
+      if ([8,9,SCHEMA_VERSION].includes(version!) && (!names.has("sidebar_menu_config") || !names.has("sidebar_menu_icon_uploads"))) throw new Error("v8 及以上备份缺少侧栏菜单配置表，禁止恢复");
+      if ([9,SCHEMA_VERSION].includes(version!)) {
         const announcementColumns = tables.find((table) => table.name === "announcements")?.columns ?? [];
         if (!["announcement_version", "delivery_json"].every((column) => announcementColumns.includes(column))) {
-          throw new Error("v9 备份缺少公告投放字段，禁止恢复");
+          throw new Error("v9 及以上备份缺少公告投放字段，禁止恢复");
         }
+      }
+      if (version === SCHEMA_VERSION && (!names.has("song_download_vip_tiers") || !names.has("song_download_extra_logs") || !names.has("redemption_codes") || !names.has("redemption_logs"))) {
+        throw new Error("v10 备份缺少下载等级、额外次数或兑换码表，禁止恢复");
       }
       // 无标记的旧备份仅兼容完整业务结构，账本可缺省或为已应用 v1；归档容器允许补空。
     }

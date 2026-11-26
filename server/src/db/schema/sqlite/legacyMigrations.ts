@@ -146,6 +146,29 @@ function migrateUsers(db: DatabaseSync) {
   if (!cols.has("vip_expires_at")) {
     db.exec(`ALTER TABLE users ADD COLUMN vip_expires_at INTEGER`);
   }
+  if (!cols.has("vip_level")) {
+    db.exec(`ALTER TABLE users ADD COLUMN vip_level INTEGER NOT NULL DEFAULT 1`);
+  }
+}
+
+function migrateSongDownloadQuotaV10(db: DatabaseSync) {
+  const quotaCols = getColumnNames(db, "song_download_quota_states");
+  if (quotaCols.size > 0 && !quotaCols.has("extra_balance")) {
+    db.exec(`ALTER TABLE song_download_quota_states ADD COLUMN extra_balance INTEGER NOT NULL DEFAULT 0`);
+  }
+  const batchCols = getColumnNames(db, "song_download_batches");
+  if (batchCols.size > 0) {
+    if (!batchCols.has("regular_charged_count")) {
+      db.exec(`ALTER TABLE song_download_batches ADD COLUMN regular_charged_count INTEGER NOT NULL DEFAULT 0`);
+    }
+    if (!batchCols.has("extra_charged_count")) {
+      db.exec(`ALTER TABLE song_download_batches ADD COLUMN extra_charged_count INTEGER NOT NULL DEFAULT 0`);
+    }
+  }
+  const redeemCols = getColumnNames(db, "redemption_codes");
+  if (redeemCols.size > 0 && !redeemCols.has("batch_name")) {
+    db.exec(`ALTER TABLE redemption_codes ADD COLUMN batch_name TEXT NOT NULL DEFAULT ''`);
+  }
 }
 
 /** 旧表必须先补列，CREATE_SQL 中的新索引才能安全执行；空库交由基线建表。 */
@@ -391,5 +414,6 @@ export function runPostSchemaMigrations(db: DatabaseSync): void {
   migrateFileRecords(db);
   migrateListening(db);
   migrateRuntimeConfigs(db);
+  migrateSongDownloadQuotaV10(db);
   repairFileRecords(db);
 }

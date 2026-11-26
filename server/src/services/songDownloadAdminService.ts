@@ -9,7 +9,17 @@ import {
   upsertQuotaStateOverride,
   type AdminQuotaStateItem,
 } from "../db/songDownloadAdminStore";
-import { getDefaultQuotaLimits, type QuotaLimits, type SongDownloadSubjectType } from "../db/songDownloadStore";
+import {
+  getDefaultQuotaLimits,
+  getGuestQuotaLimits,
+  getRegisterGiftExtraCount,
+  getStandardQuotaLimits,
+  listVipTiers,
+  saveVipTiers,
+  type QuotaLimits,
+  type SongDownloadSubjectType,
+  type VipTierConfig,
+} from "../db/songDownloadStore";
 import { SongDownloadValidationError } from "./songDownloadService";
 
 function parseDays(raw: unknown, allowAll = false): number | "all" {
@@ -104,6 +114,14 @@ export async function getAdminSubjectQuotaDetail(subjectTypeRaw: unknown, subjec
   return getAdminQuotaStateDetail(parseSubjectType(subjectTypeRaw), parseSubjectKey(subjectKeyRaw));
 }
 
+function parseExtraOptionalInt(value: unknown, fieldName: string, min: number, max: number): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value) || value < min || value > max) {
+    throw new SongDownloadValidationError(`${fieldName} 必须为 ${min}~${max} 的整数`);
+  }
+  return value;
+}
+
 function parseQuotaOverrideFields(body: unknown) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new SongDownloadValidationError("请求体必须是对象");
@@ -112,6 +130,8 @@ function parseQuotaOverrideFields(body: unknown) {
   if (typeof obj.overrideEnabled !== "boolean") {
     throw new SongDownloadValidationError("overrideEnabled 必须是布尔值");
   }
+  const extraBalance = parseExtraOptionalInt(obj.extraBalance, "extraBalance", 0, 100000000);
+  const extraDelta = parseExtraOptionalInt(obj.extraDelta, "extraDelta", -100000000, 100000000);
   return {
     obj,
     patch: {
@@ -120,6 +140,8 @@ function parseQuotaOverrideFields(body: unknown) {
       weeklyLimit: obj.overrideEnabled ? parseNullableLimit(obj.weeklyLimit, "weeklyLimit") : null,
       monthlyLimit: obj.overrideEnabled ? parseNullableLimit(obj.monthlyLimit, "monthlyLimit") : null,
       totalLimit: obj.overrideEnabled ? parseNullableLimit(obj.totalLimit, "totalLimit") : null,
+      extraBalance,
+      extraDelta,
       resetDayUsed: obj.resetDayUsed === true,
       resetWeekUsed: obj.resetWeekUsed === true,
       resetMonthUsed: obj.resetMonthUsed === true,
@@ -175,11 +197,115 @@ export async function saveAdminDefaultQuotaLimits(body: unknown): Promise<QuotaL
   const total = parseNullableLimit(obj.total, "total");
 
   await configManager.setMany([
-    { key: "songDownload.defaultDailyLimit", value: daily === null ? -1 : daily },
-    { key: "songDownload.defaultWeeklyLimit", value: weekly === null ? -1 : weekly },
-    { key: "songDownload.defaultMonthlyLimit", value: monthly === null ? -1 : monthly },
-    { key: "songDownload.defaultTotalLimit", value: total === null ? -1 : total },
+    { key: "songDownload.guestDailyLimit", value: daily === null ? -1 : daily },
+    { key: "songDownload.guestWeeklyLimit", value: weekly === null ? -1 : weekly },
+    { key: "songDownload.guestMonthlyLimit", value: monthly === null ? -1 : monthly },
+    { key: "songDownload.guestTotalLimit", value: total === null ? -1 : total },
   ]);
 
   return getDefaultQuotaLimits();
+}
+
+export type AdminTierPoliciesPayload = {
+  guest: QuotaLimits;
+  standard: QuotaLimits;
+  registerGiftExtraCount: number;
+  vipTiers: VipTierConfig[];
+};
+
+export async function getAdminTierPolicies(): Promise<AdminTierPoliciesPayload> {
+  return {
+    guest: getGuestQuotaLimits(),
+    standard: getStandardQuotaLimits(),
+    registerGiftExtraCount: getRegisterGiftExtraCount(),
+    vipTiers: await listVipTiers(),
+  };
+}
+
+export async function saveAdminTierPolicies(body: unknown): Promise<AdminTierPoliciesPayload> {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new SongDownloadValidationError("请求体必须是对象");
+  }
+  const obj = body as Record<string, unknown>;
+  if (!obj.guest || typeof obj.guest !== "object" || Array.isArray(obj.guest)) {
+    throw new SongDownloadValidationError("guest 配额配置不正确");
+  }
+  if (!obj.standard || typeof obj.standard !== "object" || Array.isArray(obj.standard)) {
+    throw new SongDownloadValidationError("standard 配额配置不正确");
+  }
+
+  const g = obj.guest as Record<string, unknown>;
+  const s = obj.standard as Record<string, unknown>;
+
+  const guestDaily = parseNullableLimit(g.daily, "guest.daily");
+  const guestWeekly = parseNullableLimit(g.weekly, "guest.weekly");
+  const guestMonthly = parseNullableLimit(g.monthly, "guest.monthly");
+  const guestTotal = parseNullableLimit(g.total, "guest.total");
+
+  const stdDaily = parseNullableLimit(s.daily, "standard.daily");
+  const stdWeekly = parseNullableLimit(s.weekly, "standard.weekly");
+  const stdMonthly = parseNullableLimit(s.monthly, "standard.monthly");
+  const stdTotal = parseNullableLimit(s.total, "standard.total");
+
+  const giftCount = Number(obj.registerGiftExtraCount ?? 0);
+  if (!Number.isInteger(giftCount) || giftCount < 0 || giftCount > 1000000) {
+    throw new SongDownloadValidationError("registerGiftExtraCount 必须是 0~1000000 的整数");
+  }
+
+  if (!Array.isArray(obj.vipTiers) || obj.vipTiers.length === 0 || obj.vipTiers.length > 50) {
+    throw new SongDownloadValidationError("vipTiers 必须包含 1~50 个 VIP 档位");
+  }
+
+  const seenLevels = new Set<number>();
+  const vipTiers: Array<{
+    level: number;
+    name: string;
+    daily: number | null;
+    weekly: number | null;
+    monthly: number | null;
+    total: number | null;
+  }> = [];
+
+  for (let i = 0; i < obj.vipTiers.length; i++) {
+    const raw = obj.vipTiers[i];
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new SongDownloadValidationError(`vipTiers[${i}] 必须是对象`);
+    }
+    const t = raw as Record<string, unknown>;
+    const level = Number(t.level);
+    if (!Number.isInteger(level) || level < 1 || level > 1000) {
+      throw new SongDownloadValidationError(`vipTiers[${i}].level 必须是 1~1000 的整数`);
+    }
+    if (seenLevels.has(level)) {
+      throw new SongDownloadValidationError(`VIP 等级 ${level} 重复`);
+    }
+    seenLevels.add(level);
+    const name = typeof t.name === "string" ? t.name.trim().slice(0, 64) : "";
+    vipTiers.push({
+      level,
+      name: name || `VIP ${level}档`,
+      daily: parseNullableLimit(t.daily, `vipTiers[${i}].daily`),
+      weekly: parseNullableLimit(t.weekly, `vipTiers[${i}].weekly`),
+      monthly: parseNullableLimit(t.monthly, `vipTiers[${i}].monthly`),
+      total: parseNullableLimit(t.total, `vipTiers[${i}].total`),
+    });
+  }
+  if (!seenLevels.has(1)) {
+    throw new SongDownloadValidationError("必须保留 VIP 1档 作为默认基础 VIP 档位");
+  }
+
+  await configManager.setMany([
+    { key: "songDownload.guestDailyLimit", value: guestDaily === null ? -1 : guestDaily },
+    { key: "songDownload.guestWeeklyLimit", value: guestWeekly === null ? -1 : guestWeekly },
+    { key: "songDownload.guestMonthlyLimit", value: guestMonthly === null ? -1 : guestMonthly },
+    { key: "songDownload.guestTotalLimit", value: guestTotal === null ? -1 : guestTotal },
+    { key: "songDownload.standardDailyLimit", value: stdDaily === null ? -1 : stdDaily },
+    { key: "songDownload.standardWeeklyLimit", value: stdWeekly === null ? -1 : stdWeekly },
+    { key: "songDownload.standardMonthlyLimit", value: stdMonthly === null ? -1 : stdMonthly },
+    { key: "songDownload.standardTotalLimit", value: stdTotal === null ? -1 : stdTotal },
+    { key: "songDownload.registerGiftExtraCount", value: giftCount },
+  ]);
+  await saveVipTiers(vipTiers);
+
+  return getAdminTierPolicies();
 }

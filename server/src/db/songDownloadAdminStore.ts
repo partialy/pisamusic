@@ -4,10 +4,13 @@ import { buildPaginatedList, normalizePagination } from "../utils/pagination";
 import { getAppDb } from "./appDb";
 import type { DbTransaction } from "./core/types";
 import {
+  adjustExtraQuotaInTx,
   computeQuotaSnapshot,
+  listVipTiers,
   type QuotaStateRow,
   type SongDownloadQuotaSnapshot,
   type SongDownloadSubjectType,
+  type UserTierContext,
 } from "./songDownloadStore";
 
 export type SongDownloadDailyTrendItem = {
@@ -80,6 +83,8 @@ export type QuotaOverrideSaveInput = {
   weeklyLimit: number | null;
   monthlyLimit: number | null;
   totalLimit: number | null;
+  extraBalance?: number;
+  extraDelta?: number;
   resetDayUsed?: boolean;
   resetWeekUsed?: boolean;
   resetMonthUsed?: boolean;
@@ -396,11 +401,14 @@ export async function queryQuotaStates(params: {
     QuotaStateRow & {
       username: string | null;
       email: string | null;
+      vip_enabled: number | null;
+      vip_expires_at: number | null;
+      vip_level: number | null;
       android_device_name: string | null;
       desktop_device_name: string | null;
     }
   >(
-    `SELECT q.*, u.username, u.email,
+    `SELECT q.*, u.username, u.email, u.vip_enabled, u.vip_expires_at, u.vip_level,
       ad.device_name AS android_device_name,
       dd.device_name AS desktop_device_name
     FROM song_download_quota_states q
@@ -417,9 +425,30 @@ export async function queryQuotaStates(params: {
     [...args, limit, offset],
   );
 
+  const nowMs = Date.now();
+  const vipTiers = await listVipTiers(db);
+  const tiersMap = new Map(vipTiers.map((t) => [t.level, t]));
+
   return buildPaginatedList(
     rows.map((row) => {
-      const snap = computeQuotaSnapshot(row.subject_type, row.subject_key, row, periods);
+      const userContext: UserTierContext | null =
+        row.subject_type === "user"
+          ? {
+              vipActive:
+                Number(row.vip_enabled) === 1 &&
+                row.vip_expires_at !== null &&
+                Number(row.vip_expires_at) > nowMs,
+              vipLevel: Math.max(1, Number(row.vip_level) || 1),
+            }
+          : null;
+      const snap = computeQuotaSnapshot(
+        row.subject_type,
+        row.subject_key,
+        row,
+        periods,
+        userContext,
+        tiersMap,
+      );
       const displayName =
         row.subject_type === "user"
           ? row.username || row.subject_key
@@ -444,23 +473,41 @@ export async function getAdminQuotaStateDetail(
   subjectKey: string,
 ): Promise<AdminQuotaStateItem> {
   const db = getAppDb();
-  const periods = getBeijingPeriodKeys();
-  const row = await db.queryOne<QuotaStateRow>(
-    "SELECT * FROM song_download_quota_states WHERE subject_type = ? AND subject_key = ?",
-    [subjectType, subjectKey],
-  );
-  const snap = computeQuotaSnapshot(subjectType, subjectKey, row ?? undefined, periods);
+  const nowMs = Date.now();
+  const periods = getBeijingPeriodKeys(nowMs);
+  const [row, vipTiers] = await Promise.all([
+    db.queryOne<QuotaStateRow>(
+      "SELECT * FROM song_download_quota_states WHERE subject_type = ? AND subject_key = ?",
+      [subjectType, subjectKey],
+    ),
+    listVipTiers(db),
+  ]);
+  const tiersMap = new Map(vipTiers.map((t) => [t.level, t]));
 
   let displayName = subjectKey;
   let secondaryLabel = subjectKey;
+  let userContext: UserTierContext | null = null;
   if (subjectType === "user") {
-    const u = await db.queryOne<{ username: string; email: string }>(
-      "SELECT username, email FROM users WHERE id = ?",
+    const u = await db.queryOne<{
+      username: string;
+      email: string;
+      vip_enabled: number;
+      vip_expires_at: number | null;
+      vip_level: number;
+    }>(
+      "SELECT username, email, vip_enabled, vip_expires_at, vip_level FROM users WHERE id = ?",
       [subjectKey],
     );
     if (u) {
       displayName = u.username || subjectKey;
       secondaryLabel = u.email || subjectKey;
+      userContext = {
+        vipActive:
+          Number(u.vip_enabled) === 1 && u.vip_expires_at !== null && Number(u.vip_expires_at) > nowMs,
+        vipLevel: Math.max(1, Number(u.vip_level) || 1),
+      };
+    } else {
+      userContext = { vipActive: false, vipLevel: 1 };
     }
   } else if (subjectKey.startsWith("android:")) {
     const devId = subjectKey.slice("android:".length);
@@ -483,6 +530,8 @@ export async function getAdminQuotaStateDetail(
       secondaryLabel = d.platform || subjectKey;
     }
   }
+
+  const snap = computeQuotaSnapshot(subjectType, subjectKey, row ?? undefined, periods, userContext, tiersMap);
 
   return {
     ...snap,
@@ -551,9 +600,9 @@ async function upsertQuotaStateInTx(
     await tx.execute(
       `INSERT INTO song_download_quota_states (
         subject_type, subject_key, override_enabled,
-        daily_limit, weekly_limit, monthly_limit, total_limit,
+        daily_limit, weekly_limit, monthly_limit, total_limit, extra_balance,
         day_key, day_used, week_key, week_used, month_key, month_used, total_used, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.subjectType,
         input.subjectKey,
@@ -572,6 +621,30 @@ async function upsertQuotaStateInTx(
         now,
       ],
     );
+  }
+
+  if (input.extraBalance !== undefined) {
+    const curExtra = existing ? Math.max(0, Number(existing.extra_balance) || 0) : 0;
+    const delta = Math.max(0, Math.trunc(input.extraBalance)) - curExtra;
+    if (delta !== 0) {
+      await adjustExtraQuotaInTx(tx, {
+        subjectType: input.subjectType,
+        subjectKey: input.subjectKey,
+        delta,
+        sourceType: "admin_adjust",
+        remark: "管理员设置额外次数",
+        nowMs: now,
+      });
+    }
+  } else if (input.extraDelta !== undefined && input.extraDelta !== 0) {
+    await adjustExtraQuotaInTx(tx, {
+      subjectType: input.subjectType,
+      subjectKey: input.subjectKey,
+      delta: Math.trunc(input.extraDelta),
+      sourceType: "admin_adjust",
+      remark: "管理员调整额外次数",
+      nowMs: now,
+    });
   }
 }
 

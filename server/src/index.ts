@@ -25,6 +25,7 @@ import { faultReportsRouter } from "./routes/faultReports";
 import { listenTogetherRouter } from "./routes/listenTogether";
 import { listeningRouter } from "./routes/listening";
 import { messagesRouter } from "./routes/messages";
+import { redemptionRouter } from "./routes/redemption";
 import { sharesRouter } from "./routes/shares";
 import { songDownloadsRouter } from "./routes/songDownloads";
 import { syncRouter } from "./routes/sync";
@@ -123,6 +124,7 @@ app.use(express.json({ limit: configManager.get("http.jsonBodyLimit", "1mb") }))
 app.use(createIpRateLimitMiddleware({ group: "app-share-public", getPolicy: () => ({ paths: ["/api/app-share/public/*", "/api/app-share/visits"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(createIpRateLimitMiddleware({ group: "app-share-identity", getPolicy: () => ({ paths: ["/api/config/app-share"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(createIpRateLimitMiddleware({ group: "release-query", getPolicy: () => ({ paths: ["/api/config/releases/history", "/api/config/releases/detail"], windowSeconds: 60, maxRequests: 60 }) }));
+app.use(createIpRateLimitMiddleware({ group: "redemption-redeem", getPolicy: () => ({ paths: ["/api/redemption-codes/redeem"], windowSeconds: 60, maxRequests: 20 }) }));
 app.use(logInterceptor);
 app.use(createIpRateLimitMiddleware({ group: "setup", getPolicy: () => ({ paths: ["/api/setup/complete"], windowSeconds: 60, maxRequests: 10 }) }));
 
@@ -213,6 +215,7 @@ app.use("/api/listening", listeningRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/shares", sharesRouter);
 app.use("/api/song-downloads", songDownloadsRouter);
+app.use("/api/redemption-codes", redemptionRouter);
 app.use("/api/cloud-music", cloudMusicRouter);
 app.use("/api/web/music", webMusicRouter);
 

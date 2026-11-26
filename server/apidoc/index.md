@@ -32,6 +32,7 @@
 - [13. 管理后台 API (`admin`)](#13-管理后台-api-apiadmin)
 - [14. 网页版试听代理模块 (`webMusic`)](#14-网页版试听代理模块-apiwebmusic)
 - [15. 歌曲下载统计与配额模块 (`songDownloads`)](#15-歌曲下载统计与配额模块-apisong-downloads)
+- [16. 兑换码核销模块 (`redemptionCodes`)](#16-兑换码核销模块-apiredemption-codes)
 
 ---
 
@@ -305,6 +306,7 @@
 | 分页获取用户歌单/歌曲/听歌历史/墓碑数据 | `GET` | `/api/admin/users/:id/library` | [./admin/getUserLibrary.md](./admin/getUserLibrary.md) |
 | 分页查询用户同步变更日志 | `GET` | `/api/admin/users/:id/sync-logs` | [./admin/getUserSyncLogs.md](./admin/getUserSyncLogs.md) |
 | 更新用户资料与 VIP 权益 | `PUT` | `/api/admin/users/:id` | [./admin/updateUser.md](./admin/updateUser.md) |
+| 批量 VIP 用户查询与赋予 | `POST` | `/api/admin/users/vip/resolve` / `vip/batch` | [./admin/updateUser.md](./admin/updateUser.md) |
 | 硬删除用户 | `DELETE` | `/api/admin/users/:id` | [./admin/deleteUser.md](./admin/deleteUser.md) |
 
 ### 13.8 验证码记录管理
@@ -384,10 +386,24 @@
 | 获取下载统计概览与日趋势 | `GET` | `/api/admin/song-downloads/overview` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 获取歌曲下载 Top 排行 | `GET` | `/api/admin/song-downloads/top-songs` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 分页查询用户/设备下载动态 | `GET` | `/api/admin/song-downloads/records` | [./songDownloads/overview.md](./songDownloads/overview.md) |
-| 读取/保存全局默认下载配额 | `GET/PUT` | `/api/admin/song-downloads/default-quota` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 读取/保存四档配额与 VIP 档位策略 | `GET/PUT` | `/api/admin/song-downloads/tier-policies` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 读取/保存默认下载配额（兼容游客） | `GET/PUT` | `/api/admin/song-downloads/default-quota` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 分页查询用户/设备配额状态 | `GET` | `/api/admin/song-downloads/quotas` | [./songDownloads/overview.md](./songDownloads/overview.md) |
-| 批量设置多主体配额覆盖与重置 | `PUT` | `/api/admin/song-downloads/quotas/batch` | [./songDownloads/overview.md](./songDownloads/overview.md) |
-| 读取/设置单个主体配额覆盖与重置 | `GET/PUT` | `/api/admin/song-downloads/quotas/:subjectType/:subjectKey` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 批量设置多主体配额覆盖、额外次数与重置 | `PUT` | `/api/admin/song-downloads/quotas/batch` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 读取/设置单个主体配额覆盖、额外次数与重置 | `GET/PUT` | `/api/admin/song-downloads/quotas/:subjectType/:subjectKey` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+
+### 13.18 兑换码管理
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 按批次聚合分页查询（支持搜码定位批次） | `GET` | `/api/admin/redemption-codes/batches` | [./redemption/overview.md](./redemption/overview.md) |
+| 修改兑换码批次名称 | `PATCH` | `/api/admin/redemption-codes/batches/:batchId` | [./redemption/overview.md](./redemption/overview.md) |
+| 分页查询兑换码明细（支持按批次/全部直查） | `GET` | `/api/admin/redemption-codes` | [./redemption/overview.md](./redemption/overview.md) |
+| 批量生成唯一码或通用口令码 | `POST` | `/api/admin/redemption-codes` | [./redemption/overview.md](./redemption/overview.md) |
+| 启用或停用指定兑换码 | `PATCH` | `/api/admin/redemption-codes/:id` | [./redemption/overview.md](./redemption/overview.md) |
+| 删除未使用的指定兑换码 | `DELETE` | `/api/admin/redemption-codes/:id` | [./redemption/overview.md](./redemption/overview.md) |
+| 批量启用或停用兑换码 | `POST` | `/api/admin/redemption-codes/batch-status` | [./redemption/overview.md](./redemption/overview.md) |
+| 批量删除未使用的兑换码 | `POST` | `/api/admin/redemption-codes/batch-delete` | [./redemption/overview.md](./redemption/overview.md) |
+| 分页查询兑换核销流水 | `GET` | `/api/admin/redemption-codes/logs` | [./redemption/overview.md](./redemption/overview.md) |
 
 ---
 
@@ -406,9 +422,19 @@
 
 ## 15. 歌曲下载统计与配额模块 (`/api/song-downloads`)
 
-统计并限制客户端（Android / PC）单曲与批量歌曲下载次数，支持日/周/月/总次数四维度独立配额与单批次原子扣减。
+统计并限制客户端（Android / PC）单曲与批量歌曲下载次数，支持四档优先级（独立覆盖 > 有效 VIP > 大众 > 游客）、日/周/月/总次数四维度及永久额外次数混合扣减。
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
 | 校验/扣减下载配额并记录批次 | `POST` | `/api/song-downloads/acquire` | 设备消息凭证，可选 User Token (加密) | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 查询当前主体下载配额 | `GET` | `/api/song-downloads/quota` | 设备消息凭证，可选 User Token (加密) | [./songDownloads/overview.md](./songDownloads/overview.md) |
+
+---
+
+## 16. 兑换码核销模块 (`/api/redemption-codes`)
+
+为用户提供加密的兑换码核销入口，支持领取永久额外下载次数或 VIP 时长（叠加时间并升档）。
+
+| 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
+| :--- | :--- | :--- | :--- | :--- |
+| 核销兑换码 | `POST` | `/api/redemption-codes/redeem` | User Token (加密) | [./redemption/overview.md](./redemption/overview.md) |

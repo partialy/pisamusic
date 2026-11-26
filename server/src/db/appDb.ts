@@ -375,6 +375,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_key      TEXT    NOT NULL DEFAULT 'default',
     vip_enabled     INTEGER NOT NULL DEFAULT 0,
     vip_expires_at  INTEGER,
+    vip_level       INTEGER NOT NULL DEFAULT 1,
     sync_version    INTEGER NOT NULL DEFAULT 0,
     sync_log_floor  INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
@@ -744,6 +745,8 @@ export function initSchema(db: DatabaseSync) {
     INSERT OR IGNORE INTO listening_level_config(id, version, updated_at) VALUES (1, 1, 0);
     INSERT OR IGNORE INTO listening_level_rules(level, min_minutes, max_minutes, created_at, updated_at)
     VALUES (1, 0, NULL, 0, 0);
+    INSERT OR IGNORE INTO song_download_vip_tiers(level, name, daily_limit, weekly_limit, monthly_limit, total_limit, updated_at)
+    VALUES (1, 'VIP 1档', NULL, NULL, NULL, NULL, 0);
   `);
   runPostSchemaMigrations(db);
 }

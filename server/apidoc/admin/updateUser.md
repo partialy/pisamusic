@@ -26,6 +26,14 @@
 | `avatarKey` | `string` | 否 | 头像 Key（如 `default`） |
 | `vipEnabled` | `boolean` | 否 | 是否启用 VIP 权益（若传入 `vipExpiresAt` 则此项必填） |
 | `vipExpiresAt` | `number \| null` | 否 | VIP 到期时间戳毫秒数（启用 VIP 时必须晚于当前时间；关闭 VIP 时传 `null`） |
+| `vipLevel` | `number` | 否 | 隐藏 VIP 档位等级（`>= 1`，默认 `1`；仅后台管理与后端配额判定使用，不向客户端暴露） |
+
+---
+
+## 批量 VIP 查询与赋予（`POST /api/admin/users/vip/resolve` & `POST /api/admin/users/vip/batch`）
+
+1. **查询待赋予用户 (`POST /api/admin/users/vip/resolve`)**：请求 `{ identifiers: string[] }`（支持用户 ID 或邮箱，自动去重且最多 500 项），返回 `{ matched: AdminUserItem[], notFound: string[] }`；未匹配项跳过并列出。
+2. **确认批量赋予 (`POST /api/admin/users/vip/batch`)**：请求 `{ userIds: string[], vipEnabled: boolean, durationDays?: number, vipExpiresAt?: number | null, vipLevel?: number }`。启用时若已有效 VIP 则在原到期时间上叠加时长，且档位按 `max(原 vipLevel, 新 vipLevel)` 升级；停用时保留历史 `vipLevel` 并清空到期时间。
 
 ### 请求示例
 

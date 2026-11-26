@@ -3,6 +3,7 @@ import { deleteSubjectQuotaState } from "./songDownloadStore";
 import { lockSyncUser } from "./syncStore";
 import { type DbClient as DatabaseSync } from "./core/types";
 import {
+  applyVipGrantInTx,
   isAccountAvatarKey,
   readUserByEmail,
   readUserById,
@@ -36,6 +37,7 @@ export type AdminUserListItem = {
   vipEnabled: boolean;
   vip: boolean;
   vipExpiresAt: number | null;
+  vipLevel: number;
   syncVersion: number;
   syncLogFloor: number;
   createdAt: number;
@@ -102,6 +104,17 @@ export type AdminUserUpdateInput = {
   avatarKey?: AccountAvatarKey;
   vipEnabled?: boolean;
   vipExpiresAt?: number | null;
+  vipLevel?: number;
+};
+
+export type AdminVipResolvedUser = {
+  id: string;
+  username: string;
+  email: string;
+  vipEnabled: boolean;
+  vip: boolean;
+  vipExpiresAt: number | null;
+  vipLevel: number;
 };
 
 type UserStatsRow = {
@@ -113,6 +126,7 @@ type UserStatsRow = {
   avatar_key: string;
   vip_enabled: number;
   vip_expires_at: number | null;
+  vip_level: number;
   sync_version: number;
   sync_log_floor: number;
   created_at: number;
@@ -163,6 +177,7 @@ function rowToUserRecord(row: UserStatsRow): UserRecord {
     avatarKey: row.avatar_key || "default",
     vipEnabled: row.vip_enabled === 1,
     vipExpiresAt: row.vip_expires_at,
+    vipLevel: Math.max(1, Number(row.vip_level) || 1),
     syncVersion: row.sync_version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -183,6 +198,7 @@ function mapUserRow(row: UserStatsRow): AdminUserListItem {
     vipEnabled: user.vipEnabled,
     vip: publicUser.vip,
     vipExpiresAt: publicUser.vipExpiresAt,
+    vipLevel: user.vipLevel,
     syncVersion: user.syncVersion,
     syncLogFloor: Number(row.sync_log_floor) || 0,
     createdAt: user.createdAt,
@@ -202,7 +218,7 @@ function userStatsSelect(whereSql: string): string {
   return `
     SELECT
       u.id, u.email, u.username, u.password_hash, u.avatar, u.avatar_key,
-      u.vip_enabled, u.vip_expires_at, u.sync_version, u.sync_log_floor, u.created_at, u.updated_at, u.last_login_at,
+      u.vip_enabled, u.vip_expires_at, u.vip_level, u.sync_version, u.sync_log_floor, u.created_at, u.updated_at, u.last_login_at,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_song' THEN 1 ELSE 0 END), 0) AS favorite_songs,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_playlist' THEN 1 ELSE 0 END), 0) AS favorite_playlists,
       COALESCE(SUM(CASE WHEN s.item_type = 'user_playlist' THEN 1 ELSE 0 END), 0) AS user_playlists,
@@ -213,7 +229,7 @@ function userStatsSelect(whereSql: string): string {
     ${whereSql}
     GROUP BY
       u.id, u.email, u.username, u.password_hash, u.avatar, u.avatar_key,
-      u.vip_enabled, u.vip_expires_at, u.sync_version, u.sync_log_floor, u.created_at, u.updated_at, u.last_login_at
+      u.vip_enabled, u.vip_expires_at, u.vip_level, u.sync_version, u.sync_log_floor, u.created_at, u.updated_at, u.last_login_at
   `;
 }
 
@@ -368,7 +384,8 @@ export async function updateAdminUser(id: string, input: AdminUserUpdateInput): 
     if (existing && existing.id !== id) throw new Error("该用户名已被使用");
   }
   const hasProfileUpdate = input.username !== undefined || input.email !== undefined || input.avatarKey !== undefined;
-  const hasVipUpdate = input.vipEnabled !== undefined || input.vipExpiresAt !== undefined;
+  const hasVipUpdate =
+    input.vipEnabled !== undefined || input.vipExpiresAt !== undefined || input.vipLevel !== undefined;
   if (hasProfileUpdate) {
     (await updateUserProfile(id, input));
   }
@@ -377,11 +394,90 @@ export async function updateAdminUser(id: string, input: AdminUserUpdateInput): 
       id,
       input.vipEnabled ?? current.vipEnabled,
       input.vipExpiresAt !== undefined ? input.vipExpiresAt : current.vipExpiresAt,
+      input.vipLevel,
     ));
   }
   const detail = (await readAdminUserDetail(id));
   if (!detail) throw new Error("用户资料更新失败");
   return detail;
+}
+
+export async function resolveAdminUsersByIdentifiers(
+  identifiers: string[],
+): Promise<{ matched: AdminVipResolvedUser[]; notFound: string[] }> {
+  const matchedMap = new Map<string, AdminVipResolvedUser>();
+  const notFound: string[] = [];
+  const seenInputs = new Set<string>();
+  const now = Date.now();
+
+  for (const raw of identifiers) {
+    const clean = raw.trim();
+    if (!clean) continue;
+    const normKey = clean.includes("@") ? clean.toLowerCase() : clean;
+    if (seenInputs.has(normKey)) continue;
+    seenInputs.add(normKey);
+
+    const user = clean.includes("@")
+      ? await readUserByEmail(clean.toLowerCase())
+      : (await readUserById(clean)) ?? (await readUserByEmail(clean.toLowerCase()));
+    if (!user) {
+      notFound.push(clean);
+      continue;
+    }
+    if (!matchedMap.has(user.id)) {
+      matchedMap.set(user.id, {
+        id: user.id,
+        username: user.username,
+        email: user.email.endsWith("@phone.invalid") ? "" : user.email,
+        vipEnabled: user.vipEnabled,
+        vip: user.vipEnabled && user.vipExpiresAt !== null && user.vipExpiresAt > now,
+        vipExpiresAt: user.vipExpiresAt,
+        vipLevel: user.vipLevel,
+      });
+    }
+  }
+  return { matched: [...matchedMap.values()], notFound };
+}
+
+export async function batchAssignUserVip(params: {
+  userIds: string[];
+  action: "grant" | "revoke";
+  vipLevel?: number;
+  durationDays?: number;
+  expiresAt?: number;
+}): Promise<{ updatedCount: number; skippedIds: string[] }> {
+  const db = getAppDb();
+  const now = Date.now();
+  const dedupedIds = [...new Set(params.userIds.map((s) => s.trim()).filter(Boolean))];
+  let updatedCount = 0;
+  const skippedIds: string[] = [];
+
+  await db.transaction(async (tx) => {
+    for (const userId of dedupedIds) {
+      const exists = await tx.queryOne<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId]);
+      if (!exists) {
+        skippedIds.push(userId);
+        continue;
+      }
+      if (params.action === "revoke") {
+        await tx.execute(
+          "UPDATE users SET vip_enabled = 0, vip_expires_at = NULL, updated_at = ? WHERE id = ?",
+          [now, userId],
+        );
+      } else {
+        await applyVipGrantInTx(tx, {
+          userId,
+          vipLevel: params.vipLevel ?? 1,
+          durationDays: params.durationDays,
+          expiresAt: params.expiresAt,
+          nowMs: now,
+        });
+      }
+      updatedCount++;
+    }
+  });
+
+  return { updatedCount, skippedIds };
 }
 
 export async function deleteAdminUser(id: string): Promise<boolean> {

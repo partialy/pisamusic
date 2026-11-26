@@ -22,6 +22,8 @@ import { getUserAuth, requireUserJwt, type UserAuthedRequest } from "../middlewa
 import { sendContactCode, sendEmailCode, verifyContactCode, verifyEmailCode, type ContactChannel, type ContactCodePurpose, type EmailCodePurpose } from "../services/emailCodeService";
 import { createAccountAvatarUploadToken, deleteAccountAvatarObject, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
 import { issueUserAuthToken, type UserAuthTokenResult } from "../services/userTokenService";
+import { getAppDb } from "../db/appDb";
+import { adjustExtraQuotaInTx, getRegisterGiftExtraCount } from "../db/songDownloadStore";
 import { fail, ok } from "../types/response";
 
 export const authRouter = Router();
@@ -185,6 +187,21 @@ authRouter.post("/phone-code", async (req, res) => {
   }
 });
 
+async function grantRegisterGift(userId: string): Promise<void> {
+  const giftCount = getRegisterGiftExtraCount();
+  if (giftCount <= 0) return;
+  await getAppDb().transaction(async (tx) => {
+    await adjustExtraQuotaInTx(tx, {
+      subjectType: "user",
+      subjectKey: userId,
+      delta: giftCount,
+      sourceType: "register_gift",
+      refId: userId,
+      remark: "新用户注册赠送",
+    });
+  });
+}
+
 authRouter.post("/register", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
@@ -212,6 +229,7 @@ authRouter.post("/register", async (req, res) => {
       username,
       passwordHash: bcrypt.hashSync(password, 10),
     }));
+    await grantRegisterGift(user.id);
     return res.json(ok(await issueToken(user), "注册成功"));
   } catch (error) {
     handleError(res, error, "注册失败");
@@ -254,6 +272,7 @@ authRouter.post("/login/code", async (req, res) => {
       username: (await autoUsername(contact)),
       passwordHash: bcrypt.hashSync(randomUUID(), 10),
     }));
+    await grantRegisterGift(created.id);
     return res.json(ok((await loginResult(created)), "注册并登录成功"));
   } catch (error) {
     handleError(res, error, "登录失败");

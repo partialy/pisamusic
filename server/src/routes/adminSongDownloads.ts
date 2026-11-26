@@ -5,10 +5,12 @@ import {
   getAdminSongDownloadOverview,
   getAdminSongDownloadRecords,
   getAdminSubjectQuotaDetail,
+  getAdminTierPolicies,
   getAdminTopDownloadedSongs,
   saveAdminBatchSubjectQuotaOverride,
   saveAdminDefaultQuotaLimits,
   saveAdminSubjectQuotaOverride,
+  saveAdminTierPolicies,
 } from "../services/songDownloadAdminService";
 import { SongDownloadValidationError } from "../services/songDownloadService";
 import { fail, ok } from "../types/response";
@@ -60,6 +62,22 @@ adminSongDownloadsRouter.put("/default-quota", async (req, res) => {
     return res.json(ok(await saveAdminDefaultQuotaLimits(req.body), "默认下载配额已保存"));
   } catch (error) {
     return handleError(res, error, "保存默认下载配额失败");
+  }
+});
+
+adminSongDownloadsRouter.get("/tier-policies", async (_req, res) => {
+  try {
+    return res.json(ok(await getAdminTierPolicies()));
+  } catch (error) {
+    return handleError(res, error, "读取下载档位策略失败");
+  }
+});
+
+adminSongDownloadsRouter.put("/tier-policies", async (req, res) => {
+  try {
+    return res.json(ok(await saveAdminTierPolicies(req.body), "下载档位策略已保存"));
+  } catch (error) {
+    return handleError(res, error, "保存下载档位策略失败");
   }
 });
 

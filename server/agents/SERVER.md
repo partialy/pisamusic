@@ -110,12 +110,12 @@
 - sync最终胜出项同事务处理权威cover/共享引用，缺字段保留、null解绑、父删释放、no-op验证；资源不可用400，不能任传key。最后解绑或从未引用超过七天、上传token过期后，由既有syncCleanup每日门禁/维护排空有界清理。事务认领deleting+引用复核防并发重引用，612幂等；失败/中断五分钟lease后可重试，保留错误和对象账本。Admin文件删除沿用同一保护。
 - 删除用户先在用户锁事务中清引用、撤销资源/会话owner_user_id，再删除身份；保留资源与file_records以七天回收物理对象，不能用用户FK cascade丢弃回收记录。跨数据库复制不传七牛对象，副本不得与源同时启用维护清理。
 
-## 歌曲下载统计与配额 (Schema v6)
+## 歌曲下载统计与配额及兑换码 (Schema v6 / v10)
 
-- Schema v6 新增 `song_download_quota_states`、`song_download_batches`、`song_download_records` 三表（SQLite `songDownloadSchema.ts`、MySQL 5.7 `mysql/songDownloads.ts`、增量迁移 `songDownloadMigration.ts` 与结构校验 `songDownloadValidation.ts`），同步纳入 `runner.ts` 与 `operations/migrationEngine.ts` 复制/恢复校验。
-- 客户端路由 `/api/song-downloads/*`（`routes/songDownloads.ts` → `services/songDownloadService.ts` → `db/songDownloadStore.ts`）必须携带有效 `x-pm-device-token`（`401` 不降级）；已登录账号（`Authorization`）按 `user` 主体共享配额，未登录按 `device` 主体隔离。
-- `POST /api/song-downloads/acquire` 通过 `clientBatchId` 幂等防重，在同一事务内按北京时间（`utils/beijingTime.ts`）复位过期日/周（周一 0 点）/月（1 号 0 点）计数器、校验并扣减配额，然后写入批次与单曲明细；不足时只返回实时余量不扣费。
-- 默认配额由 `runtime_configs` 的 `songDownload.defaultDailyLimit` / `defaultWeeklyLimit` / `defaultMonthlyLimit` / `defaultTotalLimit` 维护（`-1` 表示不限制，初始默认日/周/月 `-1`、总数 `999999`）。管理端路由挂载 `/api/admin/song-downloads/*`（`routes/adminSongDownloads.ts` → `services/songDownloadAdminService.ts` → `db/songDownloadAdminStore.ts`）；删除用户或设备时同步清理对应 `song_download_quota_states` 覆盖记录，保留历史下载明细。
+- Schema v6 新增 `song_download_quota_states`、`song_download_batches`、`song_download_records` 三表；Schema v10（`songDownloadV10Migration.ts`）扩展 `users.vip_level`（默认 1，不向客户端暴露）、`song_download_quota_states.extra_balance`、`song_download_batches.regular_charged_count` / `extra_charged_count`，并新增 `song_download_vip_tiers`、`song_download_extra_logs`、`redemption_codes`、`redemption_logs` 四表，同步纳入 `runner.ts`、`songDownloadValidation.ts` 与 `operations/migrationEngine.ts` 复制/恢复校验。
+- 客户端路由 `/api/song-downloads/*`（`routes/songDownloads.ts` → `services/songDownloadService.ts` → `db/songDownloadStore.ts`）必须携带有效 `x-pm-device-token`（`401` 不降级）；已登录账号按 `user` 共享配额，未登录游客按 `device` 隔离并下发 `isGuest` / `extraRemaining`。四档优先级：`账号/设备独立覆盖 > 有效 VIP 隐藏档位(1..N) > 大众用户 > 游客设备`。
+- `POST /api/song-downloads/acquire` 通过 `clientBatchId` 幂等防重，在同一事务内按北京时间（`utils/beijingTime.ts`）复位过期日/周（周一 0 点）/月（1 号 0 点）计数器；先扣常规配额，不足部分从 `extra_balance` 抵扣（消耗的额外次数不计入日/周/月/总已用）。
+- 游客与大众档位默认配额及新注册赠送额外次数由 `runtime_configs`（`songDownload.guest*Limit` 2/10/30/30、`songDownload.standard*Limit` 10/100/1000/-1、`songDownload.registerGiftExtraCount` 10）维护；VIP 档位 `1..N` 存 `song_download_vip_tiers`。管理端路由挂载 `/api/admin/song-downloads/*`（含 `/tier-policies`）、`/api/admin/users/vip/resolve|batch`（`db/adminUserStore.ts`，支持时间叠加与自动升档）及 `/api/admin/redemption-codes/*`（`db/redemptionStore.ts`）；客户端兑换挂载加密 `POST /api/redemption-codes/redeem`（IP 60 秒 20 次限流）。
 
 ## 侧栏动态菜单 (Schema v8)
 

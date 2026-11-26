@@ -99,6 +99,7 @@ function mapRowToRecord(row: VerificationCodeRow): VerificationCodeRecord {
       avatarKey: (row.u_avatar_key as any) || "default",
       vipEnabled: row.u_vip_enabled === 1,
       vipExpiresAt: row.u_vip_expires_at,
+      vipLevel: 1,
       syncVersion: row.u_sync_version || 0,
       createdAt: row.u_created_at || 0,
       updatedAt: row.u_updated_at || 0,
