@@ -26,6 +26,7 @@ import { useAdminLayout } from "../layouts/AdminLayoutContext";
 import UserManagementTab from "../components/tabs/UserManagementTab";
 import UserDetailModal from "../components/modals/UserDetailModal";
 import UserEditModal from "../components/modals/UserEditModal";
+import BatchVipModal from "../components/modals/BatchVipModal";
 import DirectMessageComposeModal from "../components/modals/DirectMessageComposeModal";
 import { useDirectMessageComposer } from "../hooks/useDirectMessageComposer";
 
@@ -42,6 +43,7 @@ export default function UserManagementPage() {
   const [selectedAdminUser, setSelectedAdminUser] = useState<AdminUserDetail | null>(null);
   const [editingAdminUser, setEditingAdminUser] = useState<AdminUserListItem | null>(null);
   const [adminUserSaving, setAdminUserSaving] = useState(false);
+  const [batchVipOpen, setBatchVipOpen] = useState(false);
   const [adminUserDetailTab, setAdminUserDetailTab] = useState<AdminUserDetailTab>("favoriteSongs");
   const [adminUserLibraryStatus, setAdminUserLibraryStatus] = useState<AdminUserLibraryStatus>("active");
   const [adminUserPlaylistFilter, setAdminUserPlaylistFilter] = useState<string | undefined>(undefined);
@@ -324,6 +326,7 @@ export default function UserManagementPage() {
         onEdit={setEditingAdminUser}
         onDelete={(user) => void handleDeleteAdminUser(user)}
         onMessage={directMessageComposer.openComposer}
+        onBatchVip={() => setBatchVipOpen(true)}
       />
 
       {selectedAdminUser && (
@@ -372,6 +375,12 @@ export default function UserManagementPage() {
           onSubmit={directMessageComposer.submit}
         />
       )}
+
+      <BatchVipModal
+        open={batchVipOpen}
+        onClose={() => setBatchVipOpen(false)}
+        onSuccess={() => void loadAdminUsers()}
+      />
     </>
   );
 }

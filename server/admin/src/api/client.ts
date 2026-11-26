@@ -30,6 +30,8 @@ import type {
   AdminUserSyncLogFilter,
   AdminUserSyncLogsPage,
   AdminUserUpdatePayload,
+  AdminVipResolvedUser,
+  BatchVipAssignPayload,
   DesktopUpdateAssetInfo,
   DirectMessageTargetKind,
   DynamicConfigItem,
@@ -830,6 +832,34 @@ export async function deleteAdminUser(id: string): Promise<void> {
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+}
+
+export async function resolveAdminUsersForVip(
+  rawText: string,
+): Promise<{ matched: AdminVipResolvedUser[]; notFound: string[] }> {
+  const res = await fetchWithAuth("/api/admin/users/vip/resolve", {
+    method: "POST",
+    body: JSON.stringify({ rawText }),
+  });
+  const body = await parseJson<{ matched: AdminVipResolvedUser[]; notFound: string[] }>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function batchAssignAdminUserVip(
+  payload: BatchVipAssignPayload,
+): Promise<{ updatedCount: number; skippedIds: string[] }> {
+  const res = await fetchWithAuth("/api/admin/users/vip/batch", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const body = await parseJson<{ updatedCount: number; skippedIds: string[] }>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
 }
 
 export async function fetchAdminFeedback(filter: AdminFeedbackFilter): Promise<AdminFeedbackListResponse> {

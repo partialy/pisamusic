@@ -5,6 +5,7 @@
 ## 技术栈与命令
 
 - React 18 + TypeScript + Ant Design + React Router + Vite；图表使用 Recharts，优先复用项目现有组件、请求封装与交互模式。
+- Admin `vite.config.ts` 固定 `base: "/partialy/"`，并通过同目录 `nginx.partialy.conf.example`（不进入 `web-admin/` 打包产物）隔离 `/`（返回 404）、`/partialy/`（Admin）与 `/h5/`（`web-h5/`）。
 - 以下命令从仓库根目录执行：开发 `pnpm --dir server/admin dev`，构建 `pnpm --dir server/admin build`。
 - 构建产物输出到 `server/web-admin/`，已忽略，不提交。不要恢复旧 `build:web`、`deploy:web` 或复制到 `server/web/` 的流程。
 - 页面、业务组件、状态与请求按职责拆分；不在页面复制加密、鉴权或服务端业务规则。
@@ -32,7 +33,7 @@
 - 邮件 provider 默认含 `aliyun / 阿里云`、`resend / Resend`。端点批量替换只修改 hostname，保留协议、端口、路径，替换后仍须“保存端点”。
 - 服务发现的 API / realtime 地址须为纯 origin，仅 HTTPS（开发 localhost 可用 HTTP），不带认证信息、路径、query 或 hash；更新 feed 可含路径，但必须是无认证信息、query、hash 的 HTTPS URL，后端保存时也须校验。
 - 动态配置固定 `html / string / number / url`；运行时策略通过 `/api/admin/runtime-config` 维护。听歌等级配置按 `expectedVersion` 乐观并发整组提交，区间规则查阅[跨模块契约](../../agents/CROSS_MODULE.md)。
-- 「曲库与资源 → 歌曲下载」（`/song-downloads`，页面 `SongDownloadsPage.tsx`）提供下载概览与 Recharts 趋势、Top 排行、用户/设备下载流水及全局/独立配额策略管理（对接 `/api/admin/song-downloads/*`）；支持通过多选 Modal（`QuotaTargetPickerModal.tsx`，覆盖账号 / Android 设备 / PC 设备）及列表多选批量配置与清零配额。
+- 「曲库与资源 → 歌曲下载」（`/song-downloads`，页面 `SongDownloadsPage.tsx`）提供下载概览与 Recharts 趋势、Top 排行、用户/设备下载流水及四档配额策略（游客、大众+新注册赠送、动态 VIP 1..N 档、账号/设备独立覆盖与额外下载次数），支持多选 Modal 与列表多选批量配置。用户管理新增「批量赋予 VIP」弹窗（两步先查后赋，按邮箱/ID 批量叠加时间与升档）及编辑弹窗隐藏 VIP 档位选择；「运营与发布 → 兑换码管理」（`/redemption-codes`，页面 `RedemptionCodesPage.tsx` + `components/redemption/RedemptionCodeTable.tsx`）支持按批次命名与聚合管理（左栏批次列表、右栏批次内码分页与搜码定位）及「全部兑换码」直查切换、批量停用与删除（已使用码禁止删除、已核销完锁定状态），以及核销流水查询。
 - 「运营与发布 → 侧栏菜单」（`/sidebar-menus`，页面 `SidebarMenuManagementPage.tsx`）维护手机端侧栏【内置入口控制】（`import_playlists`、`link_import`、`sleep_timer`、`theme` 的显隐、名称覆盖与图标）、【横栏区块】（有序多区块 `listSections`，支持标题或自动分割线）、【四宫格入口】（4 列网格、顶部/底部位置），支持七牛图片直传 `usageType='sidebar-menu-icon'` / HTTPS 图片 / SVG 源码 / 预置图标、文字/一次性红点/常驻红点及版本号重置，以及 `web` / `fullscreen_web` / `app_action`（13 项 App 原生页面或功能跳转）；右侧 `SidebarMenuPreview.tsx` 对齐最新客户端样式（底部「设置/扫码/反馈」吸底栏、无阴影列表与 4 列四宫格）实时预览。
 
 ## 契约维护与验证

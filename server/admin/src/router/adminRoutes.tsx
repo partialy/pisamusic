@@ -15,6 +15,7 @@ export type AdminRouteKey =
   | "announcements"
   | "sidebarMenus"
   | "content"
+  | "redemptionCodes"
   | "feedback"
   | "faultReports"
   | "system"
@@ -66,6 +67,7 @@ export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "announcements", path: "/announcements", title: "公告管理", groupKey: "operation_group", groupTitle: "运营与发布" },
   { key: "sidebarMenus", path: "/sidebar-menus", title: "侧栏菜单", groupKey: "operation_group", groupTitle: "运营与发布", hideGlobalActions: true },
   { key: "content", path: "/content", title: "内容与协议", groupKey: "operation_group", groupTitle: "运营与发布" },
+  { key: "redemptionCodes", path: "/redemption-codes", title: "兑换码管理", groupKey: "operation_group", groupTitle: "运营与发布", hideGlobalActions: true },
   { key: "feedback", path: "/feedback", title: "反馈管理", groupKey: "maintenance_group", groupTitle: "监控与运维" },
   { key: "faultReports", path: "/fault-reports", title: "故障管理", groupKey: "maintenance_group", groupTitle: "监控与运维" },
   { key: "system", path: "/system", title: "系统配置", groupKey: "system_group", groupTitle: "系统设置" },

@@ -13,6 +13,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  CrownOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
@@ -43,6 +44,7 @@ type Props = {
   onEdit: (user: AdminUserListItem) => void;
   onDelete: (user: AdminUserListItem) => void;
   onMessage: (target: DirectMessageComposeTarget) => void;
+  onBatchVip: () => void;
 };
 
 export default function UserManagementTab({
@@ -60,6 +62,7 @@ export default function UserManagementTab({
   onEdit,
   onDelete,
   onMessage,
+  onBatchVip,
 }: Props) {
   const [keyword, setKeyword] = useState(filter.keyword ?? "");
 
@@ -101,7 +104,7 @@ export default function UserManagementTab({
                 </Text>
                 {isVip && (
                   <Tag color="gold" className="!mr-0 text-[10px] font-extrabold italic">
-                    VIP
+                    VIP Lv{record.vipLevel ?? 1}
                   </Tag>
                 )}
               </div>
@@ -241,13 +244,23 @@ export default function UserManagementTab({
           </div>
         }
         extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={onRefresh}
-            loading={loading}
-          >
-            刷新
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              ghost
+              icon={<CrownOutlined />}
+              onClick={onBatchVip}
+            >
+              批量赋予 VIP
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={onRefresh}
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Space>
         }
       >
         <div className="mb-4 flex flex-wrap items-center gap-3">

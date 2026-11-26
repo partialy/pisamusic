@@ -61,6 +61,8 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
   const [weeklyLimit, setWeeklyLimit] = useState<number | null>(null);
   const [monthlyLimit, setMonthlyLimit] = useState<number | null>(null);
   const [totalLimit, setTotalLimit] = useState<number | null>(null);
+  const [extraBalance, setExtraBalance] = useState<number>(0);
+  const [extraDelta, setExtraDelta] = useState<number>(0);
   const [resetDayUsed, setResetDayUsed] = useState(false);
   const [resetWeekUsed, setResetWeekUsed] = useState(false);
   const [resetMonthUsed, setResetMonthUsed] = useState(false);
@@ -74,12 +76,16 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
       setWeeklyLimit(null);
       setMonthlyLimit(null);
       setTotalLimit(null);
+      setExtraBalance(0);
+      setExtraDelta(0);
     } else if (target) {
       setOverrideEnabled(target.overrideEnabled);
       setDailyLimit(target.daily.limit);
       setWeeklyLimit(target.weekly.limit);
       setMonthlyLimit(target.monthly.limit);
       setTotalLimit(target.total.limit);
+      setExtraBalance(target.extraRemaining ?? 0);
+      setExtraDelta(0);
     }
     setResetDayUsed(false);
     setResetWeekUsed(false);
@@ -97,6 +103,11 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
         weeklyLimit: overrideEnabled ? weeklyLimit : null,
         monthlyLimit: overrideEnabled ? monthlyLimit : null,
         totalLimit: overrideEnabled ? totalLimit : null,
+        ...(isBatch
+          ? extraDelta !== 0
+            ? { extraDelta }
+            : {}
+          : { extraBalance }),
         resetDayUsed,
         resetWeekUsed,
         resetMonthUsed,
@@ -171,6 +182,7 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
               <div className="font-mono text-slate-400">{target.subjectKey}</div>
               <div className="mt-1">
                 当前已用：日 {target.daily.used} / 周 {target.weekly.used} / 月 {target.monthly.used} / 总 {target.total.used}
+                <span className="ml-2 text-emerald-600">额外可用：{target.extraRemaining ?? 0}</span>
               </div>
             </div>
           ) : null}
@@ -178,7 +190,7 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
           <div className="flex items-center justify-between py-1">
             <div>
               <div className="text-sm font-semibold text-slate-800">启用独立配额覆盖</div>
-              <div className="text-xs text-slate-400">关闭时跟随全局默认配额策略</div>
+              <div className="text-xs text-slate-400">关闭时跟随对应档位策略（VIP / 大众用户 / 游客）</div>
             </div>
             <Switch checked={overrideEnabled} onChange={setOverrideEnabled} />
           </div>
@@ -213,6 +225,42 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
             disabled={!overrideEnabled}
             onChange={setTotalLimit}
           />
+
+          <Divider className="!my-2" />
+
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <div>
+              <div className="text-sm font-medium text-slate-800">
+                {isBatch ? "批量增减额外次数" : "额外可用次数（永久）"}
+              </div>
+              <div className="text-xs text-slate-400">
+                {isBatch
+                  ? "正数增加、负数扣减（最低降至 0）；不占日/周/月/总配额"
+                  : "常规配额不足时自动抵扣，不占用日/周/月/总配额"}
+              </div>
+            </div>
+            {isBatch ? (
+              <InputNumber
+                min={-100000}
+                max={100000}
+                precision={0}
+                value={extraDelta}
+                onChange={(v) => setExtraDelta(typeof v === "number" ? Math.trunc(v) : 0)}
+                addonAfter="次"
+                className="w-36"
+              />
+            ) : (
+              <InputNumber
+                min={0}
+                max={100000000}
+                precision={0}
+                value={extraBalance}
+                onChange={(v) => setExtraBalance(typeof v === "number" ? Math.max(0, Math.trunc(v)) : 0)}
+                addonAfter="次"
+                className="w-36"
+              />
+            )}
+          </div>
 
           <Divider className="!my-2" />
 

@@ -1,28 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Switch, Table, Tag, message } from "antd";
+import { Button, Card, Input, Select, Space, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SaveOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 import {
-  fetchDefaultDownloadQuota,
   fetchQuotaStates,
   fetchSubjectQuotaDetail,
-  saveDefaultDownloadQuota,
+  fetchTierPolicies,
+  saveTierPolicies,
 } from "../../api/songDownloads";
 import { glassCardClasses } from "../../constants/theme";
 import type {
   AdminQuotaStateItem,
+  AdminTierPoliciesPayload,
   QuotaDimensionSnapshot,
-  QuotaLimits,
   QuotaTargetRef,
+  SongDownloadTierSource,
 } from "../../types/songDownloads";
 import QuotaOverrideModal from "./QuotaOverrideModal";
 import QuotaTargetPickerModal from "./QuotaTargetPickerModal";
+import TierPoliciesSection from "./TierPoliciesSection";
 
 function formatDim(dim: QuotaDimensionSnapshot): string {
   if (dim.limit === null) return `已用 ${dim.used} / 不限`;
@@ -38,14 +39,23 @@ function toTargetRef(item: AdminQuotaStateItem): QuotaTargetRef {
   };
 }
 
+const TIER_BADGE_MAP: Record<SongDownloadTierSource, { label: string; color: string }> = {
+  override: { label: "独立覆盖", color: "gold" },
+  vip: { label: "VIP档", color: "magenta" },
+  standard: { label: "大众档", color: "blue" },
+  guest: { label: "游客档", color: "default" },
+};
+
+const DEFAULT_TIER_POLICIES: AdminTierPoliciesPayload = {
+  guest: { daily: 2, weekly: 10, monthly: 30, total: 30 },
+  standard: { daily: 10, weekly: 100, monthly: 1000, total: null },
+  registerGiftExtraCount: 10,
+  vipTiers: [{ level: 1, name: "VIP 1档", daily: null, weekly: null, monthly: null, total: null }],
+};
+
 export default function SongDownloadQuotaTab() {
-  const [defaults, setDefaults] = useState<QuotaLimits>({
-    daily: null,
-    weekly: null,
-    monthly: null,
-    total: 999999,
-  });
-  const [savingDefaults, setSavingDefaults] = useState(false);
+  const [policies, setPolicies] = useState<AdminTierPoliciesPayload>(DEFAULT_TIER_POLICIES);
+  const [savingPolicies, setSavingPolicies] = useState(false);
 
   const [subjectType, setSubjectType] = useState("all");
   const [keyword, setKeyword] = useState("");
@@ -61,9 +71,9 @@ export default function SongDownloadQuotaTab() {
   const [openingDetail, setOpeningDetail] = useState(false);
 
   useEffect(() => {
-    fetchDefaultDownloadQuota()
-      .then(setDefaults)
-      .catch((err) => message.error(err instanceof Error ? err.message : "读取默认配额失败"));
+    fetchTierPolicies()
+      .then(setPolicies)
+      .catch((err) => message.error(err instanceof Error ? err.message : "读取档位策略失败"));
   }, []);
 
   const loadStates = useCallback(async () => {
@@ -88,17 +98,17 @@ export default function SongDownloadQuotaTab() {
     void loadStates();
   }, [loadStates]);
 
-  const handleSaveDefaults = async () => {
-    setSavingDefaults(true);
+  const handleSavePolicies = async () => {
+    setSavingPolicies(true);
     try {
-      const saved = await saveDefaultDownloadQuota(defaults);
-      setDefaults(saved);
-      message.success("全局默认下载配额已保存");
+      const saved = await saveTierPolicies(policies);
+      setPolicies(saved);
+      message.success("四档下载配额策略已保存");
       void loadStates();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "保存失败");
     } finally {
-      setSavingDefaults(false);
+      setSavingPolicies(false);
     }
   };
 
@@ -127,69 +137,36 @@ export default function SongDownloadQuotaTab() {
     await openConfigForTargets(targets);
   };
 
-  const renderDefaultField = (key: keyof QuotaLimits, label: string, hint: string) => {
-    const val = defaults[key];
-    const unlimited = val === null;
-    return (
-      <Col xs={24} sm={12} lg={6} key={key}>
-        <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-semibold text-sm text-slate-800">{label}</span>
-            <Switch
-              size="small"
-              checked={!unlimited}
-              checkedChildren="限制"
-              unCheckedChildren="不限"
-              onChange={(checked) =>
-                setDefaults((prev) => ({
-                  ...prev,
-                  [key]: checked ? (key === "total" ? 999999 : 100) : null,
-                }))
-              }
-            />
-          </div>
-          <div className="text-xs text-slate-400 mb-2">{hint}</div>
-          <InputNumber
-            min={0}
-            max={100000000}
-            precision={0}
-            disabled={unlimited}
-            value={unlimited ? undefined : val}
-            placeholder="不限制"
-            className="w-full"
-            addonAfter="次"
-            onChange={(n) =>
-              setDefaults((prev) => ({
-                ...prev,
-                [key]: typeof n === "number" ? Math.max(0, Math.trunc(n)) : 0,
-              }))
-            }
-          />
-        </div>
-      </Col>
-    );
-  };
-
   const columns: ColumnsType<AdminQuotaStateItem> = [
     {
       title: "主体",
+      render: (_v, r) => {
+        const badge = r.tierSource ? TIER_BADGE_MAP[r.tierSource] : null;
+        return (
+          <div>
+            <Space size={6}>
+              <Tag color={r.subjectType === "user" ? "blue" : "purple"}>
+                {r.subjectType === "user" ? "账号" : "设备"}
+              </Tag>
+              <span className="font-medium text-slate-800">{r.displayName}</span>
+              {badge && <Tag color={badge.color}>{badge.label}</Tag>}
+            </Space>
+            <div className="font-mono text-xs text-slate-400 mt-0.5">{r.subjectKey}</div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "额外次数",
+      width: 100,
       render: (_v, r) => (
-        <div>
-          <Space size={6}>
-            <Tag color={r.subjectType === "user" ? "blue" : "purple"}>
-              {r.subjectType === "user" ? "账号" : "设备"}
-            </Tag>
-            <span className="font-medium text-slate-800">{r.displayName}</span>
-            {r.overrideEnabled && <Tag color="gold">独立覆盖</Tag>}
-          </Space>
-          <div className="font-mono text-xs text-slate-400 mt-0.5">{r.subjectKey}</div>
-        </div>
+        <span className="text-xs font-medium text-emerald-600">{r.extraRemaining ?? 0}</span>
       ),
     },
-    { title: "每日", width: 170, render: (_v, r) => <span className="text-xs">{formatDim(r.daily)}</span> },
-    { title: "每周", width: 170, render: (_v, r) => <span className="text-xs">{formatDim(r.weekly)}</span> },
-    { title: "每月", width: 170, render: (_v, r) => <span className="text-xs">{formatDim(r.monthly)}</span> },
-    { title: "总计", width: 170, render: (_v, r) => <span className="text-xs">{formatDim(r.total)}</span> },
+    { title: "每日", width: 160, render: (_v, r) => <span className="text-xs">{formatDim(r.daily)}</span> },
+    { title: "每周", width: 160, render: (_v, r) => <span className="text-xs">{formatDim(r.weekly)}</span> },
+    { title: "每月", width: 160, render: (_v, r) => <span className="text-xs">{formatDim(r.monthly)}</span> },
+    { title: "总计", width: 160, render: (_v, r) => <span className="text-xs">{formatDim(r.total)}</span> },
     {
       title: "操作",
       width: 100,
@@ -212,42 +189,12 @@ export default function SongDownloadQuotaTab() {
 
   return (
     <div className="space-y-4">
-      <Card
-        className={glassCardClasses}
-        title="全局默认下载配额策略"
-        extra={
-          <Space wrap>
-            <Button
-              size="small"
-              onClick={() => setDefaults({ daily: 10, weekly: 30, monthly: 100, total: null })}
-            >
-              预设：仅限周期
-            </Button>
-            <Button
-              size="small"
-              onClick={() => setDefaults({ daily: null, weekly: null, monthly: null, total: 999999 })}
-            >
-              预设：仅限总数(999999)
-            </Button>
-            <Button
-              size="small"
-              onClick={() => setDefaults({ daily: null, weekly: null, monthly: null, total: null })}
-            >
-              预设：双不限
-            </Button>
-            <Button type="primary" icon={<SaveOutlined />} loading={savingDefaults} onClick={handleSaveDefaults}>
-              保存默认策略
-            </Button>
-          </Space>
-        }
-      >
-        <Row gutter={[12, 12]}>
-          {renderDefaultField("daily", "每日上限", "北京时间 0 点刷新")}
-          {renderDefaultField("weekly", "每周上限", "北京时间周一 0 点刷新")}
-          {renderDefaultField("monthly", "每月上限", "北京时间 1 号 0 点刷新")}
-          {renderDefaultField("total", "总次数上限", "累计总限额，不重置")}
-        </Row>
-      </Card>
+      <TierPoliciesSection
+        policies={policies}
+        saving={savingPolicies}
+        onChange={setPolicies}
+        onSave={() => void handleSavePolicies()}
+      />
 
       <Card
         className={glassCardClasses}

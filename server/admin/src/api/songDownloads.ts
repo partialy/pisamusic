@@ -2,6 +2,7 @@ import { fetchWithAuth, parseJson } from "./client";
 import type { PaginatedListData } from "../types/config";
 import type {
   AdminQuotaStateItem,
+  AdminTierPoliciesPayload,
   BatchQuotaOverridePayload,
   QuotaLimits,
   QuotaOverridePayload,
@@ -66,6 +67,19 @@ export async function fetchDefaultDownloadQuota(): Promise<QuotaLimits> {
 
 export async function saveDefaultDownloadQuota(payload: QuotaLimits): Promise<QuotaLimits> {
   const res = await fetchWithAuth("/api/admin/song-downloads/default-quota", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return unwrap(res);
+}
+
+export async function fetchTierPolicies(): Promise<AdminTierPoliciesPayload> {
+  const res = await fetchWithAuth("/api/admin/song-downloads/tier-policies");
+  return unwrap(res);
+}
+
+export async function saveTierPolicies(payload: AdminTierPoliciesPayload): Promise<AdminTierPoliciesPayload> {
+  const res = await fetchWithAuth("/api/admin/song-downloads/tier-policies", {
     method: "PUT",
     body: JSON.stringify(payload),
   });

@@ -426,6 +426,7 @@ export type AdminUserListItem = {
   vipEnabled: boolean;
   vip: boolean;
   vipExpiresAt: number | null;
+  vipLevel?: number;
   syncVersion: number;
   syncLogFloor?: number;
   createdAt: number;
@@ -508,6 +509,26 @@ export type AdminUserUpdatePayload = {
   email: string;
   vipEnabled: boolean;
   vipExpiresAt: number | null;
+  vipLevel?: number;
+};
+
+export type AdminVipResolvedUser = {
+  id: string;
+  username: string;
+  email: string;
+  vipEnabled: boolean;
+  vip: boolean;
+  vipExpiresAt: number | null;
+  vipLevel: number;
+};
+
+export type BatchVipAssignPayload = {
+  userIds: string[];
+  action: "grant" | "revoke";
+  vipLevel?: number;
+  mode?: "duration_days" | "expires_at";
+  durationDays?: number;
+  expiresAt?: number;
 };
 
 export type ShareType = "song" | "playlist";

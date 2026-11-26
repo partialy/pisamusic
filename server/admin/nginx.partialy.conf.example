@@ -1,0 +1,49 @@
+# PisaMusic Admin 域名入口隔离与客户端 H5 托管参考配置（Nginx）
+# 本文件仅作为部署示例放在 server/admin/ 目录，不会被 Vite 打包进 server/web-admin/。
+
+server {
+    listen 443 ssl http2;
+    server_name admin.example.com;
+
+    # 1. 根路径直接返回 404，隐藏管理后台入口
+    location = / {
+        return 404;
+    }
+
+    # 2. 必须通过 /partialy/ 访问管理后台（映射到 server/web-admin/）
+    location = /partialy {
+        return 301 /partialy/;
+    }
+
+    location ^~ /partialy/ {
+        alias /path/to/pisamusic/server/web-admin/;
+        index index.html;
+        try_files $uri $uri/ /partialy/index.html;
+    }
+
+    # 3. 客户端内嵌 H5 业务与文档页面（映射到 server/web-h5/）
+    location = /h5 {
+        return 301 /h5/;
+    }
+
+    location ^~ /h5/ {
+        alias /path/to/pisamusic/server/web-h5/;
+        index index.html;
+        try_files $uri $uri/ /h5/index.html;
+    }
+
+    # 4. 后端 API 与实时通道反代（指向 server Node 进程）
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:53380;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 5. 其余未匹配路径统一返回 404
+    location / {
+        return 404;
+    }
+}

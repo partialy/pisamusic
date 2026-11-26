@@ -1,10 +1,28 @@
 export type SongDownloadSubjectType = "user" | "device";
+export type SongDownloadTierSource = "override" | "vip" | "standard" | "guest";
 
 export type QuotaLimits = {
   daily: number | null;
   weekly: number | null;
   monthly: number | null;
   total: number | null;
+};
+
+export type VipTierConfig = {
+  level: number;
+  name: string;
+  daily: number | null;
+  weekly: number | null;
+  monthly: number | null;
+  total: number | null;
+  updatedAt?: number;
+};
+
+export type AdminTierPoliciesPayload = {
+  guest: QuotaLimits;
+  standard: QuotaLimits;
+  registerGiftExtraCount: number;
+  vipTiers: VipTierConfig[];
 };
 
 export type QuotaDimensionSnapshot = {
@@ -66,7 +84,10 @@ export type SongDownloadRecordItem = {
 export type AdminQuotaStateItem = {
   subjectType: SongDownloadSubjectType;
   subjectKey: string;
+  isGuest?: boolean;
   overrideEnabled: boolean;
+  tierSource?: SongDownloadTierSource;
+  extraRemaining: number;
   daily: QuotaDimensionSnapshot;
   weekly: QuotaDimensionSnapshot;
   monthly: QuotaDimensionSnapshot;
@@ -82,6 +103,8 @@ export type QuotaOverridePayload = {
   weeklyLimit: number | null;
   monthlyLimit: number | null;
   totalLimit: number | null;
+  extraBalance?: number;
+  extraDelta?: number;
   resetDayUsed?: boolean;
   resetWeekUsed?: boolean;
   resetMonthUsed?: boolean;

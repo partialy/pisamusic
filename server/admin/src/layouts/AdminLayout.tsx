@@ -29,6 +29,7 @@ import {
   ExportOutlined,
   FileTextOutlined,
   FolderOutlined,
+  GiftOutlined,
   GlobalOutlined,
   KeyOutlined,
   LogoutOutlined,
@@ -167,6 +168,7 @@ export default function AdminLayout() {
           { key: "announcements", icon: <NotificationOutlined />, label: "公告管理" },
           { key: "sidebarMenus", icon: <MenuOutlined />, label: "侧栏菜单" },
           { key: "content", icon: <FileTextOutlined />, label: "内容与协议" },
+          { key: "redemptionCodes", icon: <GiftOutlined />, label: "兑换码管理" },
         ],
       },
       {
