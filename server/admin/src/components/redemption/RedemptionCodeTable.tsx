@@ -272,13 +272,14 @@ export default function RedemptionCodeTable({
                   {row.batchName || `批次 ${row.batchId.slice(0, 6)}`}
                 </div>
                 {onLocateBatch ? (
-                  <button
-                    type="button"
-                    className="text-[11px] text-blue-600 hover:underline font-mono"
+                  <Button
+                    type="link"
+                    size="small"
+                    className="!p-0 !h-auto font-mono text-[11px]"
                     onClick={() => onLocateBatch(row.batchId)}
                   >
                     定位批次 {row.batchId.slice(0, 8)}
-                  </button>
+                  </Button>
                 ) : (
                   <div className="text-[11px] text-slate-400 font-mono">{row.batchId.slice(0, 8)}</div>
                 )}
@@ -348,25 +349,28 @@ export default function RedemptionCodeTable({
     {
       title: "操作",
       width: 72,
+      align: "center",
       render: (_v, row) => {
         const hasUsed = row.usedCount > 0;
         if (hasUsed) {
           return (
             <Tooltip title="已使用过的兑换码保留核销审计，不允许删除">
-              <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled />
+              <Button size="small" type="link" danger icon={<DeleteOutlined />} disabled />
             </Tooltip>
           );
         }
         return (
-          <Popconfirm
-            title="确认删除该未使用的兑换码？"
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => void handleDeleteSingle(row)}
-          >
-            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+          <Tooltip title="删除兑换码">
+            <Popconfirm
+              title="确认删除该未使用的兑换码？"
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => void handleDeleteSingle(row)}
+            >
+              <Button size="small" type="link" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
         );
       },
     },
@@ -583,6 +587,7 @@ export default function RedemptionCodeTable({
       <Table
         rowKey="id"
         size="small"
+        bordered
         loading={loading}
         columns={columns}
         dataSource={rows}
@@ -612,6 +617,7 @@ export default function RedemptionCodeTable({
           current: page,
           pageSize: 20,
           total,
+          size: "small",
           onChange: setPage,
           showSizeChanger: false,
           showTotal: (t) => `共 ${t} 条`,

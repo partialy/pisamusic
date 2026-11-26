@@ -24,6 +24,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { deleteVerificationCode, fetchVerificationCodes } from "../../api/client";
+import { adminCardClasses } from "../../constants/theme";
 import type {
   VerificationCodeFilter,
   VerificationCodePurpose,
@@ -326,8 +327,9 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
     {
       title: "操作",
       key: "action",
-      width: 60,
+      width: 68,
       fixed: "right",
+      align: "center",
       render: (_, record) => (
         <Tooltip title="删除验证码记录">
           <Popconfirm
@@ -339,7 +341,7 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
             onConfirm={() => handleDelete(record)}
           >
             <Button
-              type="text"
+              type="link"
               danger
               size="small"
               icon={<DeleteOutlined />}
@@ -352,7 +354,7 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
   ];
 
   return (
-    <Card className="shadow-sm border-slate-200/80 rounded-xl">
+    <Card bordered={false} className={adminCardClasses}>
       {/* 顶部筛选栏 */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select
@@ -397,6 +399,8 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
         columns={columns}
         dataSource={items}
         loading={loading}
+        bordered
+        size="middle"
         scroll={{ x: 1100 }}
         pagination={{
           current: Math.floor(offset / limit) + 1,
@@ -410,7 +414,6 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
             setLimit(pageSize);
           },
         }}
-        size="middle"
       />
     </Card>
   );

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Space, Table, Tabs, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { DesktopOutlined, MobileOutlined, ReloadOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import { fetchAdminUsers, fetchDesktopDevices, fetchDevices } from "../../api/client";
 import type { AdminUserListItem, DesktopDeviceInfo, DeviceInfo } from "../../types/config";
 import type { QuotaTargetRef } from "../../types/songDownloads";
@@ -220,8 +222,15 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
   return (
     <Modal
       open={open}
-      title="选择需要配置下载配额的用户 / 设备"
-      width={780}
+      centered
+      destroyOnClose
+      title={
+        <ModalTitle
+          icon={<UserOutlined className="text-blue-500" />}
+          title="选择需要配置下载配额的用户 / 设备"
+        />
+      }
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       footer={
         <div className="flex items-center justify-between gap-2">
@@ -296,6 +305,7 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
                   </div>
                   <Table
                     size="small"
+                    bordered
                     rowKey={(u) => `user:${u.id}`}
                     loading={loadingUsers}
                     columns={userColumns}
@@ -347,6 +357,7 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
                   </div>
                   <Table
                     size="small"
+                    bordered
                     rowKey={(d) => `device:android:${d.id}`}
                     loading={loadingAndroid}
                     columns={androidColumns}
@@ -398,6 +409,7 @@ export default function QuotaTargetPickerModal({ open, initialTargets, onClose, 
                   </div>
                   <Table
                     size="small"
+                    bordered
                     rowKey={(d) => `device:desktop:${d.id}`}
                     loading={loadingDesktop}
                     columns={desktopColumns}

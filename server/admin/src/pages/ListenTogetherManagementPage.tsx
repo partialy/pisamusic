@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { message, Tabs, Typography } from "antd";
+import { message, Tabs, Tag, Typography } from "antd";
 import {
   ClockCircleOutlined,
   CustomerServiceOutlined,
@@ -12,6 +12,7 @@ import {
   type AdminOnlineRoomListItem,
   type AdminRoomHistoryListItem,
 } from "../api/listenTogetherAdmin";
+import { useAdminLayout } from "../layouts/AdminLayoutContext";
 import OnlineRoomTable from "../components/listenTogether/OnlineRoomTable";
 import HistoryRoomTable from "../components/listenTogether/HistoryRoomTable";
 import RoomDetailModal from "../components/listenTogether/RoomDetailModal";
@@ -20,6 +21,7 @@ import DissolveRoomModal from "../components/listenTogether/DissolveRoomModal";
 const { Title, Text } = Typography;
 
 export default function ListenTogetherManagementPage() {
+  const { themeColor } = useAdminLayout();
   const [activeTab, setActiveTab] = useState<"online" | "history">("online");
 
   // Online state
@@ -168,45 +170,21 @@ export default function ListenTogetherManagementPage() {
   const totalOnlineListeners = (onlineItems || []).reduce((sum, r) => sum + (r?.onlinePeople || 0), 0);
 
   return (
-    <div style={{ padding: "0 4px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          marginBottom: 16,
-          gap: 12,
-        }}
-      >
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Title level={4} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            <CustomerServiceOutlined style={{ color: "#1677ff" }} />
+          <Title level={4} className="!mb-0 flex items-center gap-2">
+            <CustomerServiceOutlined style={{ color: themeColor }} />
             一起听房间管理
           </Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>
+          <Text type="secondary" className="text-xs">
             实时监控内存权威在线房间状态与播放信令，追溯 SQLite 持久化生命周期流水与成员参与记录
           </Text>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 14px",
-              background: "#f6ffed",
-              border: "1px solid #b7eb8f",
-              borderRadius: 6,
-            }}
-          >
-            <FireOutlined style={{ color: "#52c41a", fontSize: 16 }} />
-            <span style={{ fontSize: 13 }}>
-              在线房间: <b>{onlineTotal}</b> 间 | 在线听众: <b>{totalOnlineListeners}</b> 人
-            </span>
-          </div>
-        </div>
+        <Tag color="success" icon={<FireOutlined />} className="!mr-0 px-3 py-1 text-xs">
+          在线房间: <strong>{onlineTotal}</strong> 间 | 在线听众: <strong>{totalOnlineListeners}</strong> 人
+        </Tag>
       </div>
 
       <Tabs

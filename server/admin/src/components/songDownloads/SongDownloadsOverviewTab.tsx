@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { fetchSongDownloadOverview, fetchTopDownloadedSongs } from "../../api/songDownloads";
-import { glassCardClasses } from "../../constants/theme";
+import { adminCardClasses } from "../../constants/theme";
 import type { SongDownloadOverviewStats, TopDownloadedSongItem } from "../../types/songDownloads";
 import { resolveSongCoverUrl } from "../../utils/songCover";
 
@@ -111,29 +111,30 @@ export default function SongDownloadsOverviewTab({ themeColor }: { themeColor: s
     <div className="space-y-4">
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <Card className={glassCardClasses} loading={loadingOverview}>
+          <Card bordered={false} className={adminCardClasses} loading={loadingOverview}>
             <Statistic title="今日下载歌曲数" value={overview?.todayDownloads ?? 0} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card className={glassCardClasses} loading={loadingOverview}>
+          <Card bordered={false} className={adminCardClasses} loading={loadingOverview}>
             <Statistic title={`近 ${days} 天下载数`} value={overview?.periodDownloads ?? 0} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card className={glassCardClasses} loading={loadingOverview}>
+          <Card bordered={false} className={adminCardClasses} loading={loadingOverview}>
             <Statistic title="历史累计下载歌曲" value={overview?.totalDownloads ?? 0} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card className={glassCardClasses} loading={loadingOverview}>
+          <Card bordered={false} className={adminCardClasses} loading={loadingOverview}>
             <Statistic title="累计下载批次数" value={overview?.totalBatches ?? 0} />
           </Card>
         </Col>
       </Row>
 
       <Card
-        className={glassCardClasses}
+        bordered={false}
+        className={adminCardClasses}
         title="下载趋势"
         extra={
           <Select
@@ -182,7 +183,8 @@ export default function SongDownloadsOverviewTab({ themeColor }: { themeColor: s
       </Card>
 
       <Card
-        className={glassCardClasses}
+        bordered={false}
+        className={adminCardClasses}
         title="歌曲下载 Top 排行"
         extra={
           <Space>
@@ -220,6 +222,9 @@ export default function SongDownloadsOverviewTab({ themeColor }: { themeColor: s
       >
         <Table
           rowKey={(r) => `${r.source}:${r.songId}`}
+          size="middle"
+          bordered
+          scroll={{ x: 900 }}
           loading={loadingTop}
           columns={columns}
           dataSource={topSongs}

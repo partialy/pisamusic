@@ -40,7 +40,8 @@ import {
 } from "../api/redemptionCodes";
 import { fetchTierPolicies } from "../api/songDownloads";
 import type { VipTierConfig } from "../types/songDownloads";
-import { glassCardClasses } from "../constants/theme";
+import { adminCardClasses, MODAL_WIDTH } from "../constants/theme";
+import { ModalTitle } from "../components/ui/ModalTitle";
 import RedemptionCodeTable, { renderRedemptionRewardTag } from "../components/redemption/RedemptionCodeTable";
 
 const { Text } = Typography;
@@ -330,7 +331,7 @@ export default function RedemptionCodesPage() {
 
   return (
     <div className="space-y-4">
-      <Card className={glassCardClasses}>
+      <Card bordered={false} className={adminCardClasses}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -393,6 +394,7 @@ export default function RedemptionCodesPage() {
                           <Table
                             rowKey="batchId"
                             size="small"
+                            bordered
                             showHeader={false}
                             loading={batchesLoading}
                             columns={batchColumns}
@@ -474,10 +476,12 @@ export default function RedemptionCodesPage() {
                   </div>
                   <Table
                     rowKey="id"
+                    size="middle"
+                    bordered
                     loading={logsLoading}
                     columns={logColumns}
                     dataSource={logs}
-                    scroll={{ x: 700 }}
+                    scroll={{ x: 760 }}
                     pagination={{
                       current: logsPage,
                       pageSize: 20,
@@ -495,13 +499,15 @@ export default function RedemptionCodesPage() {
 
       <Modal
         open={createOpen}
-        title="生成兑换码"
+        centered
+        destroyOnClose
+        title={<ModalTitle icon={<PlusOutlined className="text-blue-500" />} title="生成兑换码" />}
         onCancel={() => setCreateOpen(false)}
         onOk={() => void handleCreateSubmit()}
         confirmLoading={creating}
         okText="立即生成"
         cancelText="取消"
-        width={540}
+        width={MODAL_WIDTH.md}
       >
         <Form form={form} layout="vertical" className="pt-2">
           <Form.Item name="batchName" label="批次名称（强烈建议填写，方便后续按批查找）">
@@ -589,7 +595,7 @@ export default function RedemptionCodesPage() {
             <DatePicker showTime className="w-full" placeholder="选择过期时间（可选）" />
           </Form.Item>
 
-          <Form.Item name="remark" label="备注说明">
+          <Form.Item name="remark" label="备注说明" className="!mb-0">
             <Input maxLength={120} placeholder="补充说明（可选）" />
           </Form.Item>
         </Form>
@@ -597,13 +603,15 @@ export default function RedemptionCodesPage() {
 
       <Modal
         open={Boolean(renamingBatch)}
-        title="修改批次名称"
+        centered
+        destroyOnClose
+        title={<ModalTitle icon={<EditOutlined className="text-blue-500" />} title="修改批次名称" />}
         onCancel={() => setRenamingBatch(null)}
         onOk={() => void handleRenameSubmit()}
         confirmLoading={renamingSaving}
         okText="保存"
         cancelText="取消"
-        width={420}
+        width={MODAL_WIDTH.sm}
       >
         <div className="space-y-2 pt-2">
           <div className="text-xs text-slate-400 font-mono">
@@ -621,11 +629,22 @@ export default function RedemptionCodesPage() {
 
       <Modal
         open={Boolean(generatedResult)}
-        title={`已生成 ${generatedResult?.items.length ?? 0} 个兑换码${
-          generatedResult?.batchName ? `（${generatedResult.batchName}）` : ""
-        }`}
+        centered
+        destroyOnClose
+        width={MODAL_WIDTH.md}
+        title={
+          <ModalTitle
+            icon={<CopyOutlined className="text-emerald-500" />}
+            title={`已生成 ${generatedResult?.items.length ?? 0} 个兑换码${
+              generatedResult?.batchName ? `（${generatedResult.batchName}）` : ""
+            }`}
+          />
+        }
         onCancel={() => setGeneratedResult(null)}
         footer={[
+          <Button key="close" onClick={() => setGeneratedResult(null)}>
+            关闭
+          </Button>,
           <Button
             key="copy"
             type="primary"
@@ -639,12 +658,9 @@ export default function RedemptionCodesPage() {
           >
             复制全部
           </Button>,
-          <Button key="close" onClick={() => setGeneratedResult(null)}>
-            关闭
-          </Button>,
         ]}
       >
-        <Space direction="vertical" className="w-full" size={8}>
+        <Space direction="vertical" className="w-full pt-2" size={8}>
           <div className="text-xs text-slate-500 font-mono">批次 ID: {generatedResult?.batchId}</div>
           <Input.TextArea
             readOnly

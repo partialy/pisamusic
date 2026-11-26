@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, Input, Select, Space, Table, Tag, message } from "antd";
+import { Button, Card, Input, Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   EditOutlined,
@@ -13,7 +13,7 @@ import {
   fetchTierPolicies,
   saveTierPolicies,
 } from "../../api/songDownloads";
-import { glassCardClasses } from "../../constants/theme";
+import { adminCardClasses } from "../../constants/theme";
 import type {
   AdminQuotaStateItem,
   AdminTierPoliciesPayload,
@@ -169,18 +169,21 @@ export default function SongDownloadQuotaTab() {
     { title: "总计", width: 160, render: (_v, r) => <span className="text-xs">{formatDim(r.total)}</span> },
     {
       title: "操作",
-      width: 100,
+      width: 72,
+      fixed: "right",
+      align: "center",
       render: (_v, r) => (
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => {
-            setEditingBatch([]);
-            setEditingSingle(r);
-          }}
-        >
-          配置
-        </Button>
+        <Tooltip title="配置下载配额">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingBatch([]);
+              setEditingSingle(r);
+            }}
+          />
+        </Tooltip>
       ),
     },
   ];
@@ -197,7 +200,8 @@ export default function SongDownloadQuotaTab() {
       />
 
       <Card
-        className={glassCardClasses}
+        bordered={false}
+        className={adminCardClasses}
         title="用户 / 设备配额与用量明细"
         extra={
           <Button
@@ -260,6 +264,9 @@ export default function SongDownloadQuotaTab() {
 
         <Table
           rowKey={(r) => `${r.subjectType}:${r.subjectKey}`}
+          size="middle"
+          bordered
+          scroll={{ x: 1100 }}
           loading={loadingRows}
           columns={columns}
           dataSource={rows}

@@ -23,6 +23,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import type { AdminRoomHistoryListItem } from "../../api/listenTogetherAdmin";
+import { adminCardClasses } from "../../constants/theme";
 import { formatDurationHuman, formatSeconds, formatTimestampFull } from "../../utils/date";
 
 const { Text } = Typography;
@@ -101,15 +102,15 @@ export default function HistoryRoomTable({
       width: 200,
       render: (_, r) => (
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.roomName}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <Tag color="blue">房号</Tag>
-            <Text copyable={{ text: r.roomId }} style={{ fontFamily: "monospace" }}>
+          <div className="font-semibold text-sm text-slate-800">{r.roomName}</div>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Tag color="blue" className="!mr-0">房号</Tag>
+            <Text copyable={{ text: r.roomId }} className="font-mono text-xs">
               {r.roomId}
             </Text>
           </div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-            <Text copyable={{ text: r.recordId }} style={{ fontSize: 11, color: "#999" }}>
+          <div className="text-[11px] text-slate-400 mt-0.5">
+            <Text copyable={{ text: r.recordId }} className="text-[11px] text-slate-400">
               ID: {r.recordId.slice(0, 8)}...
             </Text>
           </div>
@@ -124,24 +125,17 @@ export default function HistoryRoomTable({
         const host = r.finalHost || r.initialHost;
         const changed = r.finalHost && r.initialHost && r.finalHost.userId !== r.initialHost.userId;
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="flex items-center gap-2">
             <Avatar
               src={host.avatarUrl}
               icon={<UserOutlined />}
               size={36}
-              style={{ flexShrink: 0 }}
+              className="shrink-0"
             />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
                 <span
-                  style={{
-                    fontWeight: 500,
-                    fontSize: 13,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    maxWidth: 68,
-                  }}
+                  className="font-medium text-xs truncate max-w-[68px]"
                   title={host.nickname || host.username || "匿名"}
                 >
                   {host.nickname || host.username || "匿名"}
@@ -154,7 +148,7 @@ export default function HistoryRoomTable({
                 />
               </div>
               {changed && (
-                <Tag color="cyan" style={{ fontSize: 10, lineHeight: "14px", padding: "0 2px", marginTop: 2 }}>
+                <Tag color="cyan" className="!mr-0 mt-0.5 text-[10px]">
                   曾转让
                 </Tag>
               )}
@@ -172,42 +166,31 @@ export default function HistoryRoomTable({
           return <Text type="secondary">无曲目记录</Text>;
         }
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             {r.lastSong.cover ? (
               <Image
                 src={r.lastSong.cover.replace("{size}", "120")}
                 width={40}
                 height={40}
-                style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
+                className="rounded object-cover shrink-0"
                 fallback="/static/account-avatars/default.jpg"
               />
             ) : (
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 4,
-                  background: "#eee",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <SoundOutlined style={{ color: "#999" }} />
+              <div className="w-10 h-10 rounded bg-slate-100 flex items-center justify-center shrink-0">
+                <SoundOutlined className="text-slate-400" />
               </div>
             )}
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Text strong style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Text strong className="text-xs truncate max-w-[130px]">
                   {r.lastSong.name}
                 </Text>
-                <Tag color="geekblue" style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px" }}>
+                <Tag color="geekblue" className="!mr-0 text-[10px]">
                   {r.lastSong.source.toUpperCase()}
                 </Tag>
               </div>
-              <div style={{ color: "#666", fontSize: 12, marginTop: 2 }}>{r.lastSong.singer}</div>
-              <div style={{ color: "#999", fontSize: 11, marginTop: 2 }}>
+              <div className="text-xs text-slate-500 mt-0.5">{r.lastSong.singer}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
                 {formatSeconds(r.finalPosition)} / {formatSeconds(r.lastSong.duration)}
               </div>
             </div>
@@ -220,14 +203,14 @@ export default function HistoryRoomTable({
       key: "stats",
       width: 170,
       render: (_, r) => (
-        <div style={{ fontSize: 12 }}>
+        <div className="text-xs">
           <div>
             最高峰值: <b>{r.peakPeople}</b> 人
           </div>
-          <div style={{ marginTop: 2 }}>
+          <div className="mt-0.5">
             累计入房: <b>{r.totalJoinCount}</b> 人次
           </div>
-          <div style={{ marginTop: 2 }}>
+          <div className="mt-0.5">
             独立访客: <b>{r.uniquePeople}</b> 人
           </div>
         </div>
@@ -244,7 +227,7 @@ export default function HistoryRoomTable({
           <div>
             <Tag color={conf.color}>{conf.label}</Tag>
             {r.endedByAdmin && (
-              <div style={{ fontSize: 11, color: "#999", marginTop: 2 }}>
+              <div className="text-[11px] text-slate-400 mt-0.5">
                 操作人: {r.endedByAdmin}
               </div>
             )}
@@ -257,12 +240,12 @@ export default function HistoryRoomTable({
       key: "time",
       width: 180,
       render: (_, r) => (
-        <div style={{ fontSize: 12 }}>
+        <div className="text-xs">
           <div>
             <Text type="secondary">持续: </Text>
             <Tag color="blue">{formatDurationHuman(r.durationMs)}</Tag>
           </div>
-          <div style={{ marginTop: 4 }}>
+          <div className="mt-1">
             <Text type="secondary">结束: </Text>
             {r.endedAt ? formatTimestampFull(r.endedAt) : "-"}
           </div>
@@ -272,7 +255,9 @@ export default function HistoryRoomTable({
     {
       title: "操作",
       key: "action",
-      width: 60,
+      width: 72,
+      fixed: "right",
+      align: "center",
       render: (_, r) => (
         <Tooltip title="查看历史房间详情">
           <Button
@@ -287,32 +272,23 @@ export default function HistoryRoomTable({
   ];
 
   return (
-    <Card size="small" style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+    <Card bordered={false} className={adminCardClasses}>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Space wrap>
           <Input
             placeholder="搜索房号 / 房间名 / 房主"
             value={localKeyword}
             onChange={(e) => setLocalKeyword(e.target.value)}
             onPressEnter={handleSearch}
-            prefix={<SearchOutlined style={{ color: "#999" }} />}
-            style={{ width: 220 }}
+            prefix={<SearchOutlined className="text-slate-400" />}
+            className="w-56"
             allowClear
           />
           <Select
             placeholder="结束原因"
             value={localEndReason || undefined}
             onChange={setLocalEndReason}
-            style={{ width: 160 }}
+            className="w-40"
             allowClear
             options={[
               { label: "全部原因", value: "" },
@@ -328,7 +304,7 @@ export default function HistoryRoomTable({
             onChange={(dates) => setDateRange(dates as [any, any])}
             showTime
             placeholder={["创建起始时间", "创建截止时间"]}
-            style={{ width: 320 }}
+            className="w-80"
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             查询
@@ -346,6 +322,9 @@ export default function HistoryRoomTable({
         dataSource={items}
         columns={columns}
         rowKey="recordId"
+        size="middle"
+        bordered
+        scroll={{ x: 1100 }}
         loading={loading}
         pagination={{
           current: Math.floor(offset / limit) + 1,
@@ -355,7 +334,6 @@ export default function HistoryRoomTable({
           onChange: (page) => onPageChange((page - 1) * limit),
           showSizeChanger: false,
         }}
-        bordered
       />
     </Card>
   );

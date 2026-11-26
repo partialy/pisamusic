@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, Input, Select, Space, Table, Tag, message } from "antd";
+import { Button, Card, Input, Select, Space, Table, Tag, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { EyeOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { fetchSongDownloadRecords } from "../../api/songDownloads";
-import { glassCardClasses } from "../../constants/theme";
+import { adminCardClasses } from "../../constants/theme";
 import type { SongDownloadRecordItem } from "../../types/songDownloads";
 import { resolveSongCoverUrl } from "../../utils/songCover";
 import SongDownloadRecordDetailModal from "./SongDownloadRecordDetailModal";
@@ -113,17 +113,24 @@ export default function SongDownloadRecordsTab() {
     },
     {
       title: "操作",
-      width: 90,
+      width: 72,
+      fixed: "right",
+      align: "center",
       render: (_v, r) => (
-        <Button size="small" icon={<EyeOutlined />} onClick={() => setDetailRecord(r)}>
-          详情
-        </Button>
+        <Tooltip title="查看下载详情">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setDetailRecord(r)}
+          />
+        </Tooltip>
       ),
     },
   ];
 
   return (
-    <Card className={glassCardClasses}>
+    <Card bordered={false} className={adminCardClasses}>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input
           allowClear
@@ -184,6 +191,9 @@ export default function SongDownloadRecordsTab() {
 
       <Table
         rowKey="id"
+        size="middle"
+        bordered
+        scroll={{ x: 1000 }}
         loading={loading}
         columns={columns}
         dataSource={items}

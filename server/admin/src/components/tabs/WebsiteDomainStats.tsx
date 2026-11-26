@@ -43,7 +43,7 @@ export default function WebsiteDomainStats({ domain, themeColor, refreshKey }: P
         <Typography.Text type="secondary">北京时间 · {data ? `${data.startDay} 至 ${data.endDay}` : "加载中"}</Typography.Text>
       </div>
       <Alert type="info" showIcon message="累计日 UV 按各域名每日访客数相加，同一人跨域或跨天可能重复计算；下载触发次数不代表安装成功。" />
-      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={() => setRetry((value) => value + 1)}>重试</Button>} /> : null}
+      {error ? <Alert type="error" showIcon message={error} action={<Button size="small" onClick={() => setRetry((value) => value + 1)}>重试</Button>} /> : null}
       {loading ? <div className="flex justify-center py-16"><Spin aria-label="正在加载域名统计" /></div> : null}
       {summary && data ? <>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -67,7 +67,7 @@ export default function WebsiteDomainStats({ domain, themeColor, refreshKey }: P
         </DashboardTrendCard> : <Empty description="暂无趋势数据" />}
         <div>
           <Typography.Title level={5}>域名排行与占比</Typography.Title>
-          <Table rowKey="domain" size="small" dataSource={data.domains} scroll={{ x: 850 }} pagination={{ pageSize: 10, showSizeChanger: false }} columns={[
+          <Table rowKey="domain" size="small" bordered dataSource={data.domains} scroll={{ x: 850 }} pagination={{ size: "small", pageSize: 10, showSizeChanger: false, showTotal: t => `共 ${t} 个域名` }} columns={[
             { title: "域名", dataIndex: "domain", ellipsis: true, render: (value: string) => value || "未知域名" },
             { title: "累计日 UV", dataIndex: "uv", align: "right", sorter: (a, b) => a.uv - b.uv, defaultSortOrder: "descend" },
             { title: "UV 占比", key: "uvShare", align: "right", render: (_, row) => `${summary.uv ? (row.uv * 100 / summary.uv).toFixed(1) : "0.0"}%` },
@@ -81,7 +81,7 @@ export default function WebsiteDomainStats({ domain, themeColor, refreshKey }: P
         </div>
         <div>
           <Typography.Title level={5}>页面 PV 排行</Typography.Title>
-          <Table rowKey="path" size="small" dataSource={data.topPages} pagination={{ pageSize: 10, showSizeChanger: false }} columns={[
+          <Table rowKey="path" size="small" bordered dataSource={data.topPages} pagination={{ size: "small", pageSize: 10, showSizeChanger: false, showTotal: t => `共 ${t} 个页面` }} columns={[
             { title: "页面路径", dataIndex: "path", ellipsis: true },
             { title: "PV", dataIndex: "pv", align: "right", width: 120 },
           ]} />

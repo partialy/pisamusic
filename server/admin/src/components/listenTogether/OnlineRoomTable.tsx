@@ -25,6 +25,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import type { AdminOnlineRoomListItem } from "../../api/listenTogetherAdmin";
+import { adminCardClasses } from "../../constants/theme";
 import { formatSeconds, formatTimestamp } from "../../utils/date";
 
 const { Text } = Typography;
@@ -84,10 +85,10 @@ export default function OnlineRoomTable({
       width: 200,
       render: (_, r) => (
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.roomName}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <Tag color="blue">房号</Tag>
-            <Text copyable={{ text: r.roomId }} style={{ fontFamily: "monospace" }}>
+          <div className="font-semibold text-sm text-slate-800">{r.roomName}</div>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Tag color="blue" className="!mr-0">房号</Tag>
+            <Text copyable={{ text: r.roomId }} className="font-mono text-xs">
               {r.roomId}
             </Text>
           </div>
@@ -99,23 +100,16 @@ export default function OnlineRoomTable({
       key: "host",
       width: 145,
       render: (_, r) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <Avatar
             src={r.host.avatarUrl}
             icon={<UserOutlined />}
             size={36}
-            style={{ flexShrink: 0 }}
+            className="shrink-0"
           />
-          <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 4 }}>
+          <div className="min-w-0 flex-1 flex items-center gap-1">
             <span
-              style={{
-                fontWeight: 500,
-                fontSize: 13,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: 68,
-              }}
+              className="font-medium text-xs truncate max-w-[68px]"
               title={r.host.nickname || r.host.username || "匿名"}
             >
               {r.host.nickname || r.host.username || "匿名"}
@@ -140,48 +134,37 @@ export default function OnlineRoomTable({
         }
         const statusConfig = PLAYBACK_STATUS_MAP[r.playbackStatus] ?? { label: r.playbackStatus, color: "default" };
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             {r.song.cover ? (
               <Image
                 src={r.song.cover.replace("{size}", "120")}
                 width={42}
                 height={42}
-                style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
+                className="rounded object-cover shrink-0"
                 fallback="/static/account-avatars/default.jpg"
               />
             ) : (
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 4,
-                  background: "#eee",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <SoundOutlined style={{ color: "#999" }} />
+              <div className="w-[42px] h-[42px] rounded bg-slate-100 flex items-center justify-center shrink-0">
+                <SoundOutlined className="text-slate-400" />
               </div>
             )}
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Text strong style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 140 }}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Text strong className="text-xs truncate max-w-[140px]">
                   {r.song.name}
                 </Text>
-                <Tag color="geekblue" style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px" }}>
+                <Tag color="geekblue" className="!mr-0 text-[10px]">
                   {r.song.source.toUpperCase()}
                 </Tag>
               </div>
-              <div style={{ color: "#666", fontSize: 12, marginTop: 2 }}>
+              <div className="text-xs text-slate-500 mt-0.5">
                 {r.song.singer}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                <Tag color={statusConfig.color} style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px" }}>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Tag color={statusConfig.color} className="!mr-0 text-[10px]">
                   {statusConfig.label}
                 </Tag>
-                <Text type="secondary" style={{ fontSize: 11 }}>
+                <Text type="secondary" className="text-[11px]">
                   {formatSeconds(r.position)} / {formatSeconds(r.song.duration)}
                 </Text>
               </div>
@@ -198,14 +181,14 @@ export default function OnlineRoomTable({
         <div>
           <div>
             <Badge status="processing" color="green" />
-            <Text strong style={{ color: "#52c41a" }}>
+            <Text strong className="!text-emerald-600">
               {r.onlinePeople}
             </Text>
             <Text type="secondary"> 在线 / 入房 </Text>
             <Text strong>{r.currentPeople}</Text>
             <Text type="secondary"> / 上限 {r.maxPeople}</Text>
           </div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+          <div className="text-[11px] text-slate-400 mt-1">
             峰值: {r.peakPeople}人 | 访客: {r.uniquePeople}人
           </div>
         </div>
@@ -228,12 +211,12 @@ export default function OnlineRoomTable({
       key: "time",
       width: 190,
       render: (_, r) => (
-        <div style={{ fontSize: 12 }}>
+        <div className="text-xs">
           <div>
             <Text type="secondary">创建: </Text>
             {formatTimestamp(r.createdAt)}
           </div>
-          <div style={{ marginTop: 2 }}>
+          <div className="mt-0.5">
             <Text type="secondary">活跃: </Text>
             {formatTimestamp(r.updatedAt)}
           </div>
@@ -244,8 +227,9 @@ export default function OnlineRoomTable({
       title: "操作",
       key: "action",
       width: 90,
+      fixed: "right",
       render: (_, r) => (
-        <Space size="small">
+        <Space size={4}>
           <Tooltip title="查看房间详情">
             <Button
               type="link"
@@ -269,25 +253,16 @@ export default function OnlineRoomTable({
   ];
 
   return (
-    <Card size="small" style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+    <Card bordered={false} className={adminCardClasses}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Space wrap>
           <Input
             placeholder="搜索房号 / 房间名 / 房主"
             value={localKeyword}
             onChange={(e) => setLocalKeyword(e.target.value)}
             onPressEnter={handleSearch}
-            prefix={<SearchOutlined style={{ color: "#999" }} />}
-            style={{ width: 260 }}
+            prefix={<SearchOutlined className="text-slate-400" />}
+            className="w-64"
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -303,8 +278,8 @@ export default function OnlineRoomTable({
 
         <Space>
           <Tooltip title="开启后每 5 秒自动拉取最新在线房间与播放状态">
-            <span style={{ fontSize: 13, color: "#666" }}>
-              <SyncOutlined spin={autoRefresh} style={{ marginRight: 6 }} />
+            <span className="text-xs text-slate-500">
+              <SyncOutlined spin={autoRefresh} className="mr-1.5" />
               自动刷新 (5s)
             </span>
           </Tooltip>
@@ -316,6 +291,9 @@ export default function OnlineRoomTable({
         dataSource={items}
         columns={columns}
         rowKey="recordId"
+        size="middle"
+        bordered
+        scroll={{ x: 1100 }}
         loading={loading}
         pagination={{
           current: Math.floor(offset / limit) + 1,
@@ -325,7 +303,6 @@ export default function OnlineRoomTable({
           onChange: (page) => onPageChange((page - 1) * limit),
           showSizeChanger: false,
         }}
-        bordered
       />
     </Card>
   );

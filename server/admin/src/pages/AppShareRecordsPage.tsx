@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Button, Card, Col, DatePicker, Input, Modal, Row, Select, Space, Statistic, Switch, Table, Tag, Typography, message } from "antd";
-import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Col, DatePicker, Input, Modal, Row, Select, Space, Statistic, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
+import { CopyOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined, StopOutlined } from "@ant-design/icons";
 import { exportShareRecords, fetchShareRecords, invalidateShareRecord } from "../api/appShareRecords";
 import type { ShareFilter, ShareRecord, ShareRecordPage } from "../types/appShareRecords";
 import ShareRecordDetail, { shareTime } from "../components/appShare/ShareRecordDetail";
 import ShareTrendTable from "../components/appShare/ShareTrendTable";
-import { glassCardClasses } from "../constants/theme";
+import { adminCardClasses } from "../constants/theme";
 
 export default function AppShareRecordsPage() {
   const [filter, setFilter] = useState<ShareFilter>({ deviceKind: "all", valid: "all", timeField: "createdAt", sort: "createdAt" });
@@ -54,7 +54,7 @@ export default function AppShareRecordsPage() {
   return <div className="space-y-4">
     {messageHolder}{modalHolder}
     <Alert showIcon type="info" message="访问仅统计 /app-share/ 的有效页面上报；UV 为按北京时间去重的累计日 UV。下载为安装包跳转触发次数，不代表安装、注册或成功邀请。" />
-    <Card className={glassCardClasses}>
+    <Card bordered={false} className={adminCardClasses}>
       <Space wrap className="w-full">
         <Input.Search allowClear placeholder="短码 / 用户名 / 账号 ID / 设备名 / ID" style={{ width: 270, maxWidth: "100%" }} onSearch={keyword => updateFilter({ keyword })} />
         <Select aria-label="分享来源" value={filter.deviceKind} style={{ width: 120 }} onChange={deviceKind => updateFilter({ deviceKind })} options={[{ value: "all", label: "全部来源" }, { value: "android", label: "Android" }, { value: "desktop", label: "PC" }]} />
@@ -64,7 +64,7 @@ export default function AppShareRecordsPage() {
         <Select aria-label="排序" value={filter.sort} style={{ width: 145 }} onChange={sort => updateFilter({ sort })} options={[{ value: "createdAt", label: "创建时间倒序" }, { value: "visitCount", label: "访问数倒序" }, { value: "downloadCount", label: "下载触发倒序" }, { value: "lastActiveAt", label: "最近活跃倒序" }]} />
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => setRevision(v => v + 1)}>刷新</Button>
         <Button icon={<DownloadOutlined />} loading={exporting} onClick={async () => { setExporting(true); try { await exportShareRecords(filter); } catch (e) { void messageApi.error(e instanceof Error ? e.message : "导出失败"); } finally { setExporting(false); } }}>导出 CSV</Button>
-        <Space><Switch checked={autoRefresh} onChange={setAutoRefresh} size="small" /><Typography.Text type="secondary">30 秒自动刷新</Typography.Text></Space>
+        <Space><Switch checked={autoRefresh} onChange={setAutoRefresh} /><Typography.Text type="secondary">30 秒自动刷新</Typography.Text></Space>
       </Space>
       <Typography.Paragraph type="secondary" className="!mt-3 !mb-0">分享来源表示生成链接的设备，与实际下载平台分别统计。时间筛选用于选取分享记录（创建 / 最近访问 / 最近下载），汇总和趋势展示命中链接的全历史统计。筛选后的 UV 为各短码累计日 UV 之和；无筛选时才是全站日去重 UV。时间展示为北京时间；范围选择按浏览器本地时间输入。</Typography.Paragraph>
     </Card>
@@ -73,10 +73,10 @@ export default function AppShareRecordsPage() {
       {[{ title: "分享链接", value: summary?.total, suffix: summary ? `（有效 ${summary.validCount} / 失效 ${summary.invalidCount}）` : "" },
         { title: "访问 PV", value: summary?.visitCount }, { title: filter.keyword || filter.from !== undefined || filter.to !== undefined || filter.valid !== "all" || filter.deviceKind !== "all" ? "选中短码累计日 UV 之和" : "全站累计日 UV", value: summary?.visitUv },
         { title: "下载触发", value: summary?.downloadCount }, { title: "下载触发 / PV", value: summary?.visitCount ? `${((summary.downloadCount / summary.visitCount) * 100).toFixed(1)}%` : "—" },
-      ].map(item => <Col key={item.title} xs={24} sm={12} xl={item.title === "分享链接" ? 8 : 4}><Card className={glassCardClasses} size="small"><Statistic title={item.title} value={item.value ?? "—"} suffix={<span className="text-xs">{item.suffix}</span>} /></Card></Col>)}
+      ].map(item => <Col key={item.title} xs={24} sm={12} xl={item.title === "分享链接" ? 8 : 4}><Card bordered={false} className={adminCardClasses} size="small"><Statistic title={item.title} value={item.value ?? "—"} suffix={<span className="text-xs">{item.suffix}</span>} /></Card></Col>)}
     </Row>
-    <Card title="分享记录" className={glassCardClasses}>
-      <Table<ShareRecord> rowKey="id" loading={loading} dataSource={data?.list || []} size="small" scroll={{ x: 1800 }} pagination={{ current: offset / 20 + 1, pageSize: 20, total: data?.total || 0, showSizeChanger: false, showTotal: total => `共 ${total} 条`, onChange: page => setOffset((page - 1) * 20) }} columns={[
+    <Card bordered={false} title="分享记录" className={adminCardClasses}>
+      <Table<ShareRecord> rowKey="id" loading={loading} dataSource={data?.list || []} size="middle" bordered scroll={{ x: 1800 }} pagination={{ current: offset / 20 + 1, pageSize: 20, total: data?.total || 0, showSizeChanger: false, showTotal: total => `共 ${total} 条`, onChange: page => setOffset((page - 1) * 20) }} columns={[
         { title: "分享人", width: 170, render: (_, r) => <div><div>{r.userName || (r.userId ? "账号" : "游客")}{r.userMissing && <Tag>已注销</Tag>}</div><Typography.Text type="secondary" className="text-xs">{r.userId || "未登录"}</Typography.Text></div> },
         { title: "分享来源", dataIndex: "deviceKind", width: 100, render: kind => <Tag color={kind === "desktop" ? "blue" : "green"}>{kind === "desktop" ? "PC" : "Android"}</Tag> },
         { title: "设备", width: 170, render: (_, r) => <div>{r.deviceName || r.deviceKind}{r.deviceMissing && <Tag>设备不存在</Tag>}<div className="text-xs text-slate-500" title={r.deviceId}>{r.deviceId.slice(0, 12)}…</div></div> },
@@ -84,10 +84,10 @@ export default function AppShareRecordsPage() {
         { title: "首次分享", dataIndex: "createdAt", width: 170, render: shareTime }, { title: "最近访问", dataIndex: "lastVisitAt", width: 170, render: shareTime }, { title: "最近下载", dataIndex: "lastDownloadAt", width: 170, render: shareTime },
         { title: "PV", dataIndex: "visitCount", width: 80 }, { title: "累计日 UV", dataIndex: "visitUv", width: 100 },
         { title: "Android 下载", dataIndex: "androidDownloadCount", width: 110 }, { title: "Windows 下载", dataIndex: "desktopDownloadCount", width: 110 }, { title: "总下载触发", dataIndex: "downloadCount", width: 110 },
-        { title: "操作", width: 230, fixed: "right", render: (_, record) => <Space size={0}><Button type="link" onClick={() => setDetailId(record.id)}>详情</Button><Button type="link" onClick={async () => { try { await navigator.clipboard.writeText(record.url); void messageApi.success("链接已复制"); } catch { void messageApi.error("复制失败，请从详情复制链接"); } }}>复制链接</Button><Button type="link" danger disabled={!record.valid} onClick={() => invalidate(record)}>失效</Button></Space> },
+        { title: "操作", width: 120, fixed: "right", render: (_, record) => <Space size={4}><Tooltip title="查看详情"><Button type="link" size="small" icon={<EyeOutlined />} onClick={() => setDetailId(record.id)} /></Tooltip><Tooltip title="复制分享链接"><Button type="link" size="small" icon={<CopyOutlined />} onClick={async () => { try { await navigator.clipboard.writeText(record.url); void messageApi.success("链接已复制"); } catch { void messageApi.error("复制失败，请从详情复制链接"); } }} /></Tooltip><Tooltip title={record.valid ? "标记失效" : "已失效"}><Button type="link" size="small" danger disabled={!record.valid} icon={<StopOutlined />} onClick={() => invalidate(record)} /></Tooltip></Space> },
       ]} />
     </Card>
-    <Card title="命中链接的历史每日趋势与平台分布" className={glassCardClasses}><ShareTrendTable items={data?.trend || []} /></Card>
+    <Card bordered={false} title="命中链接的历史每日趋势与平台分布" className={adminCardClasses}><ShareTrendTable items={data?.trend || []} /></Card>
     {detailId && <ShareRecordDetail key={detailId} id={detailId} revision={revision} onClose={() => setDetailId(null)} />}
   </div>;
 }
