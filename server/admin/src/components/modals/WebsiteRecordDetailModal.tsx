@@ -1,4 +1,7 @@
-import { Button, Descriptions, Modal, Space, Tag, Typography } from "antd";
+import { Button, Descriptions, Modal, Tag, Typography } from "antd";
+import { GlobalOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type {
   AdminWebsiteDownloadDetail,
   AdminWebsiteVisitDetail,
@@ -29,12 +32,13 @@ export default function WebsiteRecordDetailModal(props: Props) {
         open
         centered
         title={
-          <Space align="center" size={8}>
-            <span className="text-base font-bold text-slate-800">访问记录详情</span>
-            <span className="text-xs font-mono text-slate-400">({record.id})</span>
-          </Space>
+          <ModalTitle
+            icon={<GlobalOutlined className="text-blue-500" />}
+            title="访问记录详情"
+            idText={record.id}
+          />
         }
-        width={800}
+        width={MODAL_WIDTH.lg}
         onCancel={props.onClose}
         footer={[
           <Button key="close" type="primary" onClick={props.onClose}>
@@ -43,7 +47,7 @@ export default function WebsiteRecordDetailModal(props: Props) {
         ]}
         destroyOnClose
       >
-        <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+        <div className={MODAL_BODY_SCROLL_CLASS}>
           <Descriptions
             bordered
             size="small"
@@ -110,12 +114,13 @@ export default function WebsiteRecordDetailModal(props: Props) {
       open
       centered
       title={
-        <Space align="center" size={8}>
-          <span className="text-base font-bold text-slate-800">下载记录详情</span>
-          <span className="text-xs font-mono text-slate-400">({record.id})</span>
-        </Space>
+        <ModalTitle
+          icon={<GlobalOutlined className="text-blue-500" />}
+          title="下载记录详情"
+          idText={record.id}
+        />
       }
-      width={800}
+      width={MODAL_WIDTH.lg}
       onCancel={props.onClose}
       footer={[
         <Button key="close" type="primary" onClick={props.onClose}>
@@ -124,7 +129,7 @@ export default function WebsiteRecordDetailModal(props: Props) {
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <Descriptions
           bordered
           size="small"

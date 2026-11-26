@@ -20,6 +20,8 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { DynamicConfigItem, DynamicConfigType } from "../../types/config";
 
 const { Text } = Typography;
@@ -224,13 +226,13 @@ export default function DynamicConfigTab({
           open
           centered
           title={
-            <Space>
-              <EyeOutlined className="text-blue-500" />
-              <span>HTML 实时预览</span>
-              <Tag color="orange">{previewHtmlItem.id}</Tag>
-            </Space>
+            <ModalTitle
+              icon={<EyeOutlined className="text-blue-500" />}
+              title="HTML 实时预览"
+              extra={<Tag color="orange" className="!mr-0">{previewHtmlItem.id}</Tag>}
+            />
           }
-          width={760}
+          width={MODAL_WIDTH.lg}
           onCancel={() => setPreviewHtmlItem(null)}
           footer={[
             <Button key="close" type="primary" onClick={() => setPreviewHtmlItem(null)}>

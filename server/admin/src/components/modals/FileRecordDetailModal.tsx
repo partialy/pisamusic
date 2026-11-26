@@ -1,4 +1,7 @@
-import { Button, Descriptions, Modal, Space, Tag, Typography } from "antd";
+import { Button, Descriptions, Modal, Tag, Typography } from "antd";
+import { FileTextOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { FileRecordInfo } from "../../types/config";
 import { fileUsageText as usageText, fileAssetTypeText as assetTypeText } from "../../utils/fileRecords";
 
@@ -38,12 +41,13 @@ export default function FileRecordDetailModal({ file, onClose }: Props) {
       open
       centered
       title={
-        <Space align="center" size={8}>
-          <span className="text-base font-bold text-slate-800">文件记录详情</span>
-          <span className="text-xs font-mono text-slate-400">({file.id})</span>
-        </Space>
+        <ModalTitle
+          icon={<FileTextOutlined className="text-blue-500" />}
+          title="文件记录详情"
+          idText={file.id}
+        />
       }
-      width={860}
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       footer={[
         <Button key="close" type="primary" onClick={onClose}>
@@ -52,7 +56,7 @@ export default function FileRecordDetailModal({ file, onClose }: Props) {
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <Descriptions
           bordered
           size="small"

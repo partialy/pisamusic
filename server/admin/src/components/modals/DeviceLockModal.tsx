@@ -8,7 +8,10 @@ import {
   Space,
   Typography,
 } from "antd";
+import { LockOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { DesktopDeviceInfo, DeviceInfo } from "../../types/config";
 
 const { Text } = Typography;
@@ -66,8 +69,8 @@ export default function DeviceLockModal({ device, onClose, onLock }: Props) {
     <Modal
       open
       centered
-      title="封禁设备确认"
-      width={500}
+      title={<ModalTitle icon={<LockOutlined className="text-red-500" />} title="封禁设备确认" />}
+      width={MODAL_WIDTH.sm}
       onCancel={onClose}
       onOk={() => form.submit()}
       okText="确认封禁"

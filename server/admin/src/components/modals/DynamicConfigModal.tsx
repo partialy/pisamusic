@@ -1,10 +1,10 @@
 import {
   Alert,
   Button,
+  Form,
   Input,
   Modal,
   Select,
-  Space,
   Tag,
 } from "antd";
 import {
@@ -12,6 +12,8 @@ import {
   EyeOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { DynamicConfigItem, DynamicConfigType } from "../../types/config";
 
 type Props = {
@@ -54,15 +56,13 @@ export default function DynamicConfigModal({
       open
       centered
       title={
-        <Space>
-          <SettingOutlined className="text-blue-500" />
-          <span className="font-bold text-slate-800">
-            {isNew ? "新增动态配置" : "编辑动态配置"}
-          </span>
-          {!isNew && <Tag color="blue">{editing.id}</Tag>}
-        </Space>
+        <ModalTitle
+          icon={<SettingOutlined className="text-blue-500" />}
+          title={isNew ? "新增动态配置" : "编辑动态配置"}
+          extra={!isNew ? <Tag color="blue" className="!mr-0">{editing.id}</Tag> : null}
+        />
       }
-      width={780}
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose}>
@@ -79,95 +79,96 @@ export default function DynamicConfigModal({
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            配置 ID <span className="text-red-500">*</span>
-          </label>
-          <Input
-            value={editing.id}
-            disabled={!isNew}
-            onChange={(e) => onChange({ ...editing, id: e.target.value })}
-            placeholder="例如: homepage_notice 或 listen_together_max_people"
-            className="font-mono text-xs"
-          />
-          <span className="text-[11px] text-slate-400 block mt-1">
-            仅支持英文字母、数字、点号、下划线和短横线；创建后 ID 不允许修改。
-          </span>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            配置类型
-          </label>
-          <Select
-            value={editing.type}
-            onChange={(val) => onChange({ ...editing, type: val })}
-            className="w-full"
-            options={TYPE_OPTIONS.map((item) => ({
-              label: item.label,
-              value: item.value,
-            }))}
-          />
-          {selectedTypeOption && (
-            <Alert
-              type="info"
-              showIcon
-              message={selectedTypeOption.hint}
-              className="mt-2 text-xs py-1 px-3"
+      <Form layout="vertical" component={false}>
+        <div className={MODAL_BODY_SCROLL_CLASS}>
+          <Form.Item
+            label="配置 ID"
+            required
+            extra="仅支持英文字母、数字、点号、下划线和短横线；创建后 ID 不允许修改。"
+            className="!mb-0"
+          >
+            <Input
+              value={editing.id}
+              disabled={!isNew}
+              onChange={(e) => onChange({ ...editing, id: e.target.value })}
+              placeholder="例如: homepage_notice 或 listen_together_max_people"
+              className="font-mono text-xs"
             />
-          )}
-        </div>
+          </Form.Item>
 
-        {editing.type === "html" ? (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
-                  <CodeOutlined className="mr-1 text-slate-500" />
-                  HTML 源码
-                </label>
-              </div>
+          <div>
+            <Form.Item label="配置类型" className="!mb-0">
+              <Select
+                value={editing.type}
+                onChange={(val) => onChange({ ...editing, type: val })}
+                className="w-full"
+                options={TYPE_OPTIONS.map((item) => ({
+                  label: item.label,
+                  value: item.value,
+                }))}
+              />
+            </Form.Item>
+            {selectedTypeOption && (
+              <Alert
+                type="info"
+                showIcon
+                message={selectedTypeOption.hint}
+                className="mt-2"
+              />
+            )}
+          </div>
+
+          {editing.type === "html" ? (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Form.Item
+                label={
+                  <span>
+                    <CodeOutlined className="mr-1 text-slate-500" />
+                    HTML 源码
+                  </span>
+                }
+                className="!mb-0"
+              >
+                <Input.TextArea
+                  rows={12}
+                  value={editing.content}
+                  onChange={(e) => onChange({ ...editing, content: e.target.value })}
+                  placeholder={contentPlaceholder}
+                  className="font-mono text-xs"
+                />
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <span>
+                    <EyeOutlined className="mr-1 text-blue-500" />
+                    实时渲染预览
+                  </span>
+                }
+                className="!mb-0"
+              >
+                <div className="h-[254px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 leading-relaxed shadow-2xs">
+                  {editing.content.trim() ? (
+                    <div dangerouslySetInnerHTML={{ __html: editing.content }} />
+                  ) : (
+                    <span className="text-slate-400">输入 HTML 后会在这里实时预览</span>
+                  )}
+                </div>
+              </Form.Item>
+            </div>
+          ) : (
+            <Form.Item label="配置内容" className="!mb-0">
               <Input.TextArea
-                rows={12}
+                rows={6}
                 value={editing.content}
                 onChange={(e) => onChange({ ...editing, content: e.target.value })}
                 placeholder={contentPlaceholder}
                 className="font-mono text-xs"
               />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
-                  <EyeOutlined className="mr-1 text-blue-500" />
-                  实时渲染预览
-                </label>
-              </div>
-              <div className="h-[254px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 leading-relaxed shadow-2xs">
-                {editing.content.trim() ? (
-                  <div dangerouslySetInnerHTML={{ __html: editing.content }} />
-                ) : (
-                  <span className="text-slate-400">输入 HTML 后会在这里实时预览</span>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              配置内容
-            </label>
-            <Input.TextArea
-              rows={6}
-              value={editing.content}
-              onChange={(e) => onChange({ ...editing, content: e.target.value })}
-              placeholder={contentPlaceholder}
-              className="font-mono text-xs"
-            />
-          </div>
-        )}
-      </div>
+            </Form.Item>
+          )}
+        </div>
+      </Form>
     </Modal>
   );
 }

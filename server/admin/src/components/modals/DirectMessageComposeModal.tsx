@@ -1,5 +1,8 @@
 import { Form, Input, Modal } from "antd";
+import { MessageOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { DirectMessageTargetKind } from "../../types/config";
 
 export type DirectMessageComposeTarget = {
@@ -41,7 +44,8 @@ export default function DirectMessageComposeModal({
     <Modal
       open
       centered
-      title={`给“${target.label}”留言`}
+      width={MODAL_WIDTH.sm}
+      title={<ModalTitle icon={<MessageOutlined className="text-blue-500" />} title={`给“${target.label}”留言`} />}
       okText="发送"
       cancelText="取消"
       okButtonProps={{ disabled: !content.trim() }}
@@ -52,7 +56,7 @@ export default function DirectMessageComposeModal({
       onOk={() => void handleSubmit()}
       destroyOnClose
     >
-      <Form layout="vertical" className="pt-3">
+      <Form layout="vertical" className="pt-2">
         <Form.Item label="留言内容" required>
           <Input.TextArea
             value={content}

@@ -1,5 +1,7 @@
-import { Button, message, Modal, Space, Typography } from "antd";
+import { Button, message, Modal, Typography } from "antd";
 import { CopyOutlined, FileTextOutlined } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { PisaAdminExport } from "../../types/config";
 
 const { Text } = Typography;
@@ -18,7 +20,7 @@ export default function JsonExportModal({ exportData, onClose }: Props) {
       await navigator.clipboard.writeText(text);
       void message.success("JSON 配置已复制到剪贴板！");
     } catch {
-      window.alert("复制失败，请检查剪贴板权限。");
+      void message.error("复制失败，请检查剪贴板权限。");
     }
   };
 
@@ -27,12 +29,12 @@ export default function JsonExportModal({ exportData, onClose }: Props) {
       open
       centered
       title={
-        <Space>
-          <FileTextOutlined className="text-blue-500" />
-          <span className="font-bold text-slate-800">导出 JSON 配置快照</span>
-        </Space>
+        <ModalTitle
+          icon={<FileTextOutlined className="text-blue-500" />}
+          title="导出 JSON 配置快照"
+        />
       }
-      width={840}
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       footer={[
         <Button key="close" onClick={onClose}>

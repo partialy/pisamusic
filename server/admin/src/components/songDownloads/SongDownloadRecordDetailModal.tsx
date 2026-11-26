@@ -1,4 +1,7 @@
-import { Descriptions, Modal, Space, Tag, Typography } from "antd";
+import { Button, Descriptions, Modal, Space, Tag, Typography } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { SongDownloadRecordItem } from "../../types/songDownloads";
 import { formatDurationMs, resolveSongCoverUrl } from "../../utils/songCover";
 
@@ -15,13 +18,25 @@ export default function SongDownloadRecordDetailModal({ record, onClose }: Props
   return (
     <Modal
       open={Boolean(record)}
-      title="下载动态详情"
+      centered
+      destroyOnClose
+      title={
+        <ModalTitle
+          icon={<DownloadOutlined className="text-blue-500" />}
+          title="下载动态详情"
+          idText={record?.id}
+        />
+      }
       onCancel={onClose}
-      footer={null}
-      width={680}
+      footer={[
+        <Button key="close" type="primary" onClick={onClose}>
+          关闭
+        </Button>,
+      ]}
+      width={MODAL_WIDTH.md}
     >
       {record && (
-        <div className="space-y-4 pt-2">
+        <div className={MODAL_BODY_SCROLL_CLASS}>
           <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5">
             {coverSrc ? (
               <img

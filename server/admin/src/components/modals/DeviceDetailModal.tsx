@@ -8,6 +8,8 @@ import {
   Typography,
 } from "antd";
 import { LaptopOutlined, MobileOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { AdminDirectMessagePage, DesktopDeviceInfo, DeviceInfo } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
 import UserDirectMessagesPanel from "../user/UserDirectMessagesPanel";
@@ -73,21 +75,19 @@ export default function DeviceDetailModal({
       open
       centered
       title={
-        <Space align="center" size={12}>
-          <Avatar
-            size={36}
-            icon={desktop ? <LaptopOutlined /> : <MobileOutlined />}
-            className="bg-sky-500 text-white shadow-sm"
-          />
-          <div>
-            <span className="text-base font-bold text-slate-800">{title}</span>
-            <span className="ml-2 text-xs font-mono text-slate-400">
-              ({device.id})
-            </span>
-          </div>
-        </Space>
+        <ModalTitle
+          icon={
+            <Avatar
+              size={36}
+              icon={desktop ? <LaptopOutlined /> : <MobileOutlined />}
+              className="bg-sky-500 text-white shadow-sm"
+            />
+          }
+          title={title}
+          idText={device.id}
+        />
       }
-      width={900}
+      width={MODAL_WIDTH.xl}
       onCancel={onClose}
       footer={[
         <Button key="close" type="primary" onClick={onClose}>
@@ -96,7 +96,7 @@ export default function DeviceDetailModal({
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
           <div className="text-xs text-slate-600">
             <span className="font-semibold text-slate-700">系统信息：</span>
@@ -194,7 +194,7 @@ export default function DeviceDetailModal({
 
         {extras.length > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h4 className="mb-3 text-sm font-bold text-slate-800">
+            <h4 className="mb-3 text-xs font-bold text-slate-700">
               扩展字段 (Extra Info)
             </h4>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -214,7 +214,7 @@ export default function DeviceDetailModal({
         )}
 
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h4 className="mb-3 text-sm font-bold text-slate-800">留言记录</h4>
+          <h4 className="mb-3 text-xs font-bold text-slate-700">留言记录</h4>
           <UserDirectMessagesPanel
             page={messagesPage}
             loading={messagesLoading}

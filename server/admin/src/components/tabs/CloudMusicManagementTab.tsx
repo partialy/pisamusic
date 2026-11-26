@@ -31,6 +31,8 @@ import {
   SearchOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import {
   cleanupCloudMusicTemp,
   deleteCloudMusic,
@@ -647,8 +649,8 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
         <Modal
           open
           centered
-          title="清理临时网盘文件"
-          width={520}
+          title={<ModalTitle icon={<ClearOutlined className="text-amber-500" />} title="清理临时网盘文件" />}
+          width={MODAL_WIDTH.sm}
           onCancel={() => setShowCleanupModal(false)}
           footer={[
             <Button key="close" onClick={() => setShowCleanupModal(false)}>
@@ -666,7 +668,7 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
           ]}
           destroyOnClose
         >
-          <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+          <div className={MODAL_BODY_SCROLL_CLASS}>
             <p className="text-xs text-slate-500">
               清理上传中断或未保存的临时曲目及其关联七牛对象，释放存储空间。
             </p>

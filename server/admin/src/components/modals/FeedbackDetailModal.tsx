@@ -3,10 +3,12 @@ import {
   Descriptions,
   Image,
   Modal,
-  Space,
   Tag,
   Typography,
 } from "antd";
+import { MessageOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { AdminFeedbackDetail, FeedbackStatus } from "../../types/config";
 import { FEEDBACK_TYPE_LABELS, formatFeedbackTime } from "../../utils/feedback";
 
@@ -43,16 +45,23 @@ export default function FeedbackDetailModal({
       open
       centered
       title={
-        <Space align="center" size={8}>
-          <span className="text-base font-bold text-slate-800">反馈详情</span>
-          <Tag color="cyan">{FEEDBACK_TYPE_LABELS[feedback.feedbackType] || feedback.feedbackType}</Tag>
-          <Tag color={isProcessed ? "success" : "warning"}>
-            {isProcessed ? "已处理" : "待处理"}
-          </Tag>
-          <span className="text-xs font-mono text-slate-400">({feedback.id})</span>
-        </Space>
+        <ModalTitle
+          icon={<MessageOutlined className="text-blue-500" />}
+          title="反馈详情"
+          extra={
+            <>
+              <Tag color="cyan" className="!mr-0">
+                {FEEDBACK_TYPE_LABELS[feedback.feedbackType] || feedback.feedbackType}
+              </Tag>
+              <Tag color={isProcessed ? "success" : "warning"} className="!mr-0">
+                {isProcessed ? "已处理" : "待处理"}
+              </Tag>
+            </>
+          }
+          idText={feedback.id}
+        />
       }
-      width={860}
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       footer={[
         <Button key="close" onClick={onClose}>
@@ -70,7 +79,7 @@ export default function FeedbackDetailModal({
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           <h4 className="text-xs font-bold text-slate-700 mb-2">反馈内容描述</h4>
           <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">

@@ -2,10 +2,12 @@ import {
   Alert,
   Descriptions,
   Modal,
-  Space,
   Tag,
   Typography,
 } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type {
   FileRecordInfo,
   UpdateHistoryDeletionPreview,
@@ -70,17 +72,21 @@ export default function UpdateHistoryDeletePreviewModal({
       open
       centered
       title={
-        <Space align="center" size={8}>
-          <span className="text-base font-bold text-slate-800">
-            删除版本及文件确认
-          </span>
-          <Tag color="geekblue" className="font-mono">
-            {history.version}
-          </Tag>
-        </Space>
+        <ModalTitle
+          icon={<DeleteOutlined className="text-red-500" />}
+          title="删除版本及文件确认"
+          extra={
+            <Tag color="geekblue" className="font-mono !mr-0">
+              {history.version}
+            </Tag>
+          }
+        />
       }
-      width={720}
+      width={MODAL_WIDTH.lg}
       onCancel={deleting ? undefined : onClose}
+      closable={!deleting}
+      maskClosable={!deleting}
+      keyboard={!deleting}
       onOk={onConfirm}
       confirmLoading={deleting}
       okText="确认删除版本及文件"
@@ -88,7 +94,7 @@ export default function UpdateHistoryDeletePreviewModal({
       cancelText="取消"
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <Alert
           type="warning"
           showIcon

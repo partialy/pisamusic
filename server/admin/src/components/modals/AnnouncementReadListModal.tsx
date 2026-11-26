@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Modal, Space, Table, Tag, Typography } from "antd";
+import { Alert, Button, Modal, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { NotificationOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type {
   Announcement,
   AnnouncementReadDevice,
@@ -111,13 +114,19 @@ export default function AnnouncementReadListModal({ announcement, open, onClose 
     <Modal
       open={open}
       centered
-      width={900}
-      title={<span className="font-bold text-slate-800">公告已读列表：{announcement.id}</span>}
-      footer={null}
+      width={MODAL_WIDTH.xl}
+      title={
+        <ModalTitle
+          icon={<NotificationOutlined className="text-indigo-500" />}
+          title="公告已读列表"
+          idText={announcement.id}
+        />
+      }
+      footer={[<Button key="close" type="primary" onClick={onClose}>关闭</Button>]}
       onCancel={onClose}
       destroyOnClose
     >
-      <div className="space-y-3 pt-2">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         {error && <Alert type="error" showIcon message={error} />}
         <Table
           rowKey="id"
@@ -128,10 +137,12 @@ export default function AnnouncementReadListModal({ announcement, open, onClose 
           bordered
           scroll={{ x: 650 }}
           pagination={page ? {
+            size: "small",
             current: currentPage,
             pageSize: page.limit,
             total: page.total,
             showSizeChanger: false,
+            showTotal: (t) => `共 ${t} 条`,
             onChange: (nextPage) => {
               void loadPage((nextPage - 1) * page.limit);
             },

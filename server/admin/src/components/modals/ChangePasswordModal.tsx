@@ -5,9 +5,10 @@ import {
   Form,
   Input,
   Modal,
-  Space,
 } from "antd";
 import { LockOutlined } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import { changePassword } from "../../api/client";
 
 type Props = {
@@ -53,13 +54,8 @@ export default function ChangePasswordModal({ onClose, onSuccess }: Props) {
     <Modal
       open
       centered
-      title={
-        <Space>
-          <LockOutlined className="text-amber-500" />
-          <span className="font-bold text-slate-800">修改管理员密码</span>
-        </Space>
-      }
-      width={460}
+      title={<ModalTitle icon={<LockOutlined className="text-amber-500" />} title="修改管理员密码" />}
+      width={MODAL_WIDTH.sm}
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose}>
@@ -78,7 +74,7 @@ export default function ChangePasswordModal({ onClose, onSuccess }: Props) {
     >
       <Form layout="vertical" className="pt-2">
         {error && (
-          <Alert type="error" showIcon message={error} className="mb-4 text-xs py-1.5" />
+          <Alert type="error" showIcon message={error} className="mb-4" />
         )}
 
         <Form.Item label="当前密码" required>
@@ -97,7 +93,7 @@ export default function ChangePasswordModal({ onClose, onSuccess }: Props) {
           />
         </Form.Item>
 
-        <Form.Item label="确认新密码" required>
+        <Form.Item label="确认新密码" required className="!mb-0">
           <Input.Password
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

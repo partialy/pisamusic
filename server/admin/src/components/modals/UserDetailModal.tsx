@@ -12,6 +12,8 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { UserOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type {
   AdminUserDetail,
   AdminDirectMessagePage,
@@ -292,20 +294,20 @@ export default function UserDetailModal({
       open
       centered
       title={
-        <Space align="center" size={12}>
-          <Avatar
-            size={36}
-            src={user.avatarUrl || user.avatar}
-            icon={<UserOutlined />}
-            className="border border-slate-200 shadow-sm"
-          />
-          <div>
-            <span className="text-base font-bold text-slate-800">{user.username}</span>
-            <span className="ml-2 text-xs font-mono text-slate-400">({user.id})</span>
-          </div>
-        </Space>
+        <ModalTitle
+          icon={
+            <Avatar
+              size={36}
+              src={user.avatarUrl || user.avatar}
+              icon={<UserOutlined />}
+              className="border border-slate-200 shadow-sm"
+            />
+          }
+          title={user.username}
+          idText={user.id}
+        />
       }
-      width={1040}
+      width={MODAL_WIDTH.xl}
       onCancel={onClose}
       footer={[
         <Button key="close" type="primary" onClick={onClose}>
@@ -314,7 +316,7 @@ export default function UserDetailModal({
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <Descriptions
           bordered
           size="small"
@@ -365,7 +367,6 @@ export default function UserDetailModal({
           {isSyncEntityTab && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <Segmented
-                size="small"
                 value={libraryStatus}
                 onChange={(val) => onLibraryStatusChange(val as AdminUserLibraryStatus)}
                 options={[
@@ -406,6 +407,7 @@ export default function UserDetailModal({
               size="small"
               bordered
               pagination={{
+                size: "small",
                 current: Math.floor(libraryPage.offset / libraryPage.limit) + 1,
                 pageSize: libraryPage.limit,
                 total: libraryPage.total,

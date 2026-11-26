@@ -5,7 +5,6 @@ import {
   Descriptions,
   Modal,
   Popconfirm,
-  Space,
   Tag,
   Typography,
 } from "antd";
@@ -14,6 +13,8 @@ import {
   DeleteOutlined,
   DownloadOutlined,
 } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type {
   AdminFaultReportDetail,
   FaultReportStatus,
@@ -131,19 +132,23 @@ export default function FaultReportDetailModal({
       open
       centered
       title={
-        <Space align="center" size={8}>
-          <BugOutlined className="text-rose-500 text-lg" />
-          <span className="text-base font-bold text-slate-800">故障上报批次详情</span>
-          <Tag color={sceneTagColor}>
-            {FAULT_REPORT_SCENE_LABELS[report.scene] || report.scene}
-          </Tag>
-          <Tag color={isProcessed ? "success" : "warning"}>
-            {FAULT_REPORT_STATUS_LABELS[report.status] || report.status}
-          </Tag>
-          <span className="text-xs font-mono text-slate-400">({report.id})</span>
-        </Space>
+        <ModalTitle
+          icon={<BugOutlined className="text-rose-500" />}
+          title="故障上报批次详情"
+          extra={
+            <>
+              <Tag color={sceneTagColor} className="!mr-0">
+                {FAULT_REPORT_SCENE_LABELS[report.scene] || report.scene}
+              </Tag>
+              <Tag color={isProcessed ? "success" : "warning"} className="!mr-0">
+                {FAULT_REPORT_STATUS_LABELS[report.status] || report.status}
+              </Tag>
+            </>
+          }
+          idText={report.id}
+        />
       }
-      width={900}
+      width={MODAL_WIDTH.xl}
       onCancel={onClose}
       footer={[
         <Button key="close" onClick={onClose}>
@@ -182,7 +187,7 @@ export default function FaultReportDetailModal({
       ]}
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <Descriptions
           bordered
           size="small"

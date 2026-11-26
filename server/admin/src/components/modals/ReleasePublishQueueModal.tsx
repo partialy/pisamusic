@@ -20,6 +20,8 @@ import {
   MobileOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import {
   useReleasePublishQueue,
   type ReleasePublishTaskItem,
@@ -90,21 +92,26 @@ export default function ReleasePublishQueueModal() {
     <Modal
       open={queueModalOpen}
       onCancel={closeQueueModal}
-      footer={
-        <Button onClick={closeQueueModal}>关闭</Button>
-      }
-      width={780}
+      footer={[
+        <Button key="close" type="primary" onClick={closeQueueModal}>
+          关闭
+        </Button>,
+      ]}
+      width={MODAL_WIDTH.lg}
       centered
+      destroyOnClose
       title={
-        <Space size={8}>
-          <CloudUploadOutlined className="text-blue-500 text-lg" />
-          <span className="text-base font-bold text-slate-800">版本发布后台任务</span>
-          {stats.active > 0 && (
-            <Tag color="processing" className="font-mono">
-              进行中 {stats.active}
-            </Tag>
-          )}
-        </Space>
+        <ModalTitle
+          icon={<CloudUploadOutlined className="text-blue-500" />}
+          title="版本发布后台任务"
+          extra={
+            stats.active > 0 ? (
+              <Tag color="processing" className="font-mono !mr-0">
+                进行中 {stats.active}
+              </Tag>
+            ) : null
+          }
+        />
       }
     >
       <div className="space-y-4 pt-2">
@@ -173,8 +180,7 @@ export default function ReleasePublishQueueModal() {
                       {task.state === "failed" && (
                         <Button
                           size="small"
-                          type="primary"
-                          danger
+                          type="link"
                           icon={<ReloadOutlined />}
                           onClick={() => retryTask(task.id)}
                         >
@@ -186,6 +192,7 @@ export default function ReleasePublishQueueModal() {
                           <Button
                             size="small"
                             type="text"
+                            danger
                             icon={<DeleteOutlined />}
                             onClick={() => removeTask(task.id)}
                           />
