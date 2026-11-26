@@ -1,51 +1,256 @@
-:root {
-  color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* 严格对齐 pm 客户端浅/深纯平色彩系统（全量静态色值，彻底避免旧 WebView 下 color-mix 退化为同色实心块） */
+:root,
+.light,
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #fefefe;
+  --background-secondary: #f5f6f8;
+  --background-tertiary: #eef0f3;
+  --background-inverse: #121212;
+  --foreground: #121212;
+  --surface: #f7f8fa;
+  --surface-foreground: #121212;
+  --surface-hover: #eff1f4;
+  --surface-secondary: #efefef;
+  --surface-secondary-foreground: #121212;
+  --surface-tertiary: #e8eaed;
+  --surface-tertiary-foreground: #121212;
+  --overlay: #ffffff;
+  --overlay-foreground: #121212;
+  --muted: #6e6e6e;
+  --default: #efefef;
+  --default-foreground: #121212;
+  --default-hover: #e5e7eb;
+  --default-soft: #eef0f3;
+  --default-soft-foreground: #59616d;
+  --default-soft-hover: #e4e7ec;
+
+  --accent: #0077ff;
+  --accent-foreground: #ffffff;
+  --accent-hover: #0066db;
+  --accent-soft: #e3f2fd;
+  --accent-soft-foreground: #1565c0;
+  --accent-soft-hover: #d1e9fc;
+
+  --success: #18794e;
+  --success-foreground: #ffffff;
+  --success-hover: #146843;
+  --success-soft: #e6f6ec;
+  --success-soft-foreground: #18794e;
+  --success-soft-hover: #d5efdf;
+
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --warning-hover: #b45309;
+  --warning-soft: #fff3d6;
+  --warning-soft-foreground: #8a5a00;
+  --warning-soft-hover: #ffe8b8;
+
+  --danger: #dc2626;
+  --danger-foreground: #ffffff;
+  --danger-hover: #b91c1c;
+  --danger-soft: #fdebeb;
+  --danger-soft-foreground: #b4232c;
+  --danger-soft-hover: #fbd7d9;
+
+  --segment: #ffffff;
+  --segment-foreground: #121212;
+  --border: #e6e8ec;
+  --border-secondary: #dcdedf;
+  --border-tertiary: #d0d3d8;
+  --separator: #f0f1f4;
+  --separator-secondary: #e6e8ec;
+  --separator-tertiary: #dcdedf;
+  --focus: #0077ff;
+  --link: #0077ff;
+
+  /* 输入框统一使用 pm 搜索框药丸形态与色板 */
+  --field-background: #efefef;
+  --field-foreground: #121212;
+  --field-placeholder: #8a8f99;
+  --field-hover: #e8eaed;
+  --field-focus: #efefef;
+  --field-border: transparent;
+  --field-border-width: 0px;
+  --field-border-hover: transparent;
+  --field-border-focus: transparent;
+  --field-radius: 9999px;
+
+  --surface-shadow: none;
+  --field-shadow: none;
+  --header-glass-bg: rgba(254, 254, 254, 0.86);
+  --header-border-color: rgba(230, 232, 236, 0.9);
+  --status-bar-height: 0px;
+  --navigation-bar-height: 0px;
 }
 
-* {
-  box-sizing: border-box;
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #17191d;
+  --background-secondary: #1e2126;
+  --background-tertiary: #252830;
+  --background-inverse: #f4f6fa;
+  --foreground: #f4f6fa;
+  --surface: #1e2126;
+  --surface-foreground: #f4f6fa;
+  --surface-hover: #252830;
+  --surface-secondary: #252830;
+  --surface-secondary-foreground: #f4f6fa;
+  --surface-tertiary: #2a2d34;
+  --surface-tertiary-foreground: #f4f6fa;
+  --overlay: #22252c;
+  --overlay-foreground: #f4f6fa;
+  --muted: #8b919b;
+  --default: #252830;
+  --default-foreground: #f4f6fa;
+  --default-hover: #2f333d;
+  --default-soft: #343942;
+  --default-soft-foreground: #c0c6d0;
+  --default-soft-hover: #3f4550;
+
+  --accent: #2196f3;
+  --accent-foreground: #ffffff;
+  --accent-hover: #42a5f5;
+  --accent-soft: #1a2f4a;
+  --accent-soft-foreground: #79bbff;
+  --accent-soft-hover: #213a5b;
+
+  --success: #22c55e;
+  --success-foreground: #0b1410;
+  --success-hover: #4ade80;
+  --success-soft: #173b2a;
+  --success-soft-foreground: #7ee2ad;
+  --success-soft-hover: #1d4a35;
+
+  --warning: #fbbf24;
+  --warning-foreground: #1a1509;
+  --warning-hover: #fcd34d;
+  --warning-soft: #3a3020;
+  --warning-soft-foreground: #ffd47a;
+  --warning-soft-hover: #473b27;
+
+  --danger: #ef4444;
+  --danger-foreground: #ffffff;
+  --danger-hover: #f87171;
+  --danger-soft: #47252a;
+  --danger-soft-foreground: #ff9ba5;
+  --danger-soft-hover: #582f35;
+
+  --segment: #30343d;
+  --segment-foreground: #f4f6fa;
+  --border: #2a2e36;
+  --border-secondary: #343942;
+  --border-tertiary: #3d424c;
+  --separator: #242830;
+  --separator-secondary: #2e323b;
+  --separator-tertiary: #383d47;
+  --focus: #38bdf8;
+  --link: #79bbff;
+
+  --field-background: #2a2d34;
+  --field-foreground: #f4f6fa;
+  --field-placeholder: #8b919b;
+  --field-hover: #32363f;
+  --field-focus: #2a2d34;
+  --field-border: transparent;
+  --field-border-width: 0px;
+  --field-border-hover: transparent;
+  --field-border-focus: transparent;
+  --field-radius: 9999px;
+
+  --surface-shadow: none;
+  --field-shadow: none;
+  --header-glass-bg: rgba(23, 25, 29, 0.86);
+  --header-border-color: rgba(46, 51, 61, 0.9);
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  width: 100%;
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.h5-shell {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 20px 16px 40px;
+/* 输入框统一药丸形态与小屏防溢出 */
+.search-field__group,
+.input,
+.input-group {
+  border-radius: 9999px;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.h5-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+.search-field__input,
+.input-group__input {
+  min-width: 0;
+}
+
+.search-field[data-empty="true"] [data-slot="search-field-clear-button"] {
+  display: none;
+}
+
+.search-field[data-empty="true"] .search-field__input {
+  padding-inline-end: 14px;
+}
+
+.textarea {
   border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 
-.h5-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+/* 手机 App 扁平直铺手风琴：去左右多余内边距，并兼容各内核 WebView 的展开可见性与箭头旋转 */
+.h5-flat-accordion .accordion__trigger {
+  padding-inline: 0;
+  padding-block: 14px;
 }
 
-.h5-link {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 13px;
-  text-decoration: none;
+.h5-flat-accordion .accordion__body-inner {
+  padding-inline: 0;
+  padding-bottom: 14px;
 }
 
-.h5-link.active {
-  background: #0f172a;
-  color: #ffffff;
+.h5-flat-accordion .accordion__panel,
+.accordion__panel:not([hidden]):not([aria-hidden="true"]) {
+  height: auto;
+  overflow: visible;
+  opacity: 1;
+}
+
+.h5-flat-accordion .accordion__panel[hidden],
+.h5-flat-accordion .accordion__panel[aria-hidden="true"] {
+  display: none;
+  opacity: 0;
+}
+
+.h5-flat-accordion .accordion__indicator {
+  rotate: none;
+  transition: transform 200ms ease;
+}
+
+.h5-flat-accordion .accordion__trigger[aria-expanded="true"] .accordion__indicator,
+.h5-flat-accordion .accordion__item[data-expanded="true"] .accordion__indicator,
+.h5-flat-accordion .accordion__indicator[data-expanded="true"] {
+  rotate: none;
+  transform: rotate(-180deg);
+}
+
+/* H5 安全区变量辅助 */
+.h5-safe-top {
+  padding-top: max(env(safe-area-inset-top, 0px), var(--status-bar-height, 0px));
+}
+
+.h5-safe-bottom {
+  padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--navigation-bar-height, 0px)) + 28px);
 }

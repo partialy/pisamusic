@@ -6,7 +6,7 @@
 | --- | --- |
 | `src/`、后端脚本、数据库、存储、实时通信、服务配置、`apidoc/` | [Server 后端规范](agents/SERVER.md) |
 | `admin/` 管理后台页面、表单、图表、交互 | [Admin 规范](admin/AGENTS.md) |
-| `app-h5/` 客户端内嵌 H5 轻量页面（输出 `web-h5/`，路由 `/h5/`） | 继承根规范（`react` + `react-router-dom` + `vite`） |
+| `app-h5/` 客户端内嵌 H5 轻量页面（输出 `web-h5/`，路由 `/h5/`） | React 19 + Tailwind CSS v4 + HeroUI v3，深色 `#17191D`/浅色 `#FEFEFE` 纯平对齐 `pm` 宿主，支持磨砂滚动 HeaderBar/吸顶搜索框、跟随 App 主题与 `verifyHostAccess` 防浏览器直开验证 |
 | `frontend-html/`、官网静态页面与 SEO | [官网规范](agents/WEBSITE.md) |
 | 跨端接口、鉴权或业务契约 | [跨模块契约](../agents/CROSS_MODULE.md)对应章节，以及受影响模块规范 |
 

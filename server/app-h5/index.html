@@ -2,8 +2,34 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
     <title>PisaMusic 服务中心</title>
+    <script>
+      (function () {
+        try {
+          var isDark = null;
+          var host = window.AndroidWebHost || window.PisaDesktopHost || window.NativeBridge || window.AndroidBridge;
+          if (host && typeof host.isDarkMode === "function") {
+            isDark = Boolean(host.isDarkMode());
+          } else {
+            var q = new URLSearchParams(window.location.search);
+            var t = q.get("theme");
+            if (!t && window.location.hash.indexOf("?") >= 0) {
+              t = new URLSearchParams(window.location.hash.split("?")[1]).get("theme");
+            }
+            if (t === "dark") isDark = true;
+            else if (t === "light") isDark = false;
+          }
+          if (isDark === null && window.matchMedia) {
+            isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          }
+          var mode = isDark ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", mode);
+          document.documentElement.classList.toggle("dark", Boolean(isDark));
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
