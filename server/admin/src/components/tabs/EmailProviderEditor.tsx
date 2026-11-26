@@ -174,14 +174,12 @@ export function EmailProviderEditor({ email, onChange }: Props) {
 
           <div className="flex gap-2">
             <Input
-              size="small"
               value={draftCode}
               onChange={(e) => setDraftCode(e.target.value.trim())}
               placeholder="代码 (例如: resend)"
               className="font-mono text-xs w-36"
             />
             <Input
-              size="small"
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
               placeholder="显示名称 (例如: Resend 邮件)"
@@ -189,7 +187,6 @@ export function EmailProviderEditor({ email, onChange }: Props) {
             />
             <Button
               type="primary"
-              size="small"
               icon={<PlusOutlined />}
               onClick={addProvider}
             >

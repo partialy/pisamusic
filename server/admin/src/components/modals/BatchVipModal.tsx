@@ -17,6 +17,8 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { CrownOutlined, SearchOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import { batchAssignAdminUserVip, resolveAdminUsersForVip } from "../../api/client";
 import { fetchTierPolicies } from "../../api/songDownloads";
 import type { AdminVipResolvedUser } from "../../types/config";
@@ -149,12 +151,12 @@ export default function BatchVipModal({ open, onClose, onSuccess }: Props) {
       open={open}
       centered
       title={
-        <Space>
-          <CrownOutlined className="text-amber-500" />
-          <span>批量赋予 / 管理 VIP</span>
-        </Space>
+        <ModalTitle
+          icon={<CrownOutlined className="text-amber-500" />}
+          title="批量赋予 / 管理 VIP"
+        />
       }
-      width={720}
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       onOk={() => void handleSubmit()}
       okText={action === "revoke" ? `确认取消 (${matched.length}人)` : `确认赋予 (${matched.length}人)`}
@@ -162,16 +164,15 @@ export default function BatchVipModal({ open, onClose, onSuccess }: Props) {
       cancelText="取消"
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[72vh] overflow-y-auto pr-1">
+      <div className={MODAL_BODY_SCROLL_CLASS}>
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <Typography.Text strong className="text-sm">
               1. 输入用户邮箱或用户 ID（支持换行、逗号或空格分隔）
             </Typography.Text>
             <Button
               type="primary"
               ghost
-              size="small"
               icon={<SearchOutlined />}
               loading={resolving}
               onClick={() => void handleResolve()}
@@ -199,35 +200,39 @@ export default function BatchVipModal({ open, onClose, onSuccess }: Props) {
             <Table<AdminVipResolvedUser>
               rowKey="id"
               size="small"
+              bordered
               columns={columns}
               dataSource={matched}
-              pagination={{ pageSize: 5, hideOnSinglePage: true }}
+              pagination={{ pageSize: 5, size: "small", hideOnSinglePage: true }}
               locale={{ emptyText: "未匹配到任何有效用户" }}
             />
           </div>
         )}
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
           <Typography.Text strong className="block text-sm">
             2. 设置赋予策略（已有有效 VIP 时：时长叠加，等级取最高值上升）
           </Typography.Text>
 
           <Space wrap size="large">
-            <div>
-              <span className="text-xs text-slate-500 mr-2">操作：</span>
-              <Radio.Group value={action} onChange={(e) => setAction(e.target.value)} size="small">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">操作：</span>
+              <Radio.Group
+                value={action}
+                optionType="button"
+                onChange={(e) => setAction(e.target.value)}
+              >
                 <Radio.Button value="grant">赋予 / 续期 VIP</Radio.Button>
                 <Radio.Button value="revoke">取消 VIP</Radio.Button>
               </Radio.Group>
             </div>
 
             {action === "grant" && (
-              <div>
-                <span className="text-xs text-slate-500 mr-2">目标 VIP 等级：</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">目标 VIP 等级：</span>
                 {tiers.length > 0 ? (
                   <Select
-                    size="small"
-                    style={{ width: 170 }}
+                    style={{ width: 180 }}
                     value={vipLevel}
                     onChange={setVipLevel}
                     options={tiers.map((t) => ({
@@ -237,7 +242,6 @@ export default function BatchVipModal({ open, onClose, onSuccess }: Props) {
                   />
                 ) : (
                   <InputNumber
-                    size="small"
                     min={1}
                     max={1000}
                     value={vipLevel}
@@ -250,15 +254,18 @@ export default function BatchVipModal({ open, onClose, onSuccess }: Props) {
 
           {action === "grant" && (
             <div className="flex flex-wrap items-center gap-3">
-              <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)} size="small">
+              <Radio.Group
+                value={mode}
+                optionType="button"
+                onChange={(e) => setMode(e.target.value)}
+              >
                 <Radio.Button value="duration_days">按天数叠加</Radio.Button>
                 <Radio.Button value="expires_at">指定到期时间</Radio.Button>
               </Radio.Group>
 
               {mode === "duration_days" ? (
-                <Space size={6}>
+                <Space size={6} wrap>
                   <InputNumber
-                    size="small"
                     min={1}
                     max={36500}
                     precision={0}
@@ -267,14 +274,13 @@ export default function BatchVipModal({ open, onClose, onSuccess }: Props) {
                     addonAfter="天"
                   />
                   {[7, 30, 90, 365].map((d) => (
-                    <Button key={d} size="small" onClick={() => setDurationDays(d)}>
+                    <Button key={d} onClick={() => setDurationDays(d)}>
                       {d}天
                     </Button>
                   ))}
                 </Space>
               ) : (
                 <DatePicker
-                  size="small"
                   showTime
                   format="YYYY-MM-DD HH:mm:ss"
                   value={expiresAt}

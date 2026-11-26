@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
   Button,
   Card,
   Empty,
+  Form,
   Image,
   Input,
   Popover,
@@ -89,6 +90,9 @@ export default function CloudMusicBatchEditorStep({
   onAppendFiles,
   parsingMore,
 }: Props) {
+  const appendInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const lyricsInputRef = useRef<HTMLInputElement>(null);
   const [batchArtist, setBatchArtist] = useState("");
   const [batchAlbum, setBatchAlbum] = useState("");
   const [batchStatus, setBatchStatus] = useState<"active" | "disabled" | "offline">("active");
@@ -244,29 +248,35 @@ export default function CloudMusicBatchEditorStep({
             trigger="click"
             placement="bottomRight"
           >
-            <Button size="small" icon={<ThunderboltOutlined />}>
+            <Button icon={<ThunderboltOutlined />}>
               批量填充歌手/专辑/状态
             </Button>
           </Popover>
 
-          <label className="relative inline-flex items-center gap-1 cursor-pointer rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 text-xs font-semibold transition-all">
-            <PlusOutlined />
-            <span>{parsingMore ? "解析中..." : "继续添加文件"}</span>
-            <input
-              type="file"
-              multiple
-              disabled={parsingMore}
-              accept="audio/*,.mp3,.flac,.m4a,.ogg,.wav,.aac,.ape,.opus,image/*,.jpg,.jpeg,.png,.webp,.lrc,.txt"
-              className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
-              onChange={(e) => {
-                const fileList = e.currentTarget.files;
-                if (fileList && fileList.length > 0) {
-                  onAppendFiles(Array.from(fileList));
-                  e.currentTarget.value = "";
-                }
-              }}
-            />
-          </label>
+          <Button
+            type="primary"
+            ghost
+            icon={<PlusOutlined />}
+            loading={parsingMore}
+            onClick={() => appendInputRef.current?.click()}
+          >
+            {parsingMore ? "解析中..." : "继续添加文件"}
+          </Button>
+          <input
+            ref={appendInputRef}
+            type="file"
+            multiple
+            disabled={parsingMore}
+            accept="audio/*,.mp3,.flac,.m4a,.ogg,.wav,.aac,.ape,.opus,image/*,.jpg,.jpeg,.png,.webp,.lrc,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const fileList = e.currentTarget.files;
+              if (fileList && fileList.length > 0) {
+                onAppendFiles(Array.from(fileList));
+                e.currentTarget.value = "";
+              }
+            }}
+          />
         </Space>
       </div>
 
@@ -339,17 +349,17 @@ export default function CloudMusicBatchEditorStep({
 
                     <div className="flex items-center gap-1 mt-1">
                       {item.coverFile && (
-                        <span className="inline-block rounded bg-purple-100 px-1.5 py-0.2 text-[10px] text-purple-700 font-medium">
+                        <span className="inline-block rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 font-medium">
                           封面
                         </span>
                       )}
                       {hasLyrics && (
-                        <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.2 text-[10px] text-emerald-700 font-medium">
+                        <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700 font-medium">
                           {item.lyricsFormat.toUpperCase()}歌词
                         </span>
                       )}
                       {item.status !== "active" && (
-                        <span className="inline-block rounded bg-amber-100 px-1.5 py-0.2 text-[10px] text-amber-700 font-medium">
+                        <span className="inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 font-medium">
                           {item.status}
                         </span>
                       )}
@@ -418,105 +428,88 @@ export default function CloudMusicBatchEditorStep({
               )}
 
               {/* Metadata Form Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    歌名 (Title) <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={currentItem.title}
-                    status={!currentItem.title.trim() ? "error" : undefined}
-                    placeholder="请输入歌名"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      onUpdateItem(currentItem.id, (prev) => ({ ...prev, title: val }));
-                    }}
-                  />
-                </div>
+              <Form layout="vertical" component={false}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Form.Item label="歌名 (Title)" required className="!mb-0">
+                    <Input
+                      value={currentItem.title}
+                      status={!currentItem.title.trim() ? "error" : undefined}
+                      placeholder="请输入歌名"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onUpdateItem(currentItem.id, (prev) => ({ ...prev, title: val }));
+                      }}
+                    />
+                  </Form.Item>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    歌手 (Artist) <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={currentItem.artist}
-                    status={!currentItem.artist.trim() ? "error" : undefined}
-                    placeholder="请输入歌手"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      onUpdateItem(currentItem.id, (prev) => ({ ...prev, artist: val }));
-                    }}
-                  />
-                </div>
+                  <Form.Item label="歌手 (Artist)" required className="!mb-0">
+                    <Input
+                      value={currentItem.artist}
+                      status={!currentItem.artist.trim() ? "error" : undefined}
+                      placeholder="请输入歌手"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onUpdateItem(currentItem.id, (prev) => ({ ...prev, artist: val }));
+                      }}
+                    />
+                  </Form.Item>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    专辑 (Album)
-                  </label>
-                  <Input
-                    value={currentItem.album}
-                    placeholder="选填，例如：叶惠美"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      onUpdateItem(currentItem.id, (prev) => ({ ...prev, album: val }));
-                    }}
-                  />
-                </div>
+                  <Form.Item label="专辑 (Album)" className="!mb-0">
+                    <Input
+                      value={currentItem.album}
+                      placeholder="选填，例如：叶惠美"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onUpdateItem(currentItem.id, (prev) => ({ ...prev, album: val }));
+                      }}
+                    />
+                  </Form.Item>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    时长 (mm:ss) <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={currentItem.durationStr}
-                    status={currentItem.durationMs <= 0 ? "error" : undefined}
-                    placeholder="例如 04:29"
-                    className="font-mono"
-                    onChange={(e) => {
-                      const str = e.target.value;
-                      const ms = parseDurationStrToMs(str);
-                      onUpdateItem(currentItem.id, (prev) => ({
-                        ...prev,
-                        durationStr: str,
-                        durationMs: ms,
-                      }));
-                    }}
-                  />
-                </div>
+                  <Form.Item label="时长 (mm:ss)" required className="!mb-0">
+                    <Input
+                      value={currentItem.durationStr}
+                      status={currentItem.durationMs <= 0 ? "error" : undefined}
+                      placeholder="例如 04:29"
+                      className="font-mono"
+                      onChange={(e) => {
+                        const str = e.target.value;
+                        const ms = parseDurationStrToMs(str);
+                        onUpdateItem(currentItem.id, (prev) => ({
+                          ...prev,
+                          durationStr: str,
+                          durationMs: ms,
+                        }));
+                      }}
+                    />
+                  </Form.Item>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    入库后状态
-                  </label>
-                  <Radio.Group
-                    value={currentItem.status}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      onUpdateItem(currentItem.id, (prev) => ({ ...prev, status: val }));
-                    }}
-                    size="small"
-                  >
-                    <Radio.Button value="active">可用 (active)</Radio.Button>
-                    <Radio.Button value="disabled">禁用 (disabled)</Radio.Button>
-                    <Radio.Button value="offline">下架 (offline)</Radio.Button>
-                  </Radio.Group>
-                </div>
+                  <Form.Item label="入库后状态" className="!mb-0">
+                    <Radio.Group
+                      value={currentItem.status}
+                      optionType="button"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onUpdateItem(currentItem.id, (prev) => ({ ...prev, status: val }));
+                      }}
+                    >
+                      <Radio.Button value="active">可用 (active)</Radio.Button>
+                      <Radio.Button value="disabled">禁用 (disabled)</Radio.Button>
+                      <Radio.Button value="offline">下架 (offline)</Radio.Button>
+                    </Radio.Group>
+                  </Form.Item>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    状态备注说明 (可选)
-                  </label>
-                  <Input
-                    size="small"
-                    value={currentItem.statusReason}
-                    placeholder="选填状态原因"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      onUpdateItem(currentItem.id, (prev) => ({ ...prev, statusReason: val }));
-                    }}
-                  />
+                  <Form.Item label="状态备注说明 (可选)" className="!mb-0">
+                    <Input
+                      value={currentItem.statusReason}
+                      placeholder="选填状态原因"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onUpdateItem(currentItem.id, (prev) => ({ ...prev, statusReason: val }));
+                      }}
+                    />
+                  </Form.Item>
                 </div>
-              </div>
+              </Form>
 
               {/* Cover Setting */}
               <Card
@@ -556,25 +549,30 @@ export default function CloudMusicBatchEditorStep({
 
                   <Space size={8}>
                     {currentItem.coverFile && (
-                      <Button size="small" danger onClick={handleClearCover}>
+                      <Button danger onClick={handleClearCover}>
                         清除封面
                       </Button>
                     )}
-                    <label className="relative cursor-pointer rounded-lg bg-blue-500 hover:bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition-all">
+                    <Button
+                      type="primary"
+                      icon={<PictureOutlined />}
+                      onClick={() => coverInputRef.current?.click()}
+                    >
                       {currentItem.coverFile ? "更换封面" : "选择图片"}
-                      <input
-                        type="file"
-                        accept="image/*,.jpg,.jpeg,.png,.webp"
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={(e) => {
-                          const file = e.currentTarget.files?.[0];
-                          if (file) {
-                            handleCoverFileSelect(file);
-                            e.currentTarget.value = "";
-                          }
-                        }}
-                      />
-                    </label>
+                    </Button>
+                    <input
+                      ref={coverInputRef}
+                      type="file"
+                      accept="image/*,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.currentTarget.files?.[0];
+                        if (file) {
+                          handleCoverFileSelect(file);
+                          e.currentTarget.value = "";
+                        }
+                      }}
+                    />
                   </Space>
                 </div>
               </Card>
@@ -589,14 +587,13 @@ export default function CloudMusicBatchEditorStep({
                       <span className="text-xs font-bold text-slate-700">歌词设置</span>
                       {lyricsSourceTag(currentItem.lyricsSource, Boolean(currentItem.lyricsText.trim()))}
                     </div>
-                    <Space size={6}>
+                    <Space size={8}>
                       <Tag color={detectLyricsFormat(currentItem.lyricsText) === "lrc" ? "green" : "default"}>
                         {detectLyricsFormat(currentItem.lyricsText) === "lrc" ? "同步歌词 · LRC" : "纯文本 · 无时间轴"}
                       </Tag>
 
                       {currentItem.lyricsText.trim() && (
                         <Button
-                          size="small"
                           danger
                           onClick={() => {
                             onUpdateItem(currentItem.id, (prev) => ({
@@ -610,22 +607,26 @@ export default function CloudMusicBatchEditorStep({
                         </Button>
                       )}
 
-                      <label className="relative inline-flex items-center gap-1 cursor-pointer rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white transition-all">
-                        <FileTextOutlined />
-                        <span>导入歌词文件</span>
-                        <input
-                          type="file"
-                          accept=".lrc,.txt"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={(e) => {
-                            const file = e.currentTarget.files?.[0];
-                            if (file) {
-                              void handleLyricsFileSelect(file);
-                              e.currentTarget.value = "";
-                            }
-                          }}
-                        />
-                      </label>
+                      <Button
+                        type="primary"
+                        icon={<FileTextOutlined />}
+                        onClick={() => lyricsInputRef.current?.click()}
+                      >
+                        导入歌词文件
+                      </Button>
+                      <input
+                        ref={lyricsInputRef}
+                        type="file"
+                        accept=".lrc,.txt"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0];
+                          if (file) {
+                            void handleLyricsFileSelect(file);
+                            e.currentTarget.value = "";
+                          }
+                        }}
+                      />
                     </Space>
                   </div>
                 }

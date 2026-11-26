@@ -138,6 +138,7 @@ export function AnnouncementDeliveryFields({ announcement, releases, onChange }:
             min={0}
             max={MAX_ANNOUNCEMENT_WAIT_SECONDS}
             value={announcement.waitSeconds ?? 0}
+            className="w-full"
             onChange={(waitSeconds) => onChange({ ...announcement, waitSeconds: waitSeconds ?? 0 })}
           />
           <div className="mt-1 text-xs text-slate-500">仅自动弹出时等待，0 秒可立即确认。</div>
@@ -217,7 +218,6 @@ export function AnnouncementGotoFields({ announcement, onChange }: Omit<Props, "
               <label htmlFor="announcement-goto-header" className="text-xs">显示顶栏</label>
               <Switch
                 id="announcement-goto-header"
-                size="small"
                 checked={action.showHeaderBar !== false}
                 onChange={(showHeaderBar) => onChange({ ...announcement, gotoAction: { ...action, showHeaderBar } })}
               />

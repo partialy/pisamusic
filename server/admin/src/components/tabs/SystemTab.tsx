@@ -1,6 +1,7 @@
 import {
   Button,
   Card,
+  DatePicker,
   Input,
   InputNumber,
   Space,
@@ -16,8 +17,8 @@ import {
   SaveOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
+import dayjs from "dayjs";
 import type { AppConfigJson, GatewaySignConfig } from "../../types/config";
-import { formatDateTimeLocal, parseDateTimeLocal } from "../../utils/date";
 import { EmailProviderEditor } from "./EmailProviderEditor";
 import EndpointDomainReplaceForm from "./EndpointDomainReplaceForm";
 
@@ -196,11 +197,13 @@ export default function SystemTab({
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   配置更新时间
                 </label>
-                <input
-                  type="datetime-local"
-                  value={formatDateTimeLocal(config.bootstrap.updatedAt)}
-                  onChange={(e) => updateSection("bootstrap", "updatedAt", parseDateTimeLocal(e.target.value))}
-                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-xs text-slate-800 cursor-pointer"
+                <DatePicker
+                  showTime={{ format: "HH:mm" }}
+                  format="YYYY-MM-DD HH:mm"
+                  value={config.bootstrap.updatedAt ? dayjs(config.bootstrap.updatedAt) : null}
+                  onChange={(val) => updateSection("bootstrap", "updatedAt", val ? val.valueOf() : 0)}
+                  className="w-full font-mono"
+                  placeholder="选择更新时间"
                 />
               </div>
             </div>
@@ -215,7 +218,6 @@ export default function SystemTab({
                     <span className="text-xs font-bold text-slate-700">PC 桌面端自动更新下发</span>
                   </Space>
                   <Switch
-                    size="small"
                     checked={desktopUpdater.enabled}
                     onChange={(val) => updateDesktopUpdater({ enabled: val })}
                   />
@@ -229,7 +231,6 @@ export default function SystemTab({
                     自动更新 Feed 地址
                   </label>
                   <Input
-                    size="small"
                     value={desktopUpdater.feedBaseUrl}
                     onChange={(e) => updateDesktopUpdater({ feedBaseUrl: e.target.value })}
                     className="font-mono text-xs"
@@ -238,10 +239,9 @@ export default function SystemTab({
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-center">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-white border border-slate-200">
                     <span className="text-xs text-slate-700 font-medium">启动时自动检查</span>
                     <Switch
-                      size="small"
                       checked={desktopUpdater.checkOnStartup}
                       onChange={(val) => updateDesktopUpdater({ checkOnStartup: val })}
                     />
@@ -252,7 +252,6 @@ export default function SystemTab({
                       <span className="text-xs text-slate-700 font-medium">启动延迟检查 (毫秒)</span>
                     </div>
                     <InputNumber
-                      size="small"
                       min={0}
                       value={desktopUpdater.startupDelayMs}
                       onChange={(val) => updateDesktopUpdater({ startupDelayMs: Number(val) || 0 })}
@@ -324,11 +323,13 @@ export default function SystemTab({
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 发现页更新时间
               </label>
-              <input
-                type="datetime-local"
-                value={formatDateTimeLocal(config.discover.updatedAt)}
-                onChange={(e) => updateSection("discover", "updatedAt", parseDateTimeLocal(e.target.value))}
-                className="h-8 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-xs text-slate-800 cursor-pointer"
+              <DatePicker
+                showTime={{ format: "HH:mm" }}
+                format="YYYY-MM-DD HH:mm"
+                value={config.discover.updatedAt ? dayjs(config.discover.updatedAt) : null}
+                onChange={(val) => updateSection("discover", "updatedAt", val ? val.valueOf() : 0)}
+                className="w-full font-mono"
+                placeholder="选择更新时间"
               />
             </div>
           </div>

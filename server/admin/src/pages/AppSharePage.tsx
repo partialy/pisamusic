@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Card, Col, Form, Input, Progress, QRCode, Row, Space, Spin, Tag, Typography, message } from "antd";
 import { ReloadOutlined, SaveOutlined, UploadOutlined, UndoOutlined } from "@ant-design/icons";
 import { fetchAppShare, saveAppShare, uploadAppShareIcon, type AppShareConfig, type AppShareDraft } from "../api/appShare";
-import { glassCardClasses } from "../constants/theme";
+import { adminCardClasses } from "../constants/theme";
 import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
 
 const DEFAULT_ICON = "/static/app-share/default.png";
@@ -100,11 +100,11 @@ export default function AppSharePage() {
     <div className="space-y-4">
       {contextHolder}
       <Alert type="info" showIcon message="修改和上传只更新草稿，点击「保存并发布」后客户端才会获取新配置。恢复默认也需要保存。" />
-      {error && <Alert type="error" showIcon message={error} action={<Button onClick={() => setReload((v) => v + 1)}>重试</Button>} />}
+      {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={() => setReload((v) => v + 1)}>重试</Button>} />}
       <Spin spinning={loading}>
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={14}>
-            <Card title="分享配置" className={glassCardClasses} extra={<Button icon={<ReloadOutlined />} disabled={busy} onClick={() => setReload((v) => v + 1)}>重新拉取</Button>}>
+            <Card bordered={false} title="分享配置" className={adminCardClasses} extra={<Button icon={<ReloadOutlined />} disabled={busy} onClick={() => setReload((v) => v + 1)}>重新拉取</Button>}>
               <Form form={form} layout="vertical" initialValues={DEFAULTS} onFinish={(values) => void save(values)} disabled={busy || !config}>
                 <Form.Item name="iconFileId" hidden><Input /></Form.Item>
                 <Form.Item label="应用名称" name="appName" rules={[{ required: true, whitespace: true, message: "请输入应用名称" }, { max: 60 }]}><Input maxLength={60} showCount /></Form.Item>
@@ -129,7 +129,7 @@ export default function AppSharePage() {
             </Card>
           </Col>
           <Col xs={24} xl={10}>
-            <Card title="实时预览" className={glassCardClasses} extra={<Tag>未保存草稿</Tag>}>
+            <Card bordered={false} title="实时预览" className={adminCardClasses} extra={<Tag>未保存草稿</Tag>}>
               <div className="mx-auto max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center space-y-5">
                 <img src={iconUrl} alt="分享图标预览" className="mx-auto h-20 w-20 rounded-2xl object-cover" onError={(event) => { if (event.currentTarget.getAttribute("src") !== DEFAULT_ICON) event.currentTarget.src = DEFAULT_ICON; }} />
                 <div><Typography.Title level={4} className="!mb-1 break-words">{draft.appName || "应用名称"}</Typography.Title><Typography.Text type="secondary">{previewVersion || "客户端本机版本"}</Typography.Text></div>

@@ -165,16 +165,15 @@ export function AnnouncementEditor({ announcementId, value, onChange, onUploadSt
                   <Space size={6}>
                     <BoldOutlined className="text-slate-500" />
                     <label htmlFor={`announcement-bold-${index}`} className="text-xs text-slate-600">加粗</label>
-                    <Switch id={`announcement-bold-${index}`} size="small" checked={Boolean(block.bold)} onChange={(bold) => updateBlock(index, { ...block, bold })} />
+                    <Switch id={`announcement-bold-${index}`} checked={Boolean(block.bold)} onChange={(bold) => updateBlock(index, { ...block, bold })} />
                   </Space>
                   <Space size={6}>
                     <label htmlFor={`announcement-italic-${index}`} className="text-xs text-slate-600">斜体</label>
-                    <Switch id={`announcement-italic-${index}`} size="small" checked={Boolean(block.italic)} onChange={(italic) => updateBlock(index, { ...block, italic: italic || undefined })} />
+                    <Switch id={`announcement-italic-${index}`} checked={Boolean(block.italic)} onChange={(italic) => updateBlock(index, { ...block, italic: italic || undefined })} />
                   </Space>
                   <Space size={6}>
                     <span className="text-xs text-slate-600">文字颜色</span>
                     <ColorPicker
-                      size="small"
                       value={block.color ? announcementColorHex(block.color) : "#475569"}
                       onChange={(color) => updateBlock(index, { ...block, color: color.toHexString() })}
                     />
@@ -190,8 +189,8 @@ export function AnnouncementEditor({ announcementId, value, onChange, onUploadSt
             <div className="space-y-2">
               {block.url ? <img src={block.url} alt={block.alt || "公告图片"} className="max-h-56 max-w-full rounded-lg border border-slate-200 object-contain" /> : <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-xs text-slate-400">请选择图片上传</div>}
               <Space wrap>
-                <Button size="small" loading={uploadingIndex === index} disabled={uploadingIndex !== null} onClick={() => inputRefs.current[index]?.click()}>选择图片</Button>
-                <Input size="small" value={block.alt} onChange={(event) => updateBlock(index, { ...block, alt: event.target.value })} placeholder="图片说明（可选）" className="w-56" />
+                <Button loading={uploadingIndex === index} disabled={uploadingIndex !== null} onClick={() => inputRefs.current[index]?.click()}>选择图片</Button>
+                <Input value={block.alt} onChange={(event) => updateBlock(index, { ...block, alt: event.target.value })} placeholder="图片说明（可选）" className="w-56" />
                 <input ref={(element) => { inputRefs.current[index] = element; }} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(index, file); }} />
               </Space>
               {block.fileId && <div className="text-[11px] text-slate-400">文件记录：{block.fileId}</div>}

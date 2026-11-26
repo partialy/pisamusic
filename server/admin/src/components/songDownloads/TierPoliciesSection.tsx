@@ -1,6 +1,6 @@
 import { Button, Card, Col, Divider, Input, InputNumber, Popconfirm, Row, Space, Switch, Tag } from "antd";
 import { DeleteOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons";
-import { glassCardClasses } from "../../constants/theme";
+import { adminCardClasses } from "../../constants/theme";
 import type { AdminTierPoliciesPayload, QuotaLimits, VipTierConfig } from "../../types/songDownloads";
 
 type Props = {
@@ -35,7 +35,6 @@ function QuotaLimitsRow({
               <div className="flex items-center justify-between mb-1">
                 <span className="font-semibold text-sm text-slate-800">{label}</span>
                 <Switch
-                  size="small"
                   checked={!unlimited}
                   checkedChildren="限制"
                   unCheckedChildren="不限"
@@ -109,7 +108,8 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
 
   return (
     <Card
-      className={glassCardClasses}
+      bordered={false}
+      className={adminCardClasses}
       title="四级下载配额与 VIP 等级策略"
       extra={
         <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={onSave}>
@@ -131,7 +131,6 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
               <span className="text-xs text-slate-500">耗尽后客户端弹窗引导登录账号</span>
             </Space>
             <Button
-              size="small"
               onClick={() =>
                 onChange({ ...policies, guest: { daily: 2, weekly: 10, monthly: 30, total: 30 } })
               }
@@ -154,13 +153,12 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
               <Tag color="blue">大众用户档（已注册非 VIP）</Tag>
               <span className="text-xs text-slate-500">新注册赠送额外下载次数：</span>
               <InputNumber
-                size="small"
                 min={0}
                 max={1000000}
                 precision={0}
                 value={policies.registerGiftExtraCount}
                 addonAfter="次"
-                style={{ width: 130 }}
+                style={{ width: 150 }}
                 onChange={(v) =>
                   onChange({
                     ...policies,
@@ -170,7 +168,6 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
               />
             </Space>
             <Button
-              size="small"
               onClick={() =>
                 onChange({ ...policies, standard: { daily: 10, weekly: 100, monthly: 1000, total: null } })
               }
@@ -195,7 +192,7 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
                 可动态新增 1..N 档，已有 VIP 默认归属 Lv1
               </span>
             </Space>
-            <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={addTier}>
+            <Button type="primary" ghost icon={<PlusOutlined />} onClick={addTier}>
               新增 VIP 档位（Lv{nextLevel}）
             </Button>
           </div>
@@ -210,7 +207,6 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
                   <Space>
                     <Tag color="gold">Lv{tier.level}</Tag>
                     <Input
-                      size="small"
                       maxLength={32}
                       value={tier.name}
                       style={{ width: 180 }}
@@ -224,7 +220,7 @@ export default function TierPoliciesSection({ policies, saving, onChange, onSave
                       description="已属于该等级的 VIP 用户将回落至 Lv1 限额"
                       onConfirm={() => removeTier(tier.level)}
                     >
-                      <Button size="small" danger icon={<DeleteOutlined />}>
+                      <Button danger icon={<DeleteOutlined />}>
                         删除档位
                       </Button>
                     </Popconfirm>

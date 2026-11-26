@@ -27,7 +27,7 @@ import {
   UndoOutlined,
 } from "@ant-design/icons";
 import { fetchRuntimeConfig, updateRuntimeConfig } from "../../api/client";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
+import { adminCardClasses } from "../../constants/theme";
 import type { RuntimeConfigChange, RuntimeConfigGroup, RuntimeConfigItem } from "../../types/runtimeConfig";
 
 function formatHumanReadableHint(value: any, unit?: string): string {
@@ -217,7 +217,7 @@ export default function RuntimeConfigTab({ themeColor }: { themeColor: string })
   return (
     <div className="space-y-4">
       {/* 顶部总览与操作栏 */}
-      <div className={glassCardClasses}>
+      <Card bordered={false} className={adminCardClasses}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div
@@ -297,23 +297,25 @@ export default function RuntimeConfigTab({ themeColor }: { themeColor: string })
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               allowClear
-              className={glassInputClasses}
             />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* 配置分组卡片渲染 */}
       <Spin spinning={loading}>
         {groupedSections.length === 0 ? (
-          <div className={`${glassCardClasses} py-12 text-center`}>
-            <Empty description="没有匹配的策略配置项" />
-          </div>
+          <Card bordered={false} className={adminCardClasses}>
+            <div className="py-8 text-center">
+              <Empty description="没有匹配的策略配置项" />
+            </div>
+          </Card>
         ) : (
           <div className="space-y-4">
             {groupedSections.map((section) => (
               <Card
                 key={section.group}
+                bordered={false}
                 title={
                   <div className="flex items-center gap-2">
                     <span>{section.icon}</span>
@@ -323,7 +325,7 @@ export default function RuntimeConfigTab({ themeColor }: { themeColor: string })
                     </Tag>
                   </div>
                 }
-                className="shadow-sm rounded-2xl border border-white/80 bg-white/70 backdrop-blur-xl overflow-hidden"
+                className={`${adminCardClasses} overflow-hidden`}
               >
                 <div className="divide-y divide-slate-100">
                   {section.items.map((item) => {

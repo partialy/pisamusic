@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import {
   Alert,
   Badge,
@@ -21,6 +21,8 @@ import {
   PictureOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import { useCloudMusicUploadQueue } from "../../state/CloudMusicUploadQueueContext";
 import type { CloudMusicBatchDraftItem } from "../../types/cloudMusic";
 import {
@@ -42,6 +44,7 @@ export default function CloudMusicUploadModal() {
     stats,
   } = useCloudMusicUploadQueue();
 
+  const dropInputRef = useRef<HTMLInputElement>(null);
   const [wizardStep, setWizardStep] = useState<0 | 1>(0);
   const [draftItems, setDraftItems] = useState<CloudMusicBatchDraftItem[]>([]);
   const [selectedDraftId, setSelectedDraftId] = useState<string>("");
@@ -114,7 +117,7 @@ export default function CloudMusicUploadModal() {
     }
   };
 
-  const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
@@ -228,20 +231,18 @@ export default function CloudMusicUploadModal() {
     <Modal
       open={modalOpen}
       centered
-      width={1040}
+      width={MODAL_WIDTH.xl}
       onCancel={closeModal}
       footer={renderWizardFooter()}
+      destroyOnClose
       title={
         <div className="flex flex-wrap items-center justify-between gap-3 pr-6">
-          <Space align="center" size={8}>
-            <CloudUploadOutlined className="text-blue-500 text-lg" />
-            <span className="text-base font-bold text-slate-800">
-              网盘音乐批量上传与任务中心
-            </span>
-          </Space>
+          <ModalTitle
+            icon={<CloudUploadOutlined className="text-blue-500" />}
+            title="网盘音乐批量上传与任务中心"
+          />
 
           <Segmented
-            size="small"
             value={modalView}
             onChange={(val) => setModalView(val as "wizard" | "queue")}
             options={[
@@ -307,7 +308,18 @@ export default function CloudMusicUploadModal() {
 
             {wizardStep === 0 ? (
               <div className="py-4 space-y-4">
-                <label
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (!parsing) dropInputRef.current?.click();
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && !parsing) {
+                      e.preventDefault();
+                      dropInputRef.current?.click();
+                    }
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -319,7 +331,7 @@ export default function CloudMusicUploadModal() {
                     setDragOver(false);
                   }}
                   onDrop={handleDrop}
-                  className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-all cursor-pointer ${
                     dragOver
                       ? "border-blue-500 bg-blue-50/70"
                       : "border-slate-300 bg-slate-50/60 hover:border-blue-400 hover:bg-blue-50/30"
@@ -346,12 +358,26 @@ export default function CloudMusicUploadModal() {
                     </Tag>
                   </div>
 
+                  <Button
+                    type="primary"
+                    icon={<CloudUploadOutlined />}
+                    disabled={parsing}
+                    className="mt-5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dropInputRef.current?.click();
+                    }}
+                  >
+                    选择文件（可多选）
+                  </Button>
+
                   <input
+                    ref={dropInputRef}
                     type="file"
                     multiple
                     disabled={parsing}
                     accept="audio/*,.mp3,.flac,.m4a,.ogg,.wav,.aac,.ape,.opus,image/*,.jpg,.jpeg,.png,.webp,.lrc,.txt"
-                    className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    className="hidden"
                     onChange={(e) => {
                       const fileList = e.currentTarget.files;
                       if (fileList && fileList.length > 0) {
@@ -360,7 +386,7 @@ export default function CloudMusicUploadModal() {
                       }
                     }}
                   />
-                </label>
+                </div>
 
                 {parsing && (
                   <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 space-y-2">

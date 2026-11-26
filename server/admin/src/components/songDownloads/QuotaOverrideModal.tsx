@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Checkbox, Divider, InputNumber, Modal, Space, Switch, Tag, message } from "antd";
+import { SlidersOutlined } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import { saveBatchSubjectQuotaOverride, saveSubjectQuotaOverride } from "../../api/songDownloads";
 import type { AdminQuotaStateItem, QuotaTargetRef } from "../../types/songDownloads";
 
@@ -29,7 +32,6 @@ function LimitField({ label, hint, value, disabled, onChange }: LimitFieldProps)
       </div>
       <div className="flex items-center gap-2">
         <Switch
-          size="small"
           disabled={disabled}
           checked={!unlimited}
           checkedChildren="限制"
@@ -138,25 +140,30 @@ export default function QuotaOverrideModal({ open, target, batchTargets = [], on
   return (
     <Modal
       open={open}
+      centered
+      destroyOnClose
       title={
-        <Space>
-          <span>{isBatch ? `批量配置下载配额（共 ${batchTargets.length} 项）` : "编辑下载配额"}</span>
-          {!isBatch && target && (
-            <Tag color={target.subjectType === "user" ? "blue" : "purple"}>
-              {target.subjectType === "user" ? "账号" : "设备"}
-            </Tag>
-          )}
-        </Space>
+        <ModalTitle
+          icon={<SlidersOutlined className="text-blue-500" />}
+          title={isBatch ? `批量配置下载配额（共 ${batchTargets.length} 项）` : "编辑下载配额"}
+          extra={
+            !isBatch && target ? (
+              <Tag color={target.subjectType === "user" ? "blue" : "purple"} className="!mr-0">
+                {target.subjectType === "user" ? "账号" : "设备"}
+              </Tag>
+            ) : null
+          }
+        />
       }
       onCancel={onClose}
       onOk={() => void handleSave()}
       confirmLoading={saving}
       okText={isBatch ? "批量保存" : "保存"}
       cancelText="取消"
-      width={540}
+      width={MODAL_WIDTH.md}
     >
       {active && (
-        <div className="space-y-3 pt-2">
+        <div className={MODAL_BODY_SCROLL_CLASS}>
           {isBatch ? (
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1.5">
               <div className="font-semibold text-slate-800">

@@ -3,14 +3,18 @@ import {
   Alert,
   Button,
   Card,
+  DatePicker,
+  Form,
   Input,
   Modal,
-  Space,
   Switch,
   Tag,
   Typography,
 } from "antd";
 import { NotificationOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import type { Announcement, AnnouncementContent, ReleaseConfig } from "../../types/config";
 import { AnnouncementDeliveryFields, AnnouncementGotoFields } from "../announcements/AnnouncementDeliveryFields";
 import { AnnouncementEditor } from "../ui/AnnouncementEditor";
@@ -42,23 +46,22 @@ export default function NoticeModal({
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const busy = saving || uploading;
+  const parsedTime = editing.time ? dayjs(editing.time) : null;
+  const datePickerValue = parsedTime && parsedTime.isValid() ? parsedTime : null;
+
   return (
     <Modal
       open
       centered
       title={
-        <Space>
-          <NotificationOutlined className="text-indigo-500" />
-          <span className="font-bold text-slate-800">
-            {isNew ? "发布新公告" : "编辑公告"}
-          </span>
-          <Tag>V{editing.announcementVersion ?? 1}</Tag>
-          {!isNew && (
-            <span className="font-mono text-xs text-slate-400">({editing.id})</span>
-          )}
-        </Space>
+        <ModalTitle
+          icon={<NotificationOutlined className="text-indigo-500" />}
+          title={isNew ? "发布新公告" : "编辑公告"}
+          extra={<Tag className="!mr-0">V{editing.announcementVersion ?? 1}</Tag>}
+          idText={!isNew ? editing.id : undefined}
+        />
       }
-      width={900}
+      width={MODAL_WIDTH.xl}
       onCancel={busy ? undefined : onClose}
       closable={!busy}
       maskClosable={!busy}
@@ -74,88 +77,85 @@ export default function NoticeModal({
       destroyOnClose
     >
       {error && <Alert className="mb-3" type="error" showIcon message={error} />}
-      <fieldset disabled={saving} className="min-w-0 space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              发布人 (Publisher)
-            </label>
+      <Form layout="vertical" component={false}>
+        <fieldset disabled={saving} className={`min-w-0 ${MODAL_BODY_SCROLL_CLASS}`}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Form.Item label="发布人 (Publisher)" className="!mb-0">
+              <Input
+                value={editing.publisher}
+                onChange={(e) => onChange({ ...editing, publisher: e.target.value })}
+                placeholder="例如: 官方运营团队"
+              />
+            </Form.Item>
+
+            <Form.Item label="展示时间 (Time)" className="!mb-0">
+              <DatePicker
+                showTime={{ format: "HH:mm" }}
+                format="YYYY-MM-DD HH:mm"
+                value={datePickerValue}
+                onChange={(val) =>
+                  onChange({ ...editing, time: val ? val.format("YYYY-MM-DD HH:mm") : "" })
+                }
+                className="w-full font-mono"
+                placeholder="选择展示时间"
+              />
+            </Form.Item>
+          </div>
+
+          <Form.Item label="确认按钮文案" className="!mb-0">
             <Input
-              value={editing.publisher}
-              onChange={(e) => onChange({ ...editing, publisher: e.target.value })}
-              placeholder="例如: 官方运营团队"
+              value={editing.confirmText}
+              onChange={(e) => onChange({ ...editing, confirmText: e.target.value })}
+              placeholder="例如: 知道了 / 我已了解"
             />
-          </div>
+          </Form.Item>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              展示时间 (Time)
-            </label>
-            <input
-              type="datetime-local"
-              value={editing.time.replace(" ", "T")}
-              onChange={(e) => onChange({ ...editing, time: e.target.value.replace("T", " ") })}
-              className="h-8 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-xs text-slate-800 cursor-pointer"
-            />
-          </div>
-        </div>
+          <Card size="small" className="bg-slate-50/50 rounded-xl border border-slate-200">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text strong className="text-xs text-slate-700 block">
+                    启用公告
+                  </Text>
+                  <span className="text-[11px] text-slate-400">
+                    关闭后客户端不会拉取该公告
+                  </span>
+                </div>
+                <Switch
+                  checked={editing.enabled !== false}
+                  onChange={(val) => onChange({ ...editing, enabled: val })}
+                />
+              </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            确认按钮文案
-          </label>
-          <Input
-            value={editing.confirmText}
-            onChange={(e) => onChange({ ...editing, confirmText: e.target.value })}
-            placeholder="例如: 知道了 / 我已了解"
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text strong className="text-xs text-slate-700 block">
+                    每次都展示
+                  </Text>
+                  <span className="text-[11px] text-slate-400">
+                    开启后不依赖客户端已读状态，每次进入均会弹窗
+                  </span>
+                </div>
+                <Switch
+                  checked={Boolean(editing.showEveryTime)}
+                  onChange={(val) => onChange({ ...editing, showEveryTime: val })}
+                />
+              </div>
+
+              <AnnouncementGotoFields announcement={editing} onChange={onChange} />
+            </div>
+          </Card>
+
+          <AnnouncementDeliveryFields announcement={editing} releases={releases} onChange={onChange} />
+
+          <AnnouncementEditor
+            announcementId={editing.id}
+            value={editing.content}
+            onChange={onContentChange}
+            onUploadStateChange={setUploading}
           />
-        </div>
-
-        <Card size="small" className="bg-slate-50/50 rounded-xl border border-slate-200">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Text strong className="text-xs text-slate-700 block">
-                  启用公告
-                </Text>
-                <span className="text-[11px] text-slate-400">
-                  关闭后客户端不会拉取该公告
-                </span>
-              </div>
-              <Switch
-                checked={editing.enabled !== false}
-                onChange={(val) => onChange({ ...editing, enabled: val })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Text strong className="text-xs text-slate-700 block">
-                  每次都展示
-                </Text>
-                <span className="text-[11px] text-slate-400">
-                  开启后不依赖客户端已读状态，每次进入均会弹窗
-                </span>
-              </div>
-              <Switch
-                checked={Boolean(editing.showEveryTime)}
-                onChange={(val) => onChange({ ...editing, showEveryTime: val })}
-              />
-            </div>
-
-            <AnnouncementGotoFields announcement={editing} onChange={onChange} />
-          </div>
-        </Card>
-
-        <AnnouncementDeliveryFields announcement={editing} releases={releases} onChange={onChange} />
-
-        <AnnouncementEditor
-          announcementId={editing.id}
-          value={editing.content}
-          onChange={onContentChange}
-          onUploadStateChange={setUploading}
-        />
-      </fieldset>
+        </fieldset>
+      </Form>
     </Modal>
   );
 }

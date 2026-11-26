@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   Button,
   Card,
   Descriptions,
+  Form,
   Image,
   Input,
   Modal,
@@ -15,7 +16,11 @@ import {
 import {
   CustomerServiceOutlined,
   EditOutlined,
+  FileTextOutlined,
+  PictureOutlined,
 } from "@ant-design/icons";
+import { MODAL_BODY_SCROLL_CLASS, MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import {
   completeCloudMusicAsset,
   removeCloudMusicManualCover,
@@ -68,6 +73,8 @@ export default function CloudMusicEditModal({
   onClose,
   onSaved,
 }: Props) {
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const lyricsInputRef = useRef<HTMLInputElement>(null);
   const [track, setTrack] = useState<CloudMusicTrack>(initialTrack);
   const [title, setTitle] = useState(track.title || "");
   const [artist, setArtist] = useState(track.artist || "");
@@ -190,13 +197,13 @@ export default function CloudMusicEditModal({
       open
       centered
       title={
-        <Space align="center" size={8}>
-          <EditOutlined className="text-blue-500 text-lg" />
-          <span className="text-base font-bold text-slate-800">编辑网盘歌曲元数据</span>
-          <span className="text-xs font-mono text-slate-400">({track.uuid})</span>
-        </Space>
+        <ModalTitle
+          icon={<EditOutlined className="text-blue-500" />}
+          title="编辑网盘歌曲元数据"
+          idText={track.uuid}
+        />
       }
-      width={800}
+      width={MODAL_WIDTH.lg}
       onCancel={onClose}
       onOk={handleSave}
       confirmLoading={saving}
@@ -204,199 +211,205 @@ export default function CloudMusicEditModal({
       cancelText="取消"
       destroyOnClose
     >
-      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
-        {error && <Alert type="error" showIcon message={error} />}
+      <Form layout="vertical" component={false}>
+        <div className={MODAL_BODY_SCROLL_CLASS}>
+          {error && <Alert type="error" showIcon message={error} />}
 
-        {/* Basic Metadata */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              歌名 (Title) <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="例如: 晴天"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              歌手 (Artist) <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={artist}
-              onChange={(e) => setArtist(e.target.value)}
-              placeholder="例如: 周杰伦"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              专辑 (Album)
-            </label>
-            <Input
-              value={album}
-              onChange={(e) => setAlbum(e.target.value)}
-              placeholder="例如: 叶惠美"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              时长 (Duration) <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={durationStr}
-              onChange={(e) => setDurationStr(e.target.value)}
-              placeholder="mm:ss，例如 04:29"
-              className="font-mono"
-            />
-          </div>
-        </div>
-
-        {/* Status & Reason */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              业务可用状态
-            </label>
-            <Radio.Group
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full"
-            >
-              <Radio.Button value="active">
-                <span className="text-emerald-700 font-bold">可用 (active)</span>
-              </Radio.Button>
-              <Radio.Button value="disabled">
-                <span className="text-amber-700 font-bold">禁用 (disabled)</span>
-              </Radio.Button>
-              <Radio.Button value="offline">
-                <span className="text-slate-600 font-bold">下架 (offline)</span>
-              </Radio.Button>
-            </Radio.Group>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              状态调整原因说明 (可选)
-            </label>
-            <Input
-              value={statusReason}
-              onChange={(e) => setStatusReason(e.target.value)}
-              placeholder="例如: 版权受限，暂时关闭播放"
-            />
-          </div>
-        </div>
-
-        {/* Cover Management */}
-        <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl" title={<span className="text-xs font-bold">封面图片管理</span>}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Image
-                width={56}
-                height={56}
-                src={track.cover?.url}
-                className="rounded-lg object-cover bg-slate-200 shrink-0 border border-slate-300 shadow-2xs"
-                alt={track.title}
+          {/* Basic Metadata */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Form.Item label="歌名 (Title)" required className="!mb-0">
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="例如: 晴天"
               />
-              <div>
-                <Tag color={track.cover?.source === "uploaded" ? "purple" : "cyan"}>
-                  {track.cover?.source === "uploaded" ? "手动上传封面" : "音频内嵌封面"}
-                </Tag>
-                <Text type="secondary" className="block text-xs mt-1">
-                  支持更换为自定义封面图片
-                </Text>
-              </div>
-            </div>
+            </Form.Item>
 
-            <Space>
-              {track.cover?.source === "uploaded" && (
+            <Form.Item label="歌手 (Artist)" required className="!mb-0">
+              <Input
+                value={artist}
+                onChange={(e) => setArtist(e.target.value)}
+                placeholder="例如: 周杰伦"
+              />
+            </Form.Item>
+
+            <Form.Item label="专辑 (Album)" className="!mb-0">
+              <Input
+                value={album}
+                onChange={(e) => setAlbum(e.target.value)}
+                placeholder="例如: 叶惠美"
+              />
+            </Form.Item>
+
+            <Form.Item label="时长 (Duration)" required className="!mb-0">
+              <Input
+                value={durationStr}
+                onChange={(e) => setDurationStr(e.target.value)}
+                placeholder="mm:ss，例如 04:29"
+                className="font-mono"
+              />
+            </Form.Item>
+          </div>
+
+          {/* Status & Reason */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+            <Form.Item label="业务可用状态" className="!mb-0">
+              <Radio.Group
+                value={status}
+                optionType="button"
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full flex"
+              >
+                <Radio.Button value="active" className="flex-1 text-center">
+                  <span className="text-emerald-700 font-bold">可用 (active)</span>
+                </Radio.Button>
+                <Radio.Button value="disabled" className="flex-1 text-center">
+                  <span className="text-amber-700 font-bold">禁用 (disabled)</span>
+                </Radio.Button>
+                <Radio.Button value="offline" className="flex-1 text-center">
+                  <span className="text-slate-600 font-bold">下架 (offline)</span>
+                </Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item label="状态调整原因说明 (可选)" className="!mb-0">
+              <Input
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                placeholder="例如: 版权受限，暂时关闭播放"
+              />
+            </Form.Item>
+          </div>
+
+          {/* Cover Management */}
+          <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl" title={<span className="text-xs font-bold">封面图片管理</span>}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Image
+                  width={56}
+                  height={56}
+                  src={track.cover?.url}
+                  className="rounded-lg object-cover bg-slate-200 shrink-0 border border-slate-300 shadow-2xs"
+                  alt={track.title}
+                />
+                <div>
+                  <Tag color={track.cover?.source === "uploaded" ? "purple" : "cyan"}>
+                    {track.cover?.source === "uploaded" ? "手动上传封面" : "音频内嵌封面"}
+                  </Tag>
+                  <Text type="secondary" className="block text-xs mt-1">
+                    支持更换为自定义封面图片
+                  </Text>
+                </div>
+              </div>
+
+              <Space>
+                {track.cover?.source === "uploaded" && (
+                  <Button
+                    danger
+                    loading={coverUpdating}
+                    onClick={handleRemoveCover}
+                  >
+                    恢复内嵌封面
+                  </Button>
+                )}
                 <Button
-                  size="small"
-                  danger
+                  type="primary"
+                  icon={<PictureOutlined />}
                   loading={coverUpdating}
-                  onClick={handleRemoveCover}
+                  onClick={() => coverInputRef.current?.click()}
                 >
-                  恢复内嵌封面
+                  上传新封面
                 </Button>
-              )}
-              <label className="relative cursor-pointer rounded-lg bg-blue-500 hover:bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition-all">
-                {coverUpdating ? "上传中..." : "上传新封面"}
                 <input
+                  ref={coverInputRef}
                   type="file"
                   accept="image/*"
                   disabled={coverUpdating}
-                  className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  className="hidden"
                   onChange={(e) => {
                     const file = e.currentTarget.files?.[0];
-                    if (file) handleUploadCover(file);
+                    if (file) {
+                      void handleUploadCover(file);
+                      e.currentTarget.value = "";
+                    }
                   }}
                 />
-              </label>
-            </Space>
-          </div>
-        </Card>
-
-        {/* Lyrics Management */}
-        <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl" title={<span className="text-xs font-bold">歌词资产管理</span>}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CustomerServiceOutlined className="text-emerald-500 text-2xl" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-800">
-                    {track.lyrics ? `已绑定 ${track.lyrics.format.toUpperCase()} 歌词` : "暂无歌词"}
-                  </span>
-                  {track.lyrics && <Tag color="success">就绪</Tag>}
-                </div>
-                <Text type="secondary" className="block text-xs mt-1">
-                  支持上传 .lrc 同步歌词或 .txt 纯文本歌词
-                </Text>
-              </div>
+              </Space>
             </div>
+          </Card>
 
-            <Space wrap>
-            {track.lyrics && <Button size="small" disabled={lyricsUpdating} onClick={() => setViewingLyrics(true)}>查看歌词原文</Button>}
-            <label className="relative cursor-pointer rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition-all">
-              {lyricsUpdating ? "上传中..." : track.lyrics ? "更换歌词" : "上传歌词"}
-              <input
-                type="file"
-                accept=".lrc,.txt"
-                disabled={lyricsUpdating}
-                className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                onChange={(e) => {
-                  const file = e.currentTarget.files?.[0];
-                  if (file) handleUploadLyrics(file);
-                }}
-              />
-            </label>
-            </Space>
-          </div>
-        </Card>
+          {/* Lyrics Management */}
+          <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl" title={<span className="text-xs font-bold">歌词资产管理</span>}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <CustomerServiceOutlined className="text-emerald-500 text-2xl" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800">
+                      {track.lyrics ? `已绑定 ${track.lyrics.format.toUpperCase()} 歌词` : "暂无歌词"}
+                    </span>
+                    {track.lyrics && <Tag color="success">就绪</Tag>}
+                  </div>
+                  <Text type="secondary" className="block text-xs mt-1">
+                    支持上传 .lrc 同步歌词或 .txt 纯文本歌词
+                  </Text>
+                </div>
+              </div>
 
-        {/* Technical Info */}
-        <Descriptions
-          bordered
-          size="small"
-          column={3}
-          className="bg-slate-50/50 rounded-xl overflow-hidden"
-        >
-          <Descriptions.Item label="格式">
-            <Tag color="geekblue">{track.format?.toUpperCase() || "-"}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="比特率">
-            {track.bitrate ? `${Math.round(track.bitrate / 1000)} kbps` : "-"}
-          </Descriptions.Item>
-          <Descriptions.Item label="采样率">
-            {track.sampleRate ? `${track.sampleRate} Hz` : "-"}
-          </Descriptions.Item>
-          <Descriptions.Item label="所有者" span={3}>
-            {track.owner?.displayName} {track.owner?.userId ? `(ID: ${track.owner.userId})` : ""}
-          </Descriptions.Item>
-        </Descriptions>
-      </div>
+              <Space wrap>
+                {track.lyrics && (
+                  <Button disabled={lyricsUpdating} onClick={() => setViewingLyrics(true)}>
+                    查看歌词原文
+                  </Button>
+                )}
+                <Button
+                  type="primary"
+                  icon={<FileTextOutlined />}
+                  loading={lyricsUpdating}
+                  onClick={() => lyricsInputRef.current?.click()}
+                >
+                  {track.lyrics ? "更换歌词" : "上传歌词"}
+                </Button>
+                <input
+                  ref={lyricsInputRef}
+                  type="file"
+                  accept=".lrc,.txt"
+                  disabled={lyricsUpdating}
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.currentTarget.files?.[0];
+                    if (file) {
+                      void handleUploadLyrics(file);
+                      e.currentTarget.value = "";
+                    }
+                  }}
+                />
+              </Space>
+            </div>
+          </Card>
+
+          {/* Technical Info */}
+          <Descriptions
+            bordered
+            size="small"
+            column={3}
+            className="bg-slate-50/50 rounded-xl overflow-hidden"
+          >
+            <Descriptions.Item label="格式">
+              <Tag color="geekblue">{track.format?.toUpperCase() || "-"}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="比特率">
+              {track.bitrate ? `${Math.round(track.bitrate / 1000)} kbps` : "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="采样率">
+              {track.sampleRate ? `${track.sampleRate} Hz` : "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="所有者" span={3}>
+              {track.owner?.displayName} {track.owner?.userId ? `(ID: ${track.owner.userId})` : ""}
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
+      </Form>
     </Modal>
     {viewingLyrics && <CloudMusicLyricsModal uuid={track.uuid} onClose={() => setViewingLyrics(false)} />}
     </>
