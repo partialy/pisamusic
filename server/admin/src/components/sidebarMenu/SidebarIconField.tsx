@@ -92,7 +92,6 @@ export default function SidebarIconField({
       {iconType === "image" && (
         <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-3">
           <Radio.Group
-            size="small"
             value={imageMode}
             onChange={(e) => onImageModeChange(e.target.value as "upload" | "url")}
           >

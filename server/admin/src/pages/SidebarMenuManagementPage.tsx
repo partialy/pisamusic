@@ -31,7 +31,7 @@ import { fetchSidebarMenu, saveSidebarMenu } from "../api/sidebarMenu";
 import BuiltinItemEditModal from "../components/sidebarMenu/BuiltinItemEditModal";
 import SidebarMenuItemModal from "../components/sidebarMenu/SidebarMenuItemModal";
 import SidebarMenuPreview from "../components/sidebarMenu/SidebarMenuPreview";
-import { glassCardClasses } from "../constants/theme";
+import { adminCardClasses } from "../constants/theme";
 import {
   SIDEBAR_BUILTIN_META,
   getSidebarAppActionLabel,
@@ -375,14 +375,14 @@ export default function SidebarMenuManagementPage() {
           type="error"
           showIcon
           message={error}
-          action={<Button onClick={() => setReloadTick((v) => v + 1)}>重试</Button>}
+          action={<Button size="small" onClick={() => setReloadTick((v) => v + 1)}>重试</Button>}
         />
       )}
 
       <Spin spinning={loading}>
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={15}>
-            <Card className={glassCardClasses}>
+            <Card bordered={false} className={adminCardClasses}>
               <Tabs
                 items={[
                   {
@@ -523,7 +523,7 @@ export default function SidebarMenuManagementPage() {
                             />
                             <span className="ml-2 text-sm font-medium">展示位置：</span>
                             <Radio.Group
-                              size="small"
+                              optionType="button"
                               value={config.gridSection.position}
                               onChange={(e) => {
                                 setDirty(true);
@@ -587,7 +587,7 @@ export default function SidebarMenuManagementPage() {
                                   </div>
                                   <div className="text-xs text-slate-500">{meta?.description}</div>
                                 </div>
-                                <Space>
+                                <Space size={4} wrap>
                                   <Switch
                                     size="small"
                                     checked={item.enabled}

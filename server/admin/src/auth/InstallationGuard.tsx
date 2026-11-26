@@ -3,7 +3,7 @@ import { Alert, Button, Card, Form, Input, Spin, Typography, message } from "ant
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { completeInstallation, fetchInstallationStatus, type InstallationStatus, type SetupInput } from "../api/setup";
 import { clearStoredToken } from "./token";
-import { bgPresets, glassCardClasses } from "../constants/theme";
+import { adminCardClasses, bgPresets } from "../constants/theme";
 import { loadTheme } from "../utils/themeStorage";
 
 const INSTALLATION_KEY = "pisa-admin-installation";
@@ -70,8 +70,8 @@ export default function InstallationGuard({ children }: { children: ReactNode })
     }
     finally { setSubmitting(false); }
   };
-  return <div className={`min-h-dvh flex items-center justify-center p-5 bg-gradient-to-br ${bgPresets[theme.bgIndex].base}`}>
-    <Card className={`${glassCardClasses} w-full max-w-lg`}>
+  return <div className={`min-h-dvh flex items-center justify-center p-5 bg-gradient-to-br ${bgPresets[theme.bgIndex].base} ${bgPresets[theme.bgIndex].darkBase}`}>
+    <Card bordered={false} className={`${adminCardClasses} w-full max-w-lg`}>
       <Typography.Title level={3}>PisaAdmin · 首次初始化</Typography.Title>
       {loading ? <Spin tip="正在检查安装状态…"><div className="h-24" /></Spin>
         : status?.transferStatus === "incomplete" ? <Alert type="error" showIcon message="数据库传输尚未完成" description="当前目标库不可用，请返回原运行库检查迁移报告并重新执行传输。不能在此创建新管理员。" action={<Button onClick={() => void refresh()}>重新检查</Button>} />

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Checkbox, Form, Input, Modal, Radio, Select, Switch, Typography, message } from "antd";
+import { MenuOutlined } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import SidebarIconField from "./SidebarIconField";
 import {
   SIDEBAR_APP_ACTION_OPTIONS,
@@ -135,17 +138,23 @@ export default function SidebarMenuItemModal({
   return (
     <Modal
       open={open}
-      title={`${initialItem ? "编辑" : "新增"}${section === "list" ? "横栏入口" : "四宫格入口"}`}
+      centered
+      title={
+        <ModalTitle
+          icon={<MenuOutlined className="text-blue-500" />}
+          title={`${initialItem ? "编辑" : "新增"}${section === "list" ? "横栏入口" : "四宫格入口"}`}
+        />
+      }
       onCancel={onCancel}
       onOk={() => void handleOk()}
       okText="确定"
       cancelText="取消"
       okButtonProps={{ disabled: uploading }}
-      width={620}
+      width={MODAL_WIDTH.md}
       destroyOnClose
     >
       {contextHolder}
-      <Form form={form} layout="vertical" className="mt-3">
+      <Form form={form} layout="vertical" className="pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Form.Item
             label="名称"
@@ -159,7 +168,9 @@ export default function SidebarMenuItemModal({
             <Input maxLength={30} showCount placeholder="例如：活动中心" />
           </Form.Item>
           <Form.Item label="启用状态" name="enabled" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="停用" />
+            <div className="flex h-8 items-center">
+              <Switch checkedChildren="启用" unCheckedChildren="停用" />
+            </div>
           </Form.Item>
         </div>
 
@@ -208,10 +219,10 @@ export default function SidebarMenuItemModal({
         )}
 
         <Form.Item label="打开方式" name="openType">
-          <Radio.Group>
-            <Radio value="web">打开网页</Radio>
-            <Radio value="fullscreen_web">打开全屏网页</Radio>
-            <Radio value="app_action">打开 App 页面 / 功能</Radio>
+          <Radio.Group optionType="button">
+            <Radio.Button value="web">打开网页</Radio.Button>
+            <Radio.Button value="fullscreen_web">全屏网页</Radio.Button>
+            <Radio.Button value="app_action">App 页面 / 功能</Radio.Button>
           </Radio.Group>
         </Form.Item>
 

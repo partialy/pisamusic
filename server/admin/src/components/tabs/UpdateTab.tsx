@@ -15,6 +15,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  ClearOutlined,
   CloudUploadOutlined,
   DeleteOutlined,
   DownOutlined,
@@ -209,11 +210,9 @@ export default function UpdateTab({
                     type="link"
                     danger
                     size="small"
-                    icon={<DeleteOutlined />}
+                    icon={<ClearOutlined />}
                     loading={deletingPackageHistoryId === record.id}
-                  >
-                    包
-                  </Button>
+                  />
                 </Popconfirm>
               </Tooltip>
             )}
@@ -226,9 +225,7 @@ export default function UpdateTab({
                     disabled
                     size="small"
                     icon={<DeleteOutlined />}
-                  >
-                    版
-                  </Button>
+                  />
                 </span>
               </Tooltip>
             ) : (
@@ -240,9 +237,7 @@ export default function UpdateTab({
                   icon={<DeleteOutlined />}
                   loading={deletingHistoryId === record.id}
                   onClick={() => onDeleteHistory(record)}
-                >
-                  版
-                </Button>
+                />
               </Tooltip>
             )}
           </Space>
@@ -267,7 +262,6 @@ export default function UpdateTab({
               </span>
             </div>
             <Segmented
-              size="small"
               value={platformFilter}
               onChange={(val) => onPlatformFilterChange(val as UpdateHistoryPlatformFilter)}
               options={[

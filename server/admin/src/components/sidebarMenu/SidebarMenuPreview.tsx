@@ -20,7 +20,7 @@ import {
   ShareAltOutlined,
   SoundOutlined,
 } from "@ant-design/icons";
-import { glassCardClasses } from "../../constants/theme";
+import { adminCardClasses } from "../../constants/theme";
 import {
   SIDEBAR_BUILTIN_META,
   type SidebarBuiltinIconType,
@@ -223,11 +223,11 @@ export default function SidebarMenuPreview({ config }: { config: SidebarMenuConf
 
   return (
     <Card
+      bordered={false}
       title="客户端侧栏实时预览"
-      className={glassCardClasses}
+      className={adminCardClasses}
       extra={
         <Segmented
-          size="small"
           value={dark ? "dark" : "light"}
           onChange={(v) => setDark(v === "dark")}
           options={[

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Form, Input, Modal, Switch, message } from "antd";
+import { MenuOutlined } from "@ant-design/icons";
+import { MODAL_WIDTH } from "../../constants/theme";
+import { ModalTitle } from "../ui/ModalTitle";
 import SidebarIconField from "./SidebarIconField";
 import {
   SIDEBAR_BUILTIN_META,
@@ -78,17 +81,23 @@ export default function BuiltinItemEditModal({ open, item, onCancel, onSubmit }:
   return (
     <Modal
       open={open}
-      title={`配置内置入口：${meta?.defaultName ?? ""}`}
+      centered
+      title={
+        <ModalTitle
+          icon={<MenuOutlined className="text-blue-500" />}
+          title={`配置内置入口：${meta?.defaultName ?? ""}`}
+        />
+      }
       onCancel={onCancel}
       onOk={() => void handleOk()}
       okText="确定"
       cancelText="取消"
       okButtonProps={{ disabled: uploading }}
-      width={600}
+      width={MODAL_WIDTH.md}
       destroyOnClose
     >
       {contextHolder}
-      <Form form={form} layout="vertical" className="mt-3">
+      <Form form={form} layout="vertical" className="pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Form.Item
             label="显示名称（留空则使用默认名称）"
@@ -104,7 +113,9 @@ export default function BuiltinItemEditModal({ open, item, onCancel, onSubmit }:
             />
           </Form.Item>
           <Form.Item label="侧栏显示" name="enabled" valuePropName="checked">
-            <Switch checkedChildren="显示" unCheckedChildren="隐藏" />
+            <div className="flex h-8 items-center">
+              <Switch checkedChildren="显示" unCheckedChildren="隐藏" />
+            </div>
           </Form.Item>
         </div>
 
