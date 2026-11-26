@@ -6,6 +6,8 @@
 
 - React 18 + TypeScript + Ant Design + React Router + Vite；图表使用 Recharts，优先复用项目现有组件、请求封装与交互模式。
 - Admin `vite.config.ts` 固定 `base: "/partialy/"`，并通过同目录 `nginx.partialy.conf.example`（不进入 `web-admin/` 打包产物）隔离 `/`（返回 404）、`/partialy/`（Admin）与 `/h5/`（`web-h5/`）。
+- 深色模式跟随浏览器 `prefers-color-scheme: dark` 自动切换：通过 `hooks/usePrefersDark.ts` 同步根元素 `dark` 类与 Ant Design `darkAlgorithm`（覆盖安装向导、登录页与主控制台），并在 `index.css` 统一映射常用浅色表面与文本色。
+- **统一控件与弹窗规范**：`App.tsx` 与 `AdminLayout.tsx` 共用 `constants/theme.ts` 的 `getAdminThemeConfig`（`componentSize="middle"`、统一 `controlHeight` 与 `borderRadius`）；AntD `<Card>` 统一使用 `bordered={false}` + `adminCardClasses`（不叠加 `glassCardClasses` 的 `p-4`）；表单与设置卡片内统一使用 `middle` 尺寸 AntD 控件与 `<DatePicker showTime />`（不使用原生 `datetime-local`、`glassInputClasses` 或手写 `<label>` 上传假按钮）；主表格统一 `size="middle" bordered`、弹窗/二级子表统一 `size="small" bordered`，表格行内及高密度列表行内控件与 `Switch` 统一 `size="small"`，操作列统一纯图标 `<Button type="link" size="small" />` 配 `Tooltip`；弹窗统一使用 `MODAL_WIDTH`（`480/640/800/1000`）、`MODAL_BODY_SCROLL_CLASS` 与 `components/ui/ModalTitle.tsx`。
 - 以下命令从仓库根目录执行：开发 `pnpm --dir server/admin dev`，构建 `pnpm --dir server/admin build`。
 - 构建产物输出到 `server/web-admin/`，已忽略，不提交。不要恢复旧 `build:web`、`deploy:web` 或复制到 `server/web/` 的流程。
 - 页面、业务组件、状态与请求按职责拆分；不在页面复制加密、鉴权或服务端业务规则。
