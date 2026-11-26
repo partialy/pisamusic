@@ -2,6 +2,104 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #020617;
+  color: #e2e8f0;
+}
+
+/* 统一深色模式下常用 Tailwind 浅色表面、文字与边框类，覆盖各业务子页面 */
+html.dark .bg-white {
+  background-color: #0f172a;
+}
+html.dark .bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.94);
+}
+html.dark .bg-white\/90 {
+  background-color: rgba(15, 23, 42, 0.9);
+}
+html.dark .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.82);
+}
+html.dark .bg-white\/70 {
+  background-color: rgba(15, 23, 42, 0.75);
+}
+html.dark .bg-white\/60 {
+  background-color: rgba(15, 23, 42, 0.65);
+}
+html.dark .bg-white\/50 {
+  background-color: rgba(15, 23, 42, 0.55);
+}
+html.dark .bg-white\/40 {
+  background-color: rgba(15, 23, 42, 0.45);
+}
+html.dark .bg-slate-50 {
+  background-color: rgba(30, 41, 59, 0.72);
+}
+html.dark .bg-slate-50\/80 {
+  background-color: rgba(30, 41, 59, 0.65);
+}
+html.dark .bg-slate-50\/70 {
+  background-color: rgba(30, 41, 59, 0.58);
+}
+html.dark .bg-slate-100 {
+  background-color: rgba(30, 41, 59, 0.85);
+}
+html.dark .bg-blue-50\/70 {
+  background-color: rgba(30, 58, 138, 0.28);
+}
+html.dark .bg-blue-50\/90 {
+  background-color: rgba(30, 58, 138, 0.36);
+}
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-white\/50:hover {
+  background-color: rgba(51, 65, 85, 0.45);
+}
+
+html.dark .text-slate-900 {
+  color: #f8fafc;
+}
+html.dark .text-slate-800 {
+  color: #f1f5f9;
+}
+html.dark .text-slate-700 {
+  color: #e2e8f0;
+}
+html.dark .text-slate-600 {
+  color: #cbd5e1;
+}
+html.dark .text-slate-500 {
+  color: #94a3b8;
+}
+html.dark .text-slate-400 {
+  color: #94a3b8;
+}
+html.dark .text-slate-300 {
+  color: #64748b;
+}
+
+html.dark .border-white,
+html.dark .border-white\/80,
+html.dark .border-white\/60,
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/80,
+html.dark .border-slate-300 {
+  border-color: rgba(51, 65, 85, 0.75);
+}
+
+/* Ant Design 透明玻璃卡片内表格与 Card 细节微调 */
+html.dark .ant-card {
+  background-color: rgba(15, 23, 42, 0.72);
+}
+
 /* Modern clean scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -17,9 +115,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.6);
 }
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.48);
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.65);
+}
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+html.dark * {
+  scrollbar-color: rgba(100, 116, 139, 0.48) transparent;
 }
 
 .no-scrollbar::-webkit-scrollbar {

@@ -49,8 +49,9 @@ import {
 import zhCN from "antd/locale/zh_CN";
 import "dayjs/locale/zh-cn";
 import dayjs from "dayjs";
-import { bgPresets, colorPresets } from "../constants/theme";
+import { bgPresets, colorPresets, getAdminThemeConfig } from "../constants/theme";
 import { loadTheme, saveTheme } from "../utils/themeStorage";
+import { usePrefersDark } from "../hooks/usePrefersDark";
 import { useAuth } from "../auth/AuthContext";
 import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
 import { useCloudMusicUploadQueue } from "../state/CloudMusicUploadQueueContext";
@@ -84,6 +85,7 @@ function tabFallback() {
 const initialTheme = loadTheme();
 
 export default function AdminLayout() {
+  const isDark = usePrefersDark();
   const { logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -220,7 +222,7 @@ export default function AdminLayout() {
                 setBgIndex(idx);
                 saveTheme({ themeColor, bgIndex: idx });
               }}
-              className={`h-6 rounded-lg border-2 transition-all ${
+              className={`h-7 rounded-lg border-2 transition-all ${
                 bgIndex === idx ? "border-slate-800 scale-110 shadow-sm" : "border-transparent hover:scale-105"
               } bg-gradient-to-r ${bg.base}`}
             />
@@ -356,27 +358,23 @@ export default function AdminLayout() {
   return (
     <ConfigProvider
       locale={zhCN}
-      theme={{
-        token: {
-          colorPrimary: themeColor,
-          borderRadius: 8,
-        },
-      }}
+      componentSize="middle"
+      theme={getAdminThemeConfig(isDark, themeColor)}
     >
       <AdminLayoutContext.Provider value={{ themeColor, registerPageActions }}>
-        <div className="relative min-h-dvh w-full font-sans text-slate-800">
+        <div className="relative min-h-dvh w-full font-sans text-slate-800 dark:text-slate-100">
           {/* Background Gradients */}
           <div
-            className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} transition-colors duration-700`}
+            className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} ${bgPresets[bgIndex].darkBase} transition-colors duration-700`}
           >
             <div
-              className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
+              className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 dark:opacity-40 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
             />
             <div
-              className={`absolute top-[20%] right-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob2} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_10s_ease-in-out_infinite_reverse] transition-colors duration-700`}
+              className={`absolute top-[20%] right-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob2} rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 dark:opacity-40 animate-[pulse_10s_ease-in-out_infinite_reverse] transition-colors duration-700`}
             />
             <div
-              className={`absolute bottom-[-20%] left-[20%] w-96 h-96 ${bgPresets[bgIndex].blob3} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_9s_ease-in-out_infinite] transition-colors duration-700`}
+              className={`absolute bottom-[-20%] left-[20%] w-96 h-96 ${bgPresets[bgIndex].blob3} rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 dark:opacity-40 animate-[pulse_9s_ease-in-out_infinite] transition-colors duration-700`}
             />
           </div>
 
@@ -396,15 +394,15 @@ export default function AdminLayout() {
             {/* Desktop Sider */}
             <Layout.Sider
               width={240}
-              theme="light"
-              className="!hidden lg:!flex !fixed !inset-y-0 !left-0 !z-20 !bg-white/70 !backdrop-blur-2xl !border-r !border-slate-200/80 !shadow-sm flex-col"
+              theme={isDark ? "dark" : "light"}
+              className="!hidden lg:!flex !fixed !inset-y-0 !left-0 !z-20 !bg-white/70 dark:!bg-slate-900/75 !backdrop-blur-2xl !border-r !border-slate-200/80 dark:!border-slate-700/70 !shadow-sm flex-col"
             >
               {sidebarContent}
             </Layout.Sider>
 
             {/* Main Layout Area */}
             <Layout className="min-w-0 flex-1 lg:ml-[240px] bg-transparent flex flex-col min-h-dvh">
-              <Layout.Header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/70 px-4 backdrop-blur-xl sm:px-8">
+              <Layout.Header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 dark:border-slate-700/70 bg-white/70 dark:bg-slate-900/75 px-4 backdrop-blur-xl sm:px-8">
                 <div className="flex min-w-0 items-center gap-3">
                   <Button
                     type="text"

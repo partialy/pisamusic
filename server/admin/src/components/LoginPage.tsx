@@ -55,16 +55,16 @@ export default function LoginPage({ onLoggedIn }: Props) {
   };
 
   return (
-    <div className="relative flex min-h-dvh w-full overflow-x-hidden font-sans text-slate-800">
-      <div className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} transition-colors duration-700`}>
+    <div className="relative flex min-h-dvh w-full overflow-x-hidden font-sans text-slate-800 dark:text-slate-100">
+      <div className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} ${bgPresets[bgIndex].darkBase} transition-colors duration-700`}>
         <div
-          className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
+          className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 dark:opacity-40 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
         />
         <div
-          className={`absolute top-[20%] right-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob2} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_10s_ease-in-out_infinite_reverse] transition-colors duration-700`}
+          className={`absolute top-[20%] right-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob2} rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 dark:opacity-40 animate-[pulse_10s_ease-in-out_infinite_reverse] transition-colors duration-700`}
         />
         <div
-          className={`absolute bottom-[-20%] left-[20%] w-96 h-96 ${bgPresets[bgIndex].blob3} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_9s_ease-in-out_infinite] transition-colors duration-700`}
+          className={`absolute bottom-[-20%] left-[20%] w-96 h-96 ${bgPresets[bgIndex].blob3} rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 dark:opacity-40 animate-[pulse_9s_ease-in-out_infinite] transition-colors duration-700`}
         />
       </div>
 
@@ -73,7 +73,7 @@ export default function LoginPage({ onLoggedIn }: Props) {
           <button
             type="button"
             onClick={() => setShowThemePanel(!showThemePanel)}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white/50 rounded-full transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/60 rounded-full transition-colors"
             aria-label="主题"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,7 +88,7 @@ export default function LoginPage({ onLoggedIn }: Props) {
           {showThemePanel && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowThemePanel(false)} aria-hidden />
-              <div className="absolute top-12 right-0 w-[min(16rem,calc(100vw-2rem))] bg-white/90 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] p-5 z-50 animate-fade-in-up">
+              <div className="absolute top-12 right-0 w-[min(16rem,calc(100vw-2rem))] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/60 dark:border-slate-700/70 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.45)] p-5 z-50 animate-fade-in-up">
                 <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">背景渐变</h3>
                 <div className="grid grid-cols-4 gap-2 mb-6">
                   {bgPresets.map((bg, idx) => (
@@ -96,7 +96,7 @@ export default function LoginPage({ onLoggedIn }: Props) {
                       key={idx}
                       type="button"
                       onClick={() => setBgIndex(idx)}
-                      className={`h-6 rounded-full border-2 ${bgIndex === idx ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:scale-105"} bg-gradient-to-r ${bg.base} transition-all`}
+                      className={`h-6 rounded-full border-2 ${bgIndex === idx ? "border-slate-800 dark:border-slate-200 scale-110 shadow-md" : "border-transparent hover:scale-105"} bg-gradient-to-r ${bg.base} transition-all`}
                     />
                   ))}
                 </div>
@@ -107,15 +107,15 @@ export default function LoginPage({ onLoggedIn }: Props) {
                       key={color}
                       type="button"
                       onClick={() => setThemeColor(color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${themeColor === color ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${themeColor === color ? "border-slate-800 dark:border-slate-200 scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
                       style={{ backgroundColor: color }}
                     />
                   ))}
                   <div
-                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 transition-all cursor-pointer ${!colorPresets.includes(themeColor) ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:border-slate-400"}`}
+                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 transition-all cursor-pointer ${!colorPresets.includes(themeColor) ? "border-slate-800 dark:border-slate-200 scale-110 shadow-md" : "border-transparent hover:border-slate-400"}`}
                   >
                     <div className="absolute inset-0 bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 pointer-events-none" />
-                    <div className="absolute inset-1 bg-white rounded-full pointer-events-none flex items-center justify-center">
+                    <div className="absolute inset-1 bg-white dark:bg-slate-900 rounded-full pointer-events-none flex items-center justify-center">
                       <div className="w-4 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
                     </div>
                     <input

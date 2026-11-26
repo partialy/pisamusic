@@ -1,9 +1,13 @@
 import { lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { ConfigProvider } from "antd";
+import zhCN from "antd/locale/zh_CN";
+import { getAdminThemeConfig } from "./constants/theme";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./auth/RequireAuth";
 import AdminLayout from "./layouts/AdminLayout";
 import { useAdminLayout } from "./layouts/AdminLayoutContext";
+import { usePrefersDark } from "./hooks/usePrefersDark";
 import { AdminConfigWorkspaceProvider } from "./state/AdminConfigWorkspaceContext";
 import { CloudMusicUploadQueueProvider } from "./state/CloudMusicUploadQueueContext";
 import { ReleasePublishQueueProvider } from "./state/ReleasePublishQueueContext";
@@ -69,55 +73,63 @@ function RuntimeConfigRoute() {
 }
 
 export default function App() {
+  const isDark = usePrefersDark();
+
   return (
-    <InstallationGuard>
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<RequireAuth />}>
-          <Route
-            element={
-              <AdminConfigWorkspaceProvider>
-                <CloudMusicUploadQueueProvider>
-                  <ReleasePublishQueueProvider>
-                    <AdminLayout />
-                  </ReleasePublishQueueProvider>
-                </CloudMusicUploadQueueProvider>
-              </AdminConfigWorkspaceProvider>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardRoute />} />
-            <Route path="/api-docs" element={<ApiDocsPage />} />
-            <Route path="/users" element={<UserManagementPage />} />
-            <Route path="/verification-codes" element={<VerificationCodesRoute />} />
-            <Route path="/listening-levels" element={<ListeningLevelsRoute />} />
-            <Route path="/devices" element={<DevicesPage />} />
-            <Route path="/cloud-music" element={<CloudMusicRoute />} />
-            <Route path="/song-downloads" element={<SongDownloadsPage />} />
-            <Route path="/shares" element={<ShareManagementPage />} />
-            <Route path="/listen-together" element={<ListenTogetherManagementPage />} />
-            <Route path="/files" element={<FileManagementPage />} />
-            <Route path="/website-records" element={<WebsiteRecordsRoute />} />
-            <Route path="/updates" element={<UpdateManagementPage />} />
-            <Route path="/announcements" element={<AnnouncementsManagementPage />} />
-            <Route path="/sidebar-menus" element={<SidebarMenuManagementPage />} />
-            <Route path="/content" element={<ContentManagementPage />} />
-            <Route path="/redemption-codes" element={<RedemptionCodesPage />} />
-            <Route path="/feedback" element={<FeedbackManagementPage />} />
-            <Route path="/fault-reports" element={<FaultReportsPage />} />
-            <Route path="/system" element={<SystemConfigPage />} />
-            <Route path="/app-share" element={<AppSharePage />} />
-            <Route path="/app-share-records" element={<AppShareRecordsPage />} />
-            <Route path="/dynamic-configs" element={<DynamicConfigPage />} />
-            <Route path="/runtime-config" element={<RuntimeConfigRoute />} />
-            <Route path="/encryption" element={<EncryptionPage />} />
-            <Route path="/database-migration" element={<DatabaseMigrationPage />} />
+    <ConfigProvider
+      locale={zhCN}
+      componentSize="middle"
+      theme={getAdminThemeConfig(isDark)}
+    >
+      <InstallationGuard>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<RequireAuth />}>
+            <Route
+              element={
+                <AdminConfigWorkspaceProvider>
+                  <CloudMusicUploadQueueProvider>
+                    <ReleasePublishQueueProvider>
+                      <AdminLayout />
+                    </ReleasePublishQueueProvider>
+                  </CloudMusicUploadQueueProvider>
+                </AdminConfigWorkspaceProvider>
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardRoute />} />
+              <Route path="/api-docs" element={<ApiDocsPage />} />
+              <Route path="/users" element={<UserManagementPage />} />
+              <Route path="/verification-codes" element={<VerificationCodesRoute />} />
+              <Route path="/listening-levels" element={<ListeningLevelsRoute />} />
+              <Route path="/devices" element={<DevicesPage />} />
+              <Route path="/cloud-music" element={<CloudMusicRoute />} />
+              <Route path="/song-downloads" element={<SongDownloadsPage />} />
+              <Route path="/shares" element={<ShareManagementPage />} />
+              <Route path="/listen-together" element={<ListenTogetherManagementPage />} />
+              <Route path="/files" element={<FileManagementPage />} />
+              <Route path="/website-records" element={<WebsiteRecordsRoute />} />
+              <Route path="/updates" element={<UpdateManagementPage />} />
+              <Route path="/announcements" element={<AnnouncementsManagementPage />} />
+              <Route path="/sidebar-menus" element={<SidebarMenuManagementPage />} />
+              <Route path="/content" element={<ContentManagementPage />} />
+              <Route path="/redemption-codes" element={<RedemptionCodesPage />} />
+              <Route path="/feedback" element={<FeedbackManagementPage />} />
+              <Route path="/fault-reports" element={<FaultReportsPage />} />
+              <Route path="/system" element={<SystemConfigPage />} />
+              <Route path="/app-share" element={<AppSharePage />} />
+              <Route path="/app-share-records" element={<AppShareRecordsPage />} />
+              <Route path="/dynamic-configs" element={<DynamicConfigPage />} />
+              <Route path="/runtime-config" element={<RuntimeConfigRoute />} />
+              <Route path="/encryption" element={<EncryptionPage />} />
+              <Route path="/database-migration" element={<DatabaseMigrationPage />} />
+            </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </AuthProvider>
-    </InstallationGuard>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
+      </InstallationGuard>
+    </ConfigProvider>
   );
 }
