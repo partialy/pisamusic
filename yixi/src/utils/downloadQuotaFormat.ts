@@ -14,5 +14,8 @@ export function formatQuotaExceededLines(quota: SongDownloadQuotaSnapshot): stri
   if (quota.total.limit !== null) {
     lines.push(`${quota.total.remaining ?? 0} / ${quota.total.limit}（总数）`);
   }
+  if ((quota.extraRemaining ?? 0) > 0) {
+    lines.push(`额外可用次数：${quota.extraRemaining} 次（常规配额不足时自动抵扣）`);
+  }
   return lines;
 }

@@ -22,7 +22,9 @@ export type SongDownloadQuotaDimension = {
 export type SongDownloadQuotaSnapshot = {
   subjectType: "user" | "device";
   subjectKey: string;
+  isGuest?: boolean;
   overrideEnabled: boolean;
+  extraRemaining?: number;
   daily: SongDownloadQuotaDimension;
   weekly: SongDownloadQuotaDimension;
   monthly: SongDownloadQuotaDimension;
