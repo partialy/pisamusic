@@ -61,6 +61,7 @@ yixi/package-lock.json
 server/uploads/
 server/web/
 server/web-admin/
+server/web-h5/
 server/web-user/
 server/.env
 server/data/
