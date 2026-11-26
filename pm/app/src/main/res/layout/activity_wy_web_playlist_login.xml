@@ -28,9 +28,15 @@
             app:navigationIcon="@drawable/ic_back_24" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <WebView
-        android:id="@+id/wyWebView"
+    <FrameLayout
+        android:id="@+id/wyWebContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
+
+        <WebView
+            android:id="@+id/wyWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 </LinearLayout>

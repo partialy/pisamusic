@@ -249,3 +249,7 @@
 
 - `FeedbackHistoryActivity` / `FeedbackHistoryAdapter`（`activity_feedback_history.xml`、`item_feedback_history.xml`）：入口位于 `FeedbackActivity` 顶栏右上角；复用类歌曲列表排布与 `item_playlist_detail_status.xml` 分页底栏，左图/反馈类型图标圆角底占位（`bg_feedback_history_placeholder`）、中上类型下描述、右上时间下线条药丸状态（`bg_feedback_status_pill_pending` / `bg_feedback_status_pill_processed`）。
 - `FeedbackDetailBottomSheet`（`bottom_sheet_feedback_detail.xml`）：复用 `ThemeOverlay_Pm_BottomSheetDialog` 与 `bg_bottom_radius_sheet` 展示类型、状态、反馈时间、处理时间、联系方式、描述与附件缩略图，点击附件复用 `dialog_image_preview.xml` 全屏预览。
+
+## 网页加载失败覆盖页（2026-11-26）
+
+- `ui/web/WebPageErrorOverlayController.kt` + `assets/error/error.html`：用于 `WebContentActivity`、`FullscreenWebContentActivity` 与 `WyWebPlaylistLoginActivity` 网页加载失败时隐藏原 `WebView` 并叠层展示本地错误页，支持 `hasHeaderBar` 自适应悬浮磨砂返回键、`isDarkMode` 深浅色（`data-theme` + `prefers-color-scheme`）、点击直接关闭与重试期间保持 loading 直至原 `WebView` 加载完成后销毁替换。

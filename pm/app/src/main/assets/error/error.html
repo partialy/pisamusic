@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <meta name="format-detection" content="telephone=no" />
+  <title>加载失败</title>
+  <style>
+    :root {
+      --status-bar-height: 0px;
+      --navigation-bar-height: 0px;
+      --bg-base: #f7f9fc;
+      --text-primary: #111827;
+      --text-secondary: #64748b;
+      --primary: #1677ff;
+      --primary-hover: #0958d9;
+      --primary-shadow: rgba(22, 119, 255, 0.28);
+      --secondary-border: #cbd5e1;
+      --secondary-text: #334155;
+      --secondary-active-bg: rgba(15, 23, 42, 0.04);
+      --glass-bg: rgba(255, 255, 255, 0.68);
+      --glass-border: rgba(255, 255, 255, 0.88);
+      --glass-shadow: 0 6px 20px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      --icon-stroke: #1677ff;
+      --icon-muted: #dbeafe;
+      --icon-surface: #ffffff;
+      --toast-bg: rgba(15, 23, 42, 0.86);
+      --toast-text: #f8fafc;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg-base: #0b1120;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --primary: #2f80ff;
+        --primary-hover: #1d6ef0;
+        --primary-shadow: rgba(47, 128, 255, 0.32);
+        --secondary-border: #334155;
+        --secondary-text: #e2e8f0;
+        --secondary-active-bg: rgba(255, 255, 255, 0.06);
+        --glass-bg: rgba(30, 41, 59, 0.62);
+        --glass-border: rgba(148, 163, 184, 0.24);
+        --glass-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        --icon-stroke: #60a5fa;
+        --icon-muted: rgba(59, 130, 246, 0.16);
+        --icon-surface: #111827;
+        --toast-bg: rgba(30, 41, 59, 0.94);
+        --toast-text: #f8fafc;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg-base: #0b1120;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --primary: #2f80ff;
+      --primary-hover: #1d6ef0;
+      --primary-shadow: rgba(47, 128, 255, 0.32);
+      --secondary-border: #334155;
+      --secondary-text: #e2e8f0;
+      --secondary-active-bg: rgba(255, 255, 255, 0.06);
+      --glass-bg: rgba(30, 41, 59, 0.62);
+      --glass-border: rgba(148, 163, 184, 0.24);
+      --glass-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      --icon-stroke: #60a5fa;
+      --icon-muted: rgba(59, 130, 246, 0.16);
+      --icon-surface: #111827;
+      --toast-bg: rgba(30, 41, 59, 0.94);
+      --toast-text: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+        "Microsoft YaHei", "Inter", "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    body {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background-image:
+        radial-gradient(circle at 14% 8%, rgba(22, 119, 255, 0.13) 0%, transparent 38%),
+        radial-gradient(circle at 88% 18%, rgba(56, 189, 248, 0.1) 0%, transparent 34%);
+    }
+
+    /* 无原生 HeaderBar 时展示的左上角圆形磨砂玻璃返回按钮 */
+    .floating-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      padding: calc(max(env(safe-area-inset-top, 0px), var(--status-bar-height, 0px)) + 14px) 16px 8px;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .floating-header.is-hidden {
+      display: none;
+    }
+
+    .glass-back-btn {
+      pointer-events: auto;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, background-color 0.16s ease;
+    }
+
+    .glass-back-btn:active {
+      transform: scale(0.92);
+      opacity: 0.85;
+    }
+
+    .glass-back-btn svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    /* 主内容区域 */
+    .page-main {
+      flex: 1;
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      padding: calc(max(env(safe-area-inset-top, 0px), var(--status-bar-height, 0px)) + 72px) 28px
+        calc(max(env(safe-area-inset-bottom, 0px), var(--navigation-bar-height, 0px)) + 36px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    /* 若宿主已有原生 HeaderBar，适当减小顶部留白 */
+    body.has-native-header .page-main {
+      padding-top: 32px;
+    }
+
+    /* 简约 404 大图标 */
+    .error-illustration {
+      width: 196px;
+      max-width: 62vw;
+      height: auto;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .error-illustration svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .error-title {
+      font-size: 21px;
+      font-weight: 600;
+      line-height: 1.35;
+      letter-spacing: 0.01em;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .error-desc {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      max-width: 268px;
+      margin-bottom: 36px;
+    }
+
+    /* 按钮组 */
+    .action-group {
+      width: 100%;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .pill-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 9999px;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      outline: none;
+      transition: transform 0.15s ease, background-color 0.18s ease, box-shadow 0.18s ease,
+        border-color 0.18s ease, opacity 0.18s ease;
+    }
+
+    .pill-btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    .pill-btn:disabled {
+      opacity: 0.72;
+      cursor: default;
+    }
+
+    /* 主按钮：药丸蓝色背景 */
+    .pill-btn-primary {
+      border: none;
+      background: linear-gradient(135deg, #2b85ff 0%, var(--primary) 100%);
+      color: #ffffff;
+      box-shadow: 0 8px 20px var(--primary-shadow);
+    }
+
+    .pill-btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #1d76f2 0%, var(--primary-hover) 100%);
+    }
+
+    /* 次要按钮：药丸线条 */
+    .pill-btn-secondary {
+      border: 1.5px solid var(--secondary-border);
+      background: transparent;
+      color: var(--secondary-text);
+    }
+
+    .pill-btn-secondary:hover:not(:disabled) {
+      background: var(--secondary-active-bg);
+    }
+
+    /* 加载中旋转动画 */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      display: none;
+      animation: spin 0.75s linear infinite;
+    }
+
+    .pill-btn-primary.is-loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 轻量提示 Toast */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--navigation-bar-height, 0px)) + 32px);
+      transform: translateX(-50%) translateY(12px);
+      padding: 10px 18px;
+      border-radius: 9999px;
+      background: var(--toast-bg);
+      color: var(--toast-text);
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      z-index: 30;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <!-- 无原生 HeaderBar 时显示：左上角圆形磨砂玻璃返回按钮 -->
+  <header id="floatingHeader" class="floating-header" aria-label="页面导航">
+    <button
+      id="backBtn"
+      type="button"
+      class="glass-back-btn"
+      aria-label="返回"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+  </header>
+
+  <main class="page-main" role="main">
+    <!-- 简约 404 大图标 -->
+    <div class="error-illustration" aria-hidden="true">
+      <svg viewBox="0 0 220 156" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="110" cy="134" rx="74" ry="10" fill="var(--icon-muted)" />
+        <circle cx="44" cy="36" r="10" fill="var(--icon-muted)" />
+        <circle cx="182" cy="44" r="6" fill="var(--icon-muted)" />
+
+        <rect
+          x="26"
+          y="26"
+          width="168"
+          height="96"
+          rx="24"
+          fill="var(--icon-surface)"
+          stroke="var(--icon-muted)"
+          stroke-width="2"
+        />
+
+        <text
+          x="110"
+          y="91"
+          text-anchor="middle"
+          fill="var(--icon-stroke)"
+          font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif"
+          font-size="54"
+          font-weight="700"
+          letter-spacing="4"
+        >404</text>
+
+        <circle cx="46" cy="42" r="3" fill="var(--icon-muted)" />
+        <circle cx="57" cy="42" r="3" fill="var(--icon-muted)" />
+        <circle cx="68" cy="42" r="3" fill="var(--icon-muted)" />
+      </svg>
+    </div>
+
+    <h1 class="error-title">加载失败</h1>
+    <p id="errorDesc" class="error-desc">页面暂时无法打开，请检查网络后重试或关闭当前页面</p>
+
+    <div class="action-group">
+      <button id="retryBtn" type="button" class="pill-btn pill-btn-primary">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="retryBtnText">重试</span>
+      </button>
+
+      <button id="closeBtn" type="button" class="pill-btn pill-btn-secondary">
+        关闭页面
+      </button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      const floatingHeader = document.getElementById('floatingHeader');
+      const backBtn = document.getElementById('backBtn');
+      const retryBtn = document.getElementById('retryBtn');
+      const retryBtnText = document.getElementById('retryBtnText');
+      const closeBtn = document.getElementById('closeBtn');
+      const toastEl = document.getElementById('toast');
+
+      let toastTimer = null;
+
+      function showToast(message) {
+        if (!message) return;
+        if (toastTimer) {
+          clearTimeout(toastTimer);
+        }
+        toastEl.textContent = message;
+        toastEl.classList.add('is-visible');
+        toastTimer = setTimeout(function () {
+          toastEl.classList.remove('is-visible');
+        }, 2000);
+      }
+
+      function getHostBridge() {
+        return window.AndroidWebHost || window.NativeBridge || window.AndroidBridge || null;
+      }
+
+      /**
+       * 判断当前 WebView 容器是否已自带原生 HeaderBar
+       * @returns {boolean} true 表示已有原生 HeaderBar（隐藏页面自带返回按钮）；false 表示无原生 HeaderBar
+       */
+      function hasNativeHeaderBar() {
+        try {
+          const bridge = getHostBridge();
+          if (bridge && typeof bridge.hasHeaderBar === 'function') {
+            return Boolean(bridge.hasHeaderBar());
+          }
+          const params = new URLSearchParams(window.location.search);
+          const flag = params.get('nativeHeader');
+          if (flag === '1' || flag === 'true') return true;
+          if (flag === '0' || flag === 'false') return false;
+        } catch (e) {
+          // 忽略异常，降级为无原生 HeaderBar
+        }
+        return false;
+      }
+
+      function syncHeaderVisibility(overrideValue) {
+        const hasNative = typeof overrideValue === 'boolean' ? overrideValue : hasNativeHeaderBar();
+        if (hasNative) {
+          floatingHeader.classList.add('is-hidden');
+          document.body.classList.add('has-native-header');
+        } else {
+          floatingHeader.classList.remove('is-hidden');
+          document.body.classList.remove('has-native-header');
+        }
+      }
+
+      function resolveDarkMode() {
+        try {
+          const bridge = getHostBridge();
+          if (bridge && typeof bridge.isDarkMode === 'function') {
+            return Boolean(bridge.isDarkMode());
+          }
+          const params = new URLSearchParams(window.location.search);
+          const theme = params.get('theme');
+          if (theme === 'dark') return true;
+          if (theme === 'light') return false;
+        } catch (e) {
+          // 忽略异常
+        }
+        return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+
+      function syncThemeMode(overrideDark) {
+        const isDark = typeof overrideDark === 'boolean' ? overrideDark : resolveDarkMode();
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      }
+
+      function setRetryLoading(loading, tipMessage) {
+        if (loading) {
+          retryBtn.disabled = true;
+          retryBtn.classList.add('is-loading');
+          retryBtnText.textContent = '正在重试...';
+        } else {
+          retryBtn.disabled = false;
+          retryBtn.classList.remove('is-loading');
+          retryBtnText.textContent = '重试';
+          if (tipMessage) {
+            showToast(tipMessage);
+          }
+        }
+      }
+
+      function handleRetry() {
+        if (retryBtn.disabled) return;
+        setRetryLoading(true);
+
+        const bridge = getHostBridge();
+        if (bridge && typeof bridge.reload === 'function') {
+          bridge.reload();
+          return;
+        }
+        if (bridge && typeof bridge.retry === 'function') {
+          bridge.retry();
+          return;
+        }
+        window.location.reload();
+      }
+
+      function handleClosePage() {
+        const bridge = getHostBridge();
+        if (bridge && typeof bridge.close === 'function') {
+          bridge.close();
+          return;
+        }
+        if (bridge && typeof bridge.closePage === 'function') {
+          bridge.closePage();
+          return;
+        }
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.closePage) {
+          window.webkit.messageHandlers.closePage.postMessage(null);
+          return;
+        }
+        window.close();
+      }
+
+      window.pmErrorPageSetRetryLoading = setRetryLoading;
+      window.pmErrorPageSetTheme = syncThemeMode;
+      window.pmErrorPageSetHeaderBar = syncHeaderVisibility;
+
+      backBtn.addEventListener('click', handleClosePage);
+      retryBtn.addEventListener('click', handleRetry);
+      closeBtn.addEventListener('click', handleClosePage);
+
+      if (window.matchMedia) {
+        const mql = window.matchMedia('(prefers-color-scheme: dark)');
+        const onSchemeChange = function () {
+          syncThemeMode();
+        };
+        if (typeof mql.addEventListener === 'function') {
+          mql.addEventListener('change', onSchemeChange);
+        }
+      }
+
+      syncThemeMode();
+      syncHeaderVisibility();
+    })();
+  </script>
+</body>
+</html>

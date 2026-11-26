@@ -6,12 +6,16 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -23,6 +27,7 @@ import cn.partialy.pm.databinding.ActivityFullscreenWebContentBinding
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.web.WebPageErrorOverlayController
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.util.Locale
@@ -31,14 +36,20 @@ import java.util.Locale
  * 全屏无顶栏 WebView：
  * - Edge-to-Edge 全屏，无原生 HeaderBar 及返回键；
  * - 注入 CSS 变量 `--status-bar-height`、`--navigation-bar-height`（以及兼容别名 `--android-status-bar-height`、`--android-navigation-bar-height`，物理 px / density 换算为 CSS px）；
- * - 挂载 `window.AndroidWebHost`（`navigateBack` / `close` / `getSafeAreaInsets`）；
+ * - 挂载 `window.AndroidWebHost`（`navigateBack` / `close` / `getSafeAreaInsets` / `hasHeaderBar` / `isDarkMode`）；
  * - 系统返回优先调 `window.onAndroidBackPressed()`，仅当其明确返回 `true` 时交由网页接管，否则执行 `navigateBackOrFinish()`。
  */
 class FullscreenWebContentActivity : BaseActivity() {
 
     private lateinit var binding: ActivityFullscreenWebContentBinding
+    private var errorOverlayController: WebPageErrorOverlayController? = null
     private var statusBarCssPx: Float = 0f
     private var navigationBarCssPx: Float = 0f
+
+    private fun currentIsDarkMode(): Boolean {
+        return (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,9 +57,7 @@ class FullscreenWebContentActivity : BaseActivity() {
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
-        val isNight =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
+        val isNight = currentIsDarkMode()
         enableEdgeToEdgeSystemBars(
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
@@ -59,6 +68,7 @@ class FullscreenWebContentActivity : BaseActivity() {
             statusBarCssPx = insets.top / density
             navigationBarCssPx = insets.bottom / density
             injectSafeAreaCssVariables()
+            errorOverlayController?.syncSafeAreaCssVariables()
         }
 
         onBackPressedDispatcher.addCallback(
@@ -79,6 +89,25 @@ class FullscreenWebContentActivity : BaseActivity() {
         }
 
         val wv = binding.fullscreenWebView
+        errorOverlayController = WebPageErrorOverlayController(
+            contentContainer = binding.fullscreenWebRoot,
+            contentWebView = wv,
+            hasNativeHeaderBar = false,
+            isDarkModeProvider = { currentIsDarkMode() },
+            statusBarCssPxProvider = { statusBarCssPx },
+            navigationBarCssPxProvider = { navigationBarCssPx },
+            onRetryRequest = { targetUrl ->
+                if (!isFinishing && !isDestroyed) {
+                    wv.loadUrl(targetUrl)
+                }
+            },
+            onClosePage = {
+                if (!isFinishing && !isDestroyed) {
+                    finish()
+                }
+            },
+        )
+
         CookieManager.getInstance().setAcceptCookie(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true)
@@ -99,16 +128,47 @@ class FullscreenWebContentActivity : BaseActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                errorOverlayController?.onMainPageStarted(url)
                 injectSafeAreaCssVariables()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 injectSafeAreaCssVariables()
+                errorOverlayController?.onMainPageFinished(url)
+            }
+
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError,
+            ) {
+                super.onReceivedError(view, request, error)
+                errorOverlayController?.onMainReceivedError(request, error)
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse,
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                errorOverlayController?.onMainReceivedHttpError(request, errorResponse)
+            }
+
+            override fun onReceivedSslError(
+                view: WebView?,
+                handler: SslErrorHandler?,
+                error: SslError?,
+            ) {
+                handler?.cancel()
+                errorOverlayController?.onMainSslError(error?.url)
             }
         }
         wv.addJavascriptInterface(FullscreenWebJsBridge(this), JS_INTERFACE_NAME)
-        wv.loadUrl(uri.toString())
+        val initialUrl = uri.toString()
+        errorOverlayController?.trackUrl(initialUrl)
+        wv.loadUrl(initialUrl)
     }
 
     internal fun injectSafeAreaCssVariables() {
@@ -139,7 +199,7 @@ class FullscreenWebContentActivity : BaseActivity() {
     }
 
     private fun handleSystemBackPressed() {
-        if (!::binding.isInitialized) {
+        if (!::binding.isInitialized || errorOverlayController?.isErrorVisible == true) {
             finish()
             return
         }
@@ -160,7 +220,7 @@ class FullscreenWebContentActivity : BaseActivity() {
     }
 
     internal fun navigateBackOrFinish() {
-        if (!::binding.isInitialized) {
+        if (!::binding.isInitialized || errorOverlayController?.isErrorVisible == true) {
             finish()
             return
         }
@@ -179,7 +239,11 @@ class FullscreenWebContentActivity : BaseActivity() {
         }.toString()
     }
 
+    internal fun isDarkMode(): Boolean = currentIsDarkMode()
+
     override fun onDestroy() {
+        errorOverlayController?.destroy()
+        errorOverlayController = null
         if (::binding.isInitialized) {
             binding.fullscreenWebView.removeJavascriptInterface(JS_INTERFACE_NAME)
             binding.fullscreenWebView.apply {
@@ -231,6 +295,12 @@ private class FullscreenWebJsBridge(activity: FullscreenWebContentActivity) {
             if (!a.isFinishing && !a.isDestroyed) a.finish()
         }
     }
+
+    @JavascriptInterface
+    fun hasHeaderBar(): Boolean = false
+
+    @JavascriptInterface
+    fun isDarkMode(): Boolean = ref.get()?.isDarkMode() ?: false
 
     @JavascriptInterface
     fun getSafeAreaInsets(): String {

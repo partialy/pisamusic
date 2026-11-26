@@ -5,25 +5,31 @@ import cn.partialy.pm.ui.message.PmMessage
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
-import android.content.res.Configuration
 import android.view.Menu
 import android.view.MenuItem
 import android.webkit.CookieManager
+import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
-import androidx.core.view.size
+import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityWyWebPlaylistLoginBinding
+import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
-import androidx.core.view.updatePadding
-import cn.partialy.pm.network.cookie.WyCookieRepository
+import cn.partialy.pm.ui.web.WebPageErrorOverlayController
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -37,6 +43,12 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
     lateinit var wyCookieRepository: WyCookieRepository
 
     private lateinit var binding: ActivityWyWebPlaylistLoginBinding
+    private var errorOverlayController: WebPageErrorOverlayController? = null
+
+    private fun currentIsDarkMode(): Boolean {
+        return (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,9 +56,7 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
-        val isNight =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
+        val isNight = currentIsDarkMode()
         enableEdgeToEdgeSystemBars(
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
@@ -55,7 +65,7 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
             val lp = binding.wyWebLoginStatusBarSpacer.layoutParams
             lp.height = insets.top
             binding.wyWebLoginStatusBarSpacer.layoutParams = lp
-            binding.wyWebView.updatePadding(bottom = insets.bottom)
+            binding.wyWebContainer.updatePadding(bottom = insets.bottom)
         }
 
         setSupportActionBar(binding.wyWebToolbar)
@@ -73,14 +83,69 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
         )
 
         val wv = binding.wyWebView
+        errorOverlayController = WebPageErrorOverlayController(
+            contentContainer = binding.wyWebContainer,
+            contentWebView = wv,
+            hasNativeHeaderBar = true,
+            isDarkModeProvider = { currentIsDarkMode() },
+            onRetryRequest = { targetUrl ->
+                if (!isFinishing && !isDestroyed) {
+                    wv.loadUrl(targetUrl)
+                }
+            },
+            onClosePage = {
+                if (!isFinishing && !isDestroyed) {
+                    finish()
+                }
+            },
+        )
+
         CookieManager.getInstance().setAcceptCookie(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true)
         }
         wv.settings.javaScriptEnabled = true
         wv.settings.domStorageEnabled = true
-        wv.webViewClient = WebViewClient()
-        wv.loadUrl("https://music.163.com/m/login")
+        wv.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                errorOverlayController?.onMainPageStarted(url)
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                errorOverlayController?.onMainPageFinished(url)
+            }
+
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError,
+            ) {
+                super.onReceivedError(view, request, error)
+                errorOverlayController?.onMainReceivedError(request, error)
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse,
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                errorOverlayController?.onMainReceivedHttpError(request, errorResponse)
+            }
+
+            override fun onReceivedSslError(
+                view: WebView?,
+                handler: SslErrorHandler?,
+                error: SslError?,
+            ) {
+                handler?.cancel()
+                errorOverlayController?.onMainSslError(error?.url)
+            }
+        }
+        errorOverlayController?.trackUrl(WY_LOGIN_URL)
+        wv.loadUrl(WY_LOGIN_URL)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -96,9 +161,9 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    /** 系统返回键与 Toolbar 返回：优先 WebView 历史，否则关闭页面。 */
+    /** 系统返回键与 Toolbar 返回：错误页展示时直接关闭，否则优先 WebView 历史。 */
     private fun navigateBackInWebOrFinish() {
-        if (!::binding.isInitialized) {
+        if (!::binding.isInitialized || errorOverlayController?.isErrorVisible == true) {
             finish()
             return
         }
@@ -127,13 +192,17 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
         lifecycleScope.launch {
             wyCookieRepository.saveLoginSession(chunks.joinToString("; "))
                 .onSuccess {
-                    cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenFinish(this@WyWebPlaylistLoginActivity, getString(R.string.playlist_import_cookie_saved))
+                    cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenFinish(
+                        this@WyWebPlaylistLoginActivity,
+                        getString(R.string.playlist_import_cookie_saved),
+                    )
                 }
                 .onFailure { e ->
                     completingImport = false
                     PmMessage.error(
                         this@WyWebPlaylistLoginActivity,
-                        e.message ?: getString(R.string.drawer_wy_web_cookie_empty))
+                        e.message ?: getString(R.string.drawer_wy_web_cookie_empty),
+                    )
                 }
         }
     }
@@ -144,6 +213,8 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
+        errorOverlayController?.destroy()
+        errorOverlayController = null
         if (::binding.isInitialized) {
             binding.wyWebView.apply {
                 stopLoading()
@@ -156,6 +227,8 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
     }
 
     companion object {
+        private const val WY_LOGIN_URL = "https://music.163.com/m/login"
+
         fun start(context: Context) {
             context.startActivity(Intent(context, WyWebPlaylistLoginActivity::class.java))
             PlaylistLoginNavTransitions.applyOpenFromCaller(context)

@@ -6,35 +6,46 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.Keep
-import cn.partialy.pm.ui.message.PmMessage
+import androidx.core.view.updatePadding
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityWebContentBinding
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
-import androidx.core.view.updatePadding
+import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.web.WebPageErrorOverlayController
 import java.lang.ref.WeakReference
 
 /**
- * 全屏 WebView：页面内自绘顶栏与导航。H5 可调用 `AndroidWebHost.navigateBack()`：
+ * 带原生顶栏 WebView：H5 可调用 `AndroidWebHost.navigateBack()` / `close()` / `setTitle()`：
  * 若 WebView 有历史则 [WebView.goBack]，否则关闭 Activity。
  * 启动：[start] 传入 http(s) 链接，用于公告、活动等。
  */
 class WebContentActivity : BaseActivity() {
 
     private lateinit var binding: ActivityWebContentBinding
+    private var errorOverlayController: WebPageErrorOverlayController? = null
     private var jsCustomTitleLocked = false
+
+    private fun currentIsDarkMode(): Boolean {
+        return (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,9 +53,7 @@ class WebContentActivity : BaseActivity() {
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
-        val isNight =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
+        val isNight = currentIsDarkMode()
         enableEdgeToEdgeSystemBars(
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
@@ -53,7 +62,7 @@ class WebContentActivity : BaseActivity() {
             val lp = binding.statusBarSpacer.layoutParams
             lp.height = insets.top
             binding.statusBarSpacer.layoutParams = lp
-            binding.webContentWebView.updatePadding(bottom = insets.bottom)
+            binding.webContentContainer.updatePadding(bottom = insets.bottom)
         }
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -79,6 +88,23 @@ class WebContentActivity : BaseActivity() {
         }
 
         val wv = binding.webContentWebView
+        errorOverlayController = WebPageErrorOverlayController(
+            contentContainer = binding.webContentContainer,
+            contentWebView = wv,
+            hasNativeHeaderBar = true,
+            isDarkModeProvider = { currentIsDarkMode() },
+            onRetryRequest = { targetUrl ->
+                if (!isFinishing && !isDestroyed) {
+                    wv.loadUrl(targetUrl)
+                }
+            },
+            onClosePage = {
+                if (!isFinishing && !isDestroyed) {
+                    finish()
+                }
+            },
+        )
+
         CookieManager.getInstance().setAcceptCookie(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true)
@@ -106,16 +132,50 @@ class WebContentActivity : BaseActivity() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 jsCustomTitleLocked = false
+                errorOverlayController?.onMainPageStarted(url)
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                errorOverlayController?.onMainPageFinished(url)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val u = request.url
-                if (u.scheme == "http" || u.scheme == "https") return false
-                return true
+                return !(u.scheme == "http" || u.scheme == "https")
+            }
+
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError,
+            ) {
+                super.onReceivedError(view, request, error)
+                errorOverlayController?.onMainReceivedError(request, error)
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse,
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                errorOverlayController?.onMainReceivedHttpError(request, errorResponse)
+            }
+
+            override fun onReceivedSslError(
+                view: WebView?,
+                handler: SslErrorHandler?,
+                error: SslError?,
+            ) {
+                handler?.cancel()
+                errorOverlayController?.onMainSslError(error?.url)
             }
         }
         wv.addJavascriptInterface(WebContentJsBridge(this), JS_INTERFACE_NAME)
-        wv.loadUrl(uri.toString())
+        val initialUrl = uri.toString()
+        errorOverlayController?.trackUrl(initialUrl)
+        wv.loadUrl(initialUrl)
     }
 
     internal fun setPageTitleFromJs(title: String?) {
@@ -126,7 +186,7 @@ class WebContentActivity : BaseActivity() {
     }
 
     internal fun navigateBackOrFinish() {
-        if (!::binding.isInitialized) {
+        if (!::binding.isInitialized || errorOverlayController?.isErrorVisible == true) {
             finish()
             return
         }
@@ -138,7 +198,11 @@ class WebContentActivity : BaseActivity() {
         }
     }
 
+    internal fun isDarkMode(): Boolean = currentIsDarkMode()
+
     override fun onDestroy() {
+        errorOverlayController?.destroy()
+        errorOverlayController = null
         if (::binding.isInitialized) {
             binding.webContentWebView.removeJavascriptInterface(JS_INTERFACE_NAME)
             binding.webContentWebView.apply {
@@ -204,6 +268,12 @@ private class WebContentJsBridge(activity: WebContentActivity) {
             if (!a.isFinishing && !a.isDestroyed) a.finish()
         }
     }
+
+    @JavascriptInterface
+    fun hasHeaderBar(): Boolean = true
+
+    @JavascriptInterface
+    fun isDarkMode(): Boolean = ref.get()?.isDarkMode() ?: false
 
     @JavascriptInterface
     fun setTitle(title: String?) {
